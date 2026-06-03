@@ -1,0 +1,83 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "next": "Siguiente",
+    "back": "Atrás",
+    "done": "Listo",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "loading": "Cargando..."
+  },
+  "disclaimer": "Esta app no proporciona consejo médico. Consulta a un profesional de la salud antes de iniciar cualquier programa de ejercicio o dieta.",
+  "onboarding": {
+    "step": "Paso {{current}} de {{total}}",
+    "welcome": {
+      "title": "Bienvenido a FitApp",
+      "subtitle": "Tu entrenador personal sin conexión",
+      "namePlaceholder": "Tu nombre",
+      "units": "Unidades de medida",
+      "metric": "Métrico (kg, cm)",
+      "imperial": "Imperial (lb, ft)"
+    },
+    "physical": {
+      "title": "Tus datos físicos",
+      "birthYear": "Año de nacimiento",
+      "gender": "Género",
+      "male": "Hombre",
+      "female": "Mujer",
+      "other": "Otro",
+      "height": "Altura",
+      "weight": "Peso actual"
+    },
+    "goal": {
+      "title": "¿Cuál es tu objetivo?",
+      "strength": "Fuerza",
+      "strengthDesc": "Levantar más peso y ganar fuerza máxima",
+      "hypertrophy": "Hipertrofia",
+      "hypertrophyDesc": "Ganar músculo y aumentar el volumen corporal",
+      "fat_loss": "Pérdida de grasa",
+      "fat_lossDesc": "Quemar grasa y mejorar la composición corporal"
+    },
+    "schedule": {
+      "title": "Tu horario de entrenamiento",
+      "daysPerWeek": "Días por semana",
+      "minutesPerSession": "Minutos por sesión"
+    },
+    "location": {
+      "title": "¿Dónde entrenas?",
+      "home": "En casa",
+      "gym": "Gimnasio",
+      "both": "Ambos",
+      "equipment": "¿Con qué equipamiento cuentas?",
+      "equipmentItems": {
+        "bodyweight": "Peso corporal",
+        "bands": "Bandas elásticas",
+        "dumbbells": "Mancuernas",
+        "pullupBar": "Barra dominadas",
+        "kettlebell": "Kettlebell",
+        "mat": "Esterilla",
+        "barbells": "Barra y discos",
+        "machines": "Máquinas",
+        "cables": "Poleas",
+        "bench": "Banco",
+        "rack": "Rack / jaula"
+      }
+    },
+    "injuries": {
+      "title": "Lesiones o limitaciones",
+      "subtitle": "Opcional — describimos cualquier dolor o limitación para adaptar tu plan",
+      "placeholder": "Ej: dolor en la rodilla derecha, no puedo hacer sentadillas profundas..."
+    },
+    "summary": {
+      "title": "Tu perfil",
+      "name": "Nombre",
+      "goal": "Objetivo",
+      "schedule": "Horario",
+      "location": "Lugar",
+      "units": "Unidades",
+      "disclaimer": "⚠️ Esta app no proporciona consejo médico. Consulta a un profesional de la salud antes de iniciar cualquier programa de ejercicio o nutrición.",
+      "start": "¡Empezar a entrenar!"
+    }
+  }
+}

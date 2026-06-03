@@ -1,0 +1,83 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "next": "Next",
+    "back": "Back",
+    "done": "Done",
+    "edit": "Edit",
+    "delete": "Delete",
+    "loading": "Loading..."
+  },
+  "disclaimer": "This app does not provide medical advice. Consult a healthcare professional before starting any exercise or diet program.",
+  "onboarding": {
+    "step": "Step {{current}} of {{total}}",
+    "welcome": {
+      "title": "Welcome to FitApp",
+      "subtitle": "Your offline personal trainer",
+      "namePlaceholder": "Your name",
+      "units": "Units of measurement",
+      "metric": "Metric (kg, cm)",
+      "imperial": "Imperial (lb, ft)"
+    },
+    "physical": {
+      "title": "Your physical data",
+      "birthYear": "Birth year",
+      "gender": "Gender",
+      "male": "Male",
+      "female": "Female",
+      "other": "Other",
+      "height": "Height",
+      "weight": "Current weight"
+    },
+    "goal": {
+      "title": "What is your goal?",
+      "strength": "Strength",
+      "strengthDesc": "Lift heavier and build maximum strength",
+      "hypertrophy": "Hypertrophy",
+      "hypertrophyDesc": "Build muscle and increase body volume",
+      "fat_loss": "Fat Loss",
+      "fat_lossDesc": "Burn fat and improve body composition"
+    },
+    "schedule": {
+      "title": "Your training schedule",
+      "daysPerWeek": "Days per week",
+      "minutesPerSession": "Minutes per session"
+    },
+    "location": {
+      "title": "Where do you train?",
+      "home": "At home",
+      "gym": "Gym",
+      "both": "Both",
+      "equipment": "What equipment do you have?",
+      "equipmentItems": {
+        "bodyweight": "Bodyweight",
+        "bands": "Resistance bands",
+        "dumbbells": "Dumbbells",
+        "pullupBar": "Pull-up bar",
+        "kettlebell": "Kettlebell",
+        "mat": "Yoga mat",
+        "barbells": "Barbell & plates",
+        "machines": "Machines",
+        "cables": "Cable machine",
+        "bench": "Bench",
+        "rack": "Rack / cage"
+      }
+    },
+    "injuries": {
+      "title": "Injuries or limitations",
+      "subtitle": "Optional — describe any pain or limitation to adapt your plan",
+      "placeholder": "E.g. right knee pain, cannot do deep squats..."
+    },
+    "summary": {
+      "title": "Your profile",
+      "name": "Name",
+      "goal": "Goal",
+      "schedule": "Schedule",
+      "location": "Location",
+      "units": "Units",
+      "disclaimer": "⚠️ This app does not provide medical advice. Consult a healthcare professional before starting any exercise or nutrition program.",
+      "start": "Start training!"
+    }
+  }
+}

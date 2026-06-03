@@ -1,0 +1,83 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "next": "Suivant",
+    "back": "Retour",
+    "done": "Terminer",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "loading": "Chargement..."
+  },
+  "disclaimer": "Cette application ne fournit pas de conseils médicaux. Consultez un professionnel de santé avant de commencer tout programme d'exercice ou de régime.",
+  "onboarding": {
+    "step": "Étape {{current}} sur {{total}}",
+    "welcome": {
+      "title": "Bienvenue sur FitApp",
+      "subtitle": "Votre coach personnel hors ligne",
+      "namePlaceholder": "Votre prénom",
+      "units": "Unités de mesure",
+      "metric": "Métrique (kg, cm)",
+      "imperial": "Impérial (lb, ft)"
+    },
+    "physical": {
+      "title": "Vos données physiques",
+      "birthYear": "Année de naissance",
+      "gender": "Genre",
+      "male": "Homme",
+      "female": "Femme",
+      "other": "Autre",
+      "height": "Taille",
+      "weight": "Poids actuel"
+    },
+    "goal": {
+      "title": "Quel est votre objectif ?",
+      "strength": "Force",
+      "strengthDesc": "Soulever plus lourd et développer la force maximale",
+      "hypertrophy": "Hypertrophie",
+      "hypertrophyDesc": "Gagner du muscle et augmenter le volume corporel",
+      "fat_loss": "Perte de graisse",
+      "fat_lossDesc": "Brûler les graisses et améliorer la composition corporelle"
+    },
+    "schedule": {
+      "title": "Votre planning d'entraînement",
+      "daysPerWeek": "Jours par semaine",
+      "minutesPerSession": "Minutes par séance"
+    },
+    "location": {
+      "title": "Où vous entraînez-vous ?",
+      "home": "À la maison",
+      "gym": "Salle de sport",
+      "both": "Les deux",
+      "equipment": "Quel équipement avez-vous ?",
+      "equipmentItems": {
+        "bodyweight": "Poids du corps",
+        "bands": "Bandes élastiques",
+        "dumbbells": "Haltères",
+        "pullupBar": "Barre de traction",
+        "kettlebell": "Kettlebell",
+        "mat": "Tapis de yoga",
+        "barbells": "Barre et disques",
+        "machines": "Machines",
+        "cables": "Câbles / poulies",
+        "bench": "Banc",
+        "rack": "Rack / cage"
+      }
+    },
+    "injuries": {
+      "title": "Blessures ou limitations",
+      "subtitle": "Optionnel — décrivez toute douleur ou limitation pour adapter votre programme",
+      "placeholder": "Ex : douleur au genou droit, pas de squat profond..."
+    },
+    "summary": {
+      "title": "Votre profil",
+      "name": "Prénom",
+      "goal": "Objectif",
+      "schedule": "Planning",
+      "location": "Lieu",
+      "units": "Unités",
+      "disclaimer": "⚠️ Cette application ne fournit pas de conseils médicaux. Consultez un professionnel de santé avant de commencer tout programme d'exercice ou de nutrition.",
+      "start": "Commencer l'entraînement !"
+    }
+  }
+}
