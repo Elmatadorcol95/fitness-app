@@ -9,6 +9,37 @@
     "delete": "Supprimer",
     "loading": "Chargement..."
   },
+  "tabs": {
+    "today": {
+      "tab": "Aujourd'hui",
+      "goal": "Votre objectif",
+      "plan": "Votre programme",
+      "daysWeek": "Jours/sem",
+      "minSession": "Min/séance",
+      "location": "Lieu",
+      "workoutComingSoon": "Entraînement bientôt disponible",
+      "workoutComingSoonSub": "Votre plan d'entraînement sera généré dans la prochaine phase"
+    },
+    "history": {
+      "tab": "Historique",
+      "title": "Historique",
+      "empty": "Aucune séance pour l'instant",
+      "emptySub": "Terminez votre premier entraînement pour le voir ici"
+    },
+    "progress": {
+      "tab": "Progrès",
+      "title": "Progrès",
+      "empty": "Aucun enregistrement",
+      "emptySub": "Poids · Mensurations · Photos — bientôt disponible"
+    },
+    "profile": {
+      "tab": "Profil",
+      "goalSection": "Objectif",
+      "trainingSection": "Entraînement",
+      "physicalSection": "Données physiques",
+      "equipmentSection": "Équipement"
+    }
+  },
   "disclaimer": "Cette application ne fournit pas de conseils médicaux. Consultez un professionnel de santé avant de commencer tout programme d'exercice ou de régime.",
   "onboarding": {
     "step": "Étape {{current}} sur {{total}}",

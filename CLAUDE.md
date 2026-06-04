@@ -149,8 +149,19 @@ Bucle ~1.3 s sobre fondo #141A17:
     casa/ambos → lista de 20 items de equipamiento
   * StepSummary y OnboardingFlow actualizados para los nuevos campos
   * Traducciones completas es/en/fr con todos los equipamientos y badges
-- Siguiente: FASE 5 — Navegación principal (tabs reales: Hoy, Historial,
-  Progreso, Perfil) y reemplazar demos de Expo.
+- Hecho: FASE 5 — Navegación principal:
+  * 4 pestañas reales: Hoy (⚡), Historial (🕐), Progreso (📈), Perfil (👤)
+  * Iconos generados con sharp (scripts/generate-tab-icons.js)
+  * index.tsx: pantalla Hoy con saludo, fecha, resumen de objetivo y plan,
+    placeholder para entrenamientos
+  * history.tsx: pantalla Historial (estado vacío, contenido en Fase 9)
+  * progress.tsx: pantalla Progreso (estado vacío, contenido en Fase 8)
+  * profile.tsx: pantalla Perfil con todos los datos reales del usuario
+    (objetivo, plan, físico, equipamiento, lesiones) leídos desde SQLite
+  * app-tabs.tsx: 4 triggers con iconos y etiquetas i18n; color acento verde
+  * Traducciones completas es/en/fr para todas las pantallas
+- Siguiente: FASE 6 — Supabase Auth (registro, login, verificación por email,
+  trial de 14 días).
 
 ## Plan de fases (pendiente de aprobación)
 - FASE 3 — Marca Vulcan: renombrar app, nueva paleta de color, icono, 

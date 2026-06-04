@@ -1,98 +1,134 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useProfileStore } from '@/store/profile.store';
+import { useTheme } from '@/hooks/use-theme';
+import { BottomTabInset, Spacing } from '@/constants/theme';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
+function greeting(name: string) {
+  const h = new Date().getHours();
+  if (h < 12) return `Buenos días, ${name} 🌅`;
+  if (h < 19) return `Buenas tardes, ${name} ☀️`;
+  return `Buenas noches, ${name} 🌙`;
 }
 
-export default function HomeScreen() {
+function todayDate() {
+  return new Date().toLocaleDateString('es-ES', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  });
+}
+
+export default function TodayScreen() {
+  const { t } = useTranslation();
+  const { profile } = useProfileStore();
+  const theme = useTheme();
+
+  if (!profile) return null;
+
+  const goalLabel: Record<string, string> = {
+    strength: '🏋️ Fuerza',
+    hypertrophy: '💪 Hipertrofia',
+    fat_loss: '🔥 Pérdida de grasa',
+  };
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
+    <ThemedView style={styles.root}>
+      <SafeAreaView style={styles.safe}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scroll}
+        >
+          {/* ── Cabecera ── */}
+          <ThemedText type="subtitle" style={styles.greeting}>
+            {greeting(profile.name)}
           </ThemedText>
-        </ThemedView>
+          <ThemedText themeColor="textSecondary" style={styles.date}>
+            {todayDate()}
+          </ThemedText>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+          {/* ── Tarjeta de objetivo ── */}
+          <ThemedView type="backgroundElement" style={styles.card}>
+            <ThemedText type="defaultSemiBold" style={styles.cardTitle}>
+              {t('tabs.today.goal')}
+            </ThemedText>
+            <ThemedText style={styles.cardValue}>
+              {goalLabel[profile.goalPrimary] ?? profile.goalPrimary}
+              {profile.goalSecondary
+                ? `  +  ${goalLabel[profile.goalSecondary] ?? profile.goalSecondary}`
+                : ''}
+            </ThemedText>
+          </ThemedView>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+          {/* ── Tarjeta de plan ── */}
+          <ThemedView type="backgroundElement" style={styles.card}>
+            <ThemedText type="defaultSemiBold" style={styles.cardTitle}>
+              {t('tabs.today.plan')}
+            </ThemedText>
+            <View style={styles.statRow}>
+              <StatBox label={t('tabs.today.daysWeek')} value={`${profile.daysPerWeek}`} />
+              <StatBox label={t('tabs.today.minSession')} value={`${profile.minutesPerSession}'`} />
+              <StatBox
+                label={t('tabs.today.location')}
+                value={
+                  profile.location === 'gym' ? '🏋️'
+                  : profile.location === 'home' ? '🏠' : '🏠🏋️'
+                }
+              />
+            </View>
+          </ThemedView>
 
-        {Platform.OS === 'web' && <WebBadge />}
+          {/* ── Placeholder entrenamiento ── */}
+          <ThemedView type="backgroundElement" style={[styles.card, styles.comingSoon]}>
+            <ThemedText style={styles.comingSoonIcon}>⚒️</ThemedText>
+            <ThemedText type="defaultSemiBold" style={{ textAlign: 'center' }}>
+              {t('tabs.today.workoutComingSoon')}
+            </ThemedText>
+            <ThemedText themeColor="textSecondary" style={styles.comingSoonSub}>
+              {t('tabs.today.workoutComingSoonSub')}
+            </ThemedText>
+          </ThemedView>
+
+          {/* ── Descargo ── */}
+          <ThemedText themeColor="textSecondary" style={styles.disclaimer}>
+            {t('disclaimer')}
+          </ThemedText>
+        </ScrollView>
       </SafeAreaView>
     </ThemedView>
   );
 }
 
+function StatBox({ label, value }: { label: string; value: string }) {
+  return (
+    <ThemedView type="backgroundSelected" style={styles.statBox}>
+      <ThemedText style={styles.statValue}>{value}</ThemedText>
+      <ThemedText themeColor="textSecondary" style={styles.statLabel}>{label}</ThemedText>
+    </ThemedView>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
+  root: { flex: 1 },
+  safe: { flex: 1 },
+  scroll: {
     paddingHorizontal: Spacing.four,
-    alignItems: 'center',
+    paddingBottom: BottomTabInset + Spacing.four,
     gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
+  greeting: { marginTop: Spacing.four, fontSize: 26 },
+  date: { fontSize: 14, textTransform: 'capitalize', marginTop: -Spacing.two },
+  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
+  cardTitle: { fontSize: 13, textTransform: 'uppercase', letterSpacing: 1, opacity: 0.7 },
+  cardValue: { fontSize: 17 },
+  statRow: { flexDirection: 'row', gap: Spacing.two },
+  statBox: { flex: 1, borderRadius: Spacing.two, padding: Spacing.two, alignItems: 'center', gap: 4 },
+  statValue: { fontSize: 22, fontWeight: '700' },
+  statLabel: { fontSize: 11, textAlign: 'center' },
+  comingSoon: { alignItems: 'center', paddingVertical: Spacing.five },
+  comingSoonIcon: { fontSize: 40 },
+  comingSoonSub: { fontSize: 13, textAlign: 'center', marginTop: 4 },
+  disclaimer: { fontSize: 11, textAlign: 'center', lineHeight: 16, marginTop: Spacing.two },
 });

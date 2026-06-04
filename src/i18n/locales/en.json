@@ -9,6 +9,37 @@
     "delete": "Delete",
     "loading": "Loading..."
   },
+  "tabs": {
+    "today": {
+      "tab": "Today",
+      "goal": "Your goal",
+      "plan": "Your plan",
+      "daysWeek": "Days/week",
+      "minSession": "Min/session",
+      "location": "Location",
+      "workoutComingSoon": "Workout coming soon",
+      "workoutComingSoonSub": "Your training plan will be generated in the next phase"
+    },
+    "history": {
+      "tab": "History",
+      "title": "History",
+      "empty": "No sessions yet",
+      "emptySub": "Complete your first workout to see it here"
+    },
+    "progress": {
+      "tab": "Progress",
+      "title": "Progress",
+      "empty": "No records yet",
+      "emptySub": "Weight · Measurements · Progress photos — coming soon"
+    },
+    "profile": {
+      "tab": "Profile",
+      "goalSection": "Goal",
+      "trainingSection": "Training",
+      "physicalSection": "Physical data",
+      "equipmentSection": "Equipment"
+    }
+  },
   "disclaimer": "This app does not provide medical advice. Consult a healthcare professional before starting any exercise or diet program.",
   "onboarding": {
     "step": "Step {{current}} of {{total}}",
