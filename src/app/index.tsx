@@ -1,18 +1,28 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { Moon, Sun, Sunrise } from 'lucide-react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useProfileStore } from '@/store/profile.store';
-import { useTheme } from '@/hooks/use-theme';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 
-function greeting(name: string) {
-  const h = new Date().getHours();
-  if (h < 12) return `Buenos días, ${name} 🌅`;
-  if (h < 19) return `Buenas tardes, ${name} ☀️`;
-  return `Buenas noches, ${name} 🌙`;
+const AMBER = '#F2B450';
+const MOON_COLOR = '#F1F4F1';
+const ICON_SIZE = 30;
+const ICON_STROKE = 1.6;
+
+function TimeIcon({ hour }: { hour: number }) {
+  if (hour < 12) return <Sunrise size={ICON_SIZE} color={AMBER} strokeWidth={ICON_STROKE} />;
+  if (hour < 19) return <Sun      size={ICON_SIZE} color={AMBER} strokeWidth={ICON_STROKE} />;
+  return              <Moon      size={ICON_SIZE} color={MOON_COLOR} strokeWidth={ICON_STROKE} />;
+}
+
+function greetingText(name: string, hour: number) {
+  if (hour < 12) return `Buenos días, ${name}`;
+  if (hour < 19) return `Buenas tardes, ${name}`;
+  return `Buenas noches, ${name}`;
 }
 
 function todayDate() {
@@ -24,9 +34,10 @@ function todayDate() {
 export default function TodayScreen() {
   const { t } = useTranslation();
   const { profile } = useProfileStore();
-  const theme = useTheme();
 
   if (!profile) return null;
+
+  const hour = new Date().getHours();
 
   const goalLabel: Record<string, string> = {
     strength: '🏋️ Fuerza',
@@ -42,9 +53,12 @@ export default function TodayScreen() {
           contentContainerStyle={styles.scroll}
         >
           {/* ── Cabecera ── */}
-          <ThemedText type="subtitle" style={styles.greeting}>
-            {greeting(profile.name)}
-          </ThemedText>
+          <View style={styles.greetingRow}>
+            <TimeIcon hour={hour} />
+            <ThemedText type="subtitle" style={styles.greeting}>
+              {greetingText(profile.name, hour)}
+            </ThemedText>
+          </View>
           <ThemedText themeColor="textSecondary" style={styles.date}>
             {todayDate()}
           </ThemedText>
@@ -68,14 +82,11 @@ export default function TodayScreen() {
               {t('tabs.today.plan')}
             </ThemedText>
             <View style={styles.statRow}>
-              <StatBox label={t('tabs.today.daysWeek')} value={`${profile.daysPerWeek}`} />
+              <StatBox label={t('tabs.today.daysWeek')}   value={`${profile.daysPerWeek}`} />
               <StatBox label={t('tabs.today.minSession')} value={`${profile.minutesPerSession}'`} />
               <StatBox
                 label={t('tabs.today.location')}
-                value={
-                  profile.location === 'gym' ? '🏋️'
-                  : profile.location === 'home' ? '🏠' : '🏠🏋️'
-                }
+                value={profile.location === 'gym' ? '🏋️' : profile.location === 'home' ? '🏠' : '🏠🏋️'}
               />
             </View>
           </ThemedView>
@@ -118,8 +129,14 @@ const styles = StyleSheet.create({
     paddingBottom: BottomTabInset + Spacing.four,
     gap: Spacing.three,
   },
-  greeting: { marginTop: Spacing.four, fontSize: 26 },
-  date: { fontSize: 14, textTransform: 'capitalize', marginTop: -Spacing.two },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginTop: Spacing.four,
+  },
+  greeting: { fontSize: 26, flexShrink: 1 },
+  date: { fontSize: 14, textTransform: 'capitalize', marginTop: -Spacing.one },
   card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   cardTitle: { fontSize: 13, textTransform: 'uppercase', letterSpacing: 1, opacity: 0.7 },
   cardValue: { fontSize: 17 },
