@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { eq } from 'drizzle-orm';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -21,16 +20,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 const TOTAL_STEPS = 7;
-
-const STEPS = [
-  StepWelcome,
-  StepPhysical,
-  StepGoal,
-  StepSchedule,
-  StepLocation,
-  StepInjuries,
-  StepSummary,
-];
+const STEPS = [StepWelcome, StepPhysical, StepGoal, StepSchedule, StepLocation, StepInjuries, StepSummary];
 
 export function OnboardingFlow() {
   const { t } = useTranslation();
@@ -41,44 +31,38 @@ export function OnboardingFlow() {
 
   const StepComponent = STEPS[step];
   const isFirst = step === 0;
-  const isLast = step === TOTAL_STEPS - 1;
+  const isLast  = step === TOTAL_STEPS - 1;
 
   const canGoNext = () => {
     if (step === 0) return draft.name.trim().length > 0;
+    if (step === 2) return draft.goals.length > 0; // al menos 1 objetivo
     return true;
   };
 
   const handleNext = async () => {
-    if (!isLast) {
-      setStep((s) => s + 1);
-      return;
-    }
+    if (!isLast) { setStep((s) => s + 1); return; }
+
     setSaving(true);
     try {
       await db.insert(schema.profile).values({
-        name: draft.name.trim(),
-        birthYear: draft.birthYear,
-        gender: draft.gender,
-        heightCm: draft.heightCm,
-        weightKg: draft.weightKg,
-        goal: draft.goal,
-        daysPerWeek: draft.daysPerWeek,
+        name:             draft.name.trim(),
+        birthYear:        draft.birthYear,
+        gender:           draft.gender,
+        heightCm:         draft.heightCm,
+        weightKg:         draft.weightKg,
+        goalPrimary:      draft.goals[0],
+        goalSecondary:    draft.goals[1] ?? null,
+        daysPerWeek:      draft.daysPerWeek,
         minutesPerSession: draft.minutesPerSession,
-        location: draft.location,
-        equipment: JSON.stringify(draft.equipment),
-        injuries: draft.injuries,
-        units: draft.units,
-        createdAt: Date.now(),
+        location:         draft.location,
+        equipment:        JSON.stringify(draft.equipment),
+        injuries:         draft.injuries,
+        units:            draft.units,
+        createdAt:        Date.now(),
       });
 
-      const [saved] = await db
-        .select()
-        .from(schema.profile)
-        .orderBy(schema.profile.id)
-        .limit(1)
-        .then((rows) => rows.slice(-1));
-
-      setProfile(saved ?? null);
+      const rows = await db.select().from(schema.profile).orderBy(schema.profile.id);
+      setProfile(rows[rows.length - 1] ?? null);
     } catch (e) {
       console.error('Error guardando perfil:', e);
     } finally {
@@ -103,25 +87,21 @@ export function OnboardingFlow() {
         <View style={styles.footer}>
           {!isFirst && (
             <Pressable
-              style={[styles.btn, styles.btnBack, { backgroundColor: theme.backgroundElement }]}
+              style={[styles.btn, { backgroundColor: theme.backgroundElement }]}
               onPress={() => setStep((s) => s - 1)}
             >
               <ThemedText>{t('common.back')}</ThemedText>
             </Pressable>
           )}
           <Pressable
-            style={[
-              styles.btn,
-              styles.btnNext,
-              { backgroundColor: theme.text, opacity: canGoNext() ? 1 : 0.4 },
-            ]}
+            style={[styles.btn, styles.btnNext, { opacity: canGoNext() ? 1 : 0.4 }]}
             onPress={handleNext}
             disabled={!canGoNext() || saving}
           >
             {saving ? (
-              <ActivityIndicator color={theme.background} />
+              <ActivityIndicator color="#04261A" />
             ) : (
-              <ThemedText style={{ color: theme.background }} type="defaultSemiBold">
+              <ThemedText style={styles.btnNextText} type="defaultSemiBold">
                 {isLast ? t('onboarding.summary.start') : t('common.next')}
               </ThemedText>
             )}
@@ -138,19 +118,12 @@ const styles = StyleSheet.create({
   header: { paddingTop: Spacing.three, gap: Spacing.two },
   stepLabel: { fontSize: 13, textAlign: 'center' },
   content: { flex: 1, paddingTop: Spacing.four, paddingBottom: Spacing.two },
-  footer: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    paddingBottom: Spacing.four,
-    paddingTop: Spacing.two,
-  },
+  footer: { flexDirection: 'row', gap: Spacing.two, paddingBottom: Spacing.four, paddingTop: Spacing.two },
   btn: {
-    flex: 1,
-    borderRadius: Spacing.two,
+    flex: 1, borderRadius: Spacing.two,
     paddingVertical: Spacing.two + 6,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
-  btnBack: {},
-  btnNext: {},
+  btnNext: { backgroundColor: '#3FBF7F' },
+  btnNextText: { color: '#04261A' },
 });

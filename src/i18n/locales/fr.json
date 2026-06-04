@@ -32,6 +32,9 @@
     },
     "goal": {
       "title": "Quel est votre objectif ?",
+      "instruction": "Sélectionnez un ou deux. Premier appui = PRINCIPAL, deuxième = SECONDAIRE.",
+      "primaryBadge": "Principal",
+      "secondaryBadge": "Secondaire",
       "strength": "Force",
       "strengthDesc": "Soulever plus lourd et développer la force maximale",
       "hypertrophy": "Hypertrophie",
@@ -42,26 +45,39 @@
     "schedule": {
       "title": "Votre planning d'entraînement",
       "daysPerWeek": "Jours par semaine",
-      "minutesPerSession": "Minutes par séance"
+      "minutesPerSession": "Minutes par séance",
+      "day": "jour",
+      "days": "jours",
+      "min": "min"
     },
     "location": {
       "title": "Où vous entraînez-vous ?",
       "home": "À la maison",
       "gym": "Salle de sport",
       "both": "Les deux",
+      "gymNote": "✓ Équipement complet de salle disponible. Parfait !",
       "equipment": "Quel équipement avez-vous ?",
       "equipmentItems": {
         "bodyweight": "Poids du corps",
-        "bands": "Bandes élastiques",
         "dumbbells": "Haltères",
+        "barbellPlates": "Barre et disques",
+        "kettlebells": "Kettlebells",
+        "resistanceBands": "Bandes élastiques",
+        "miniGluteBands": "Mini-bandes fessiers",
         "pullupBar": "Barre de traction",
-        "kettlebell": "Kettlebell",
+        "parallettes": "Barres parallèles",
+        "rings": "Anneaux de gymnaste",
+        "trx": "TRX / suspension",
+        "adjustableBench": "Banc réglable",
+        "plioBox": "Caisse pliométrique",
+        "medicineBall": "Médecine-ball",
+        "fitball": "Fitball",
+        "abRoller": "Roue abdominale",
+        "jumpRope": "Corde à sauter",
         "mat": "Tapis de yoga",
-        "barbells": "Barre et disques",
-        "machines": "Machines",
-        "cables": "Câbles / poulies",
-        "bench": "Banc",
-        "rack": "Rack / cage"
+        "foamRoller": "Rouleau de massage",
+        "sliders": "Sliders",
+        "weightedVest": "Gilet lesté"
       }
     },
     "injuries": {

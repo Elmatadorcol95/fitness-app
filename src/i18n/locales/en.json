@@ -32,6 +32,9 @@
     },
     "goal": {
       "title": "What is your goal?",
+      "instruction": "Select one or two. First tap = PRIMARY, second tap = SECONDARY.",
+      "primaryBadge": "Primary",
+      "secondaryBadge": "Secondary",
       "strength": "Strength",
       "strengthDesc": "Lift heavier and build maximum strength",
       "hypertrophy": "Hypertrophy",
@@ -42,26 +45,39 @@
     "schedule": {
       "title": "Your training schedule",
       "daysPerWeek": "Days per week",
-      "minutesPerSession": "Minutes per session"
+      "minutesPerSession": "Minutes per session",
+      "day": "day",
+      "days": "days",
+      "min": "min"
     },
     "location": {
       "title": "Where do you train?",
       "home": "At home",
       "gym": "Gym",
       "both": "Both",
+      "gymNote": "✓ Full gym equipment available. Perfect!",
       "equipment": "What equipment do you have?",
       "equipmentItems": {
         "bodyweight": "Bodyweight",
-        "bands": "Resistance bands",
         "dumbbells": "Dumbbells",
+        "barbellPlates": "Barbell & plates",
+        "kettlebells": "Kettlebells",
+        "resistanceBands": "Resistance bands",
+        "miniGluteBands": "Glute mini-bands",
         "pullupBar": "Pull-up bar",
-        "kettlebell": "Kettlebell",
+        "parallettes": "Parallettes / dip bars",
+        "rings": "Gymnastic rings",
+        "trx": "TRX / suspension",
+        "adjustableBench": "Adjustable bench",
+        "plioBox": "Plyo box / step",
+        "medicineBall": "Medicine ball",
+        "fitball": "Fitball",
+        "abRoller": "Ab roller",
+        "jumpRope": "Jump rope",
         "mat": "Yoga mat",
-        "barbells": "Barbell & plates",
-        "machines": "Machines",
-        "cables": "Cable machine",
-        "bench": "Bench",
-        "rack": "Rack / cage"
+        "foamRoller": "Foam roller",
+        "sliders": "Sliders",
+        "weightedVest": "Weighted vest"
       }
     },
     "injuries": {

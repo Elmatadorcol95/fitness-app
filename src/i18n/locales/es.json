@@ -32,6 +32,9 @@
     },
     "goal": {
       "title": "¿Cuál es tu objetivo?",
+      "instruction": "Selecciona uno o dos. El primero toque = PRINCIPAL, el segundo = SECUNDARIO.",
+      "primaryBadge": "Principal",
+      "secondaryBadge": "Secundario",
       "strength": "Fuerza",
       "strengthDesc": "Levantar más peso y ganar fuerza máxima",
       "hypertrophy": "Hipertrofia",
@@ -42,31 +45,44 @@
     "schedule": {
       "title": "Tu horario de entrenamiento",
       "daysPerWeek": "Días por semana",
-      "minutesPerSession": "Minutos por sesión"
+      "minutesPerSession": "Minutos por sesión",
+      "day": "día",
+      "days": "días",
+      "min": "min"
     },
     "location": {
       "title": "¿Dónde entrenas?",
       "home": "En casa",
       "gym": "Gimnasio",
       "both": "Ambos",
+      "gymNote": "✓ Equipamiento completo del gimnasio disponible. ¡Perfecto!",
       "equipment": "¿Con qué equipamiento cuentas?",
       "equipmentItems": {
         "bodyweight": "Peso corporal",
-        "bands": "Bandas elásticas",
         "dumbbells": "Mancuernas",
-        "pullupBar": "Barra dominadas",
-        "kettlebell": "Kettlebell",
+        "barbellPlates": "Barra con discos",
+        "kettlebells": "Kettlebells",
+        "resistanceBands": "Bandas de resistencia",
+        "miniGluteBands": "Mini-bands de glúteo",
+        "pullupBar": "Barra de dominadas",
+        "parallettes": "Paralelas / paraletas",
+        "rings": "Anillas de gimnasia",
+        "trx": "TRX / suspensión",
+        "adjustableBench": "Banco ajustable",
+        "plioBox": "Cajón pliométrico",
+        "medicineBall": "Balón medicinal",
+        "fitball": "Fitball",
+        "abRoller": "Rueda abdominal",
+        "jumpRope": "Comba",
         "mat": "Esterilla",
-        "barbells": "Barra y discos",
-        "machines": "Máquinas",
-        "cables": "Poleas",
-        "bench": "Banco",
-        "rack": "Rack / jaula"
+        "foamRoller": "Rodillo de espuma",
+        "sliders": "Sliders",
+        "weightedVest": "Chaleco lastrado"
       }
     },
     "injuries": {
       "title": "Lesiones o limitaciones",
-      "subtitle": "Opcional — describimos cualquier dolor o limitación para adaptar tu plan",
+      "subtitle": "Opcional — describe cualquier dolor o limitación para adaptar tu plan",
       "placeholder": "Ej: dolor en la rodilla derecha, no puedo hacer sentadillas profundas..."
     },
     "summary": {

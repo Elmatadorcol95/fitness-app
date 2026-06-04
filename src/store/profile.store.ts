@@ -12,7 +12,8 @@ export interface OnboardingDraft {
   gender?: string;
   heightCm?: number;
   weightKg?: number;
-  goal: Goal;
+  // goals[0] = principal, goals[1] = secundario (opcional)
+  goals: Goal[];
   daysPerWeek: number;
   minutesPerSession: number;
   location: Location;
@@ -23,7 +24,7 @@ export interface OnboardingDraft {
 const defaultDraft: OnboardingDraft = {
   name: '',
   units: 'metric',
-  goal: 'hypertrophy',
+  goals: [],
   daysPerWeek: 3,
   minutesPerSession: 45,
   location: 'gym',

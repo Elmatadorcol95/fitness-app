@@ -1,15 +1,18 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, useColorScheme } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { useTranslation } from 'react-i18next';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import { useProfileStore } from '@/store/profile.store';
 
-const DAYS = [2, 3, 4, 5, 6];
-const MINUTES = [30, 45, 60, 90];
+const DAYS    = [1, 2, 3, 4, 5, 6, 7];
+const MINUTES = [15, 30, 45, 60, 75, 90, 105, 120];
 
 export function StepSchedule() {
   const { t } = useTranslation();
+  const scheme = useColorScheme() ?? 'dark';
+  const colors = Colors[scheme === 'unspecified' ? 'dark' : scheme];
   const { draft, updateDraft } = useProfileStore();
 
   return (
@@ -19,36 +22,46 @@ export function StepSchedule() {
       </ThemedText>
 
       <ThemedText style={styles.label}>{t('onboarding.schedule.daysPerWeek')}</ThemedText>
-      <View style={styles.chips}>
-        {DAYS.map((d) => (
-          <ThemedView
-            key={d}
-            type={draft.daysPerWeek === d ? 'backgroundSelected' : 'backgroundElement'}
-            style={styles.chip}
-            onTouchEnd={() => updateDraft({ daysPerWeek: d })}
-          >
-            <ThemedText type={draft.daysPerWeek === d ? 'defaultSemiBold' : 'default'} style={styles.chipText}>
-              {d}
-            </ThemedText>
-          </ThemedView>
-        ))}
-      </View>
+      <ThemedView type="backgroundElement" style={styles.pickerWrap}>
+        <Picker
+          selectedValue={draft.daysPerWeek}
+          onValueChange={(v) => updateDraft({ daysPerWeek: v })}
+          style={[styles.picker, { color: colors.text }]}
+          dropdownIconColor={colors.textSecondary}
+          itemStyle={{ color: colors.text }}
+        >
+          {DAYS.map((d) => (
+            <Picker.Item
+              key={d}
+              label={`${d} ${d === 1 ? t('onboarding.schedule.day') : t('onboarding.schedule.days')}`}
+              value={d}
+              color={colors.text}
+            />
+          ))}
+        </Picker>
+      </ThemedView>
 
-      <ThemedText style={[styles.label, styles.labelGap]}>{t('onboarding.schedule.minutesPerSession')}</ThemedText>
-      <View style={styles.chips}>
-        {MINUTES.map((m) => (
-          <ThemedView
-            key={m}
-            type={draft.minutesPerSession === m ? 'backgroundSelected' : 'backgroundElement'}
-            style={styles.chip}
-            onTouchEnd={() => updateDraft({ minutesPerSession: m })}
-          >
-            <ThemedText type={draft.minutesPerSession === m ? 'defaultSemiBold' : 'default'} style={styles.chipText}>
-              {m}'
-            </ThemedText>
-          </ThemedView>
-        ))}
-      </View>
+      <ThemedText style={[styles.label, styles.labelGap]}>
+        {t('onboarding.schedule.minutesPerSession')}
+      </ThemedText>
+      <ThemedView type="backgroundElement" style={styles.pickerWrap}>
+        <Picker
+          selectedValue={draft.minutesPerSession}
+          onValueChange={(v) => updateDraft({ minutesPerSession: v })}
+          style={[styles.picker, { color: colors.text }]}
+          dropdownIconColor={colors.textSecondary}
+          itemStyle={{ color: colors.text }}
+        >
+          {MINUTES.map((m) => (
+            <Picker.Item
+              key={m}
+              label={`${m} ${t('onboarding.schedule.min')}`}
+              value={m}
+              color={colors.text}
+            />
+          ))}
+        </Picker>
+      </ThemedView>
     </View>
   );
 }
@@ -58,13 +71,11 @@ const styles = StyleSheet.create({
   title: { textAlign: 'center', marginBottom: Spacing.two },
   label: { fontSize: 15 },
   labelGap: { marginTop: Spacing.three },
-  chips: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
-  chip: {
-    flex: 1,
-    minWidth: 56,
+  pickerWrap: {
     borderRadius: Spacing.two,
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
+    overflow: 'hidden',
   },
-  chipText: { fontSize: 18 },
+  picker: {
+    width: '100%',
+  },
 });

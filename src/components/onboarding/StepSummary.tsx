@@ -15,10 +15,10 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-const goalLabels: Record<Goal, string> = {
-  strength: '🏋️ Fuerza',
-  hypertrophy: '💪 Hipertrofia',
-  fat_loss: '🔥 Pérdida de grasa',
+const goalEmoji: Record<Goal, string> = {
+  strength: '🏋️',
+  hypertrophy: '💪',
+  fat_loss: '🔥',
 };
 
 const locationLabels: Record<Location, string> = {
@@ -39,10 +39,16 @@ export function StepSummary() {
     : '—';
 
   const weightDisplay = draft.weightKg
-    ? isImperial
-      ? `${kgToLb(draft.weightKg)} lb`
-      : `${draft.weightKg} kg`
+    ? isImperial ? `${kgToLb(draft.weightKg)} lb` : `${draft.weightKg} kg`
     : '—';
+
+  const goalDisplay = () => {
+    const [primary, secondary] = draft.goals;
+    if (!primary) return '—';
+    const pLabel = `${goalEmoji[primary]} ${t(`onboarding.goal.${primary}`)}`;
+    if (!secondary) return pLabel;
+    return `${pLabel}  +  ${goalEmoji[secondary]} ${t(`onboarding.goal.${secondary}`)}`;
+  };
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
@@ -52,7 +58,7 @@ export function StepSummary() {
 
       <ThemedView type="backgroundElement" style={styles.card}>
         <Row label={t('onboarding.summary.name')} value={draft.name || '—'} />
-        <Row label={t('onboarding.summary.goal')} value={goalLabels[draft.goal]} />
+        <Row label={t('onboarding.summary.goal')} value={goalDisplay()} />
         <Row
           label={t('onboarding.summary.schedule')}
           value={`${draft.daysPerWeek} días / ${draft.minutesPerSession} min`}
@@ -81,24 +87,10 @@ export function StepSummary() {
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
   title: { textAlign: 'center', marginBottom: Spacing.three },
-  card: {
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-    gap: Spacing.two,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: Spacing.two,
-  },
+  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.two },
   rowLabel: { fontSize: 14, flex: 1 },
   rowValue: { fontSize: 14, flex: 1, textAlign: 'right' },
-  disclaimer: {
-    borderRadius: Spacing.two,
-    padding: Spacing.three,
-    marginTop: Spacing.three,
-    marginBottom: Spacing.five,
-  },
+  disclaimer: { borderRadius: Spacing.two, padding: Spacing.three, marginTop: Spacing.three, marginBottom: Spacing.five },
   disclaimerText: { fontSize: 12, lineHeight: 18, textAlign: 'center' },
 });

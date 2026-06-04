@@ -139,8 +139,18 @@ Bucle ~1.3 s sobre fondo #141A17:
   * scripts/generate-icon.js: genera icon.png, android-icon-foreground.png
     y splash-icon.png con sharp desde el SVG del logo
   * themed-text.tsx: añadido tipo 'defaultSemiBold'
-- Siguiente: FASE 4 — Onboarding V2 (multi-objetivo, dropdowns, equipamiento
-  de casa completo).
+- Hecho: FASE 4 — Onboarding V2:
+  * Esquema DB: goal → goalPrimary + goalSecondary (migración manual 0001)
+  * store: goals: Goal[] (índice 0=principal, 1=secundario)
+  * StepGoal: selección de hasta 2 objetivos con badges Principal/Secundario
+  * StepSchedule: dropdowns nativos con @react-native-picker/picker
+    (días 1-7, minutos 15-120 en saltos de 15)
+  * StepLocation: gimnasio → mensaje de equipo completo sin más preguntas;
+    casa/ambos → lista de 20 items de equipamiento
+  * StepSummary y OnboardingFlow actualizados para los nuevos campos
+  * Traducciones completas es/en/fr con todos los equipamientos y badges
+- Siguiente: FASE 5 — Navegación principal (tabs reales: Hoy, Historial,
+  Progreso, Perfil) y reemplazar demos de Expo.
 
 ## Plan de fases (pendiente de aprobación)
 - FASE 3 — Marca Vulcan: renombrar app, nueva paleta de color, icono, 
