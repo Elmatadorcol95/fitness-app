@@ -33,7 +33,11 @@ export function RegisterForm({ onBack, onSuccess }: Props) {
     if (password.length < 8) { setError(t('auth.register.error.weakPassword')); return; }
     if (password !== confirm) { setError(t('auth.register.error.passwordMismatch')); return; }
     setLoading(true);
-    const { error: e } = await supabase.auth.signUp({ email: email.trim(), password });
+    const { error: e } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: { emailRedirectTo: 'vulcan://auth/callback' },
+    });
     setLoading(false);
     if (e) { setError(t(mapError(e.message))); return; }
     onSuccess(email.trim());
