@@ -9,6 +9,54 @@
     "delete": "Delete",
     "loading": "Loading..."
   },
+  "auth": {
+    "login": {
+      "title": "Welcome back",
+      "subtitle": "Sign in to continue",
+      "email": "Email address",
+      "password": "Password",
+      "submit": "Sign in",
+      "noAccount": "Don't have an account?",
+      "register": "Sign up",
+      "error": {
+        "invalidCredentials": "Incorrect email or password",
+        "emailNotConfirmed": "Please confirm your email before signing in",
+        "generic": "Sign in failed. Please try again."
+      }
+    },
+    "register": {
+      "title": "Create your account",
+      "subtitle": "14-day free trial with all features",
+      "email": "Email address",
+      "password": "Password (min. 8 characters)",
+      "confirmPassword": "Confirm password",
+      "submit": "Create account",
+      "hasAccount": "Already have an account?",
+      "login": "Sign in",
+      "error": {
+        "emailInUse": "This email is already registered",
+        "weakPassword": "Password must be at least 8 characters",
+        "passwordMismatch": "Passwords do not match",
+        "generic": "Account creation failed. Please try again."
+      }
+    },
+    "verifyEmail": {
+      "title": "Check your email",
+      "message": "We sent a verification link to {{email}}. Click it to activate your account, then sign in.",
+      "resend": "Resend email",
+      "resendSuccess": "Email resent!",
+      "backToLogin": "Back to sign in"
+    },
+    "paywall": {
+      "title": "Your trial has ended",
+      "subtitle": "Your 14-day free trial is over. Unlock Vulcan for lifetime access to keep training.",
+      "offer": "Lifetime access to Vulcan",
+      "price": "€9.99 — one-time payment, no subscription",
+      "cta": "Unlock Vulcan",
+      "ctaNote": "In-app purchase coming soon",
+      "logout": "Sign out"
+    }
+  },
   "tabs": {
     "today": {
       "tab": "Today",

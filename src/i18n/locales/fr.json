@@ -9,6 +9,54 @@
     "delete": "Supprimer",
     "loading": "Chargement..."
   },
+  "auth": {
+    "login": {
+      "title": "Bon retour",
+      "subtitle": "Connectez-vous pour continuer",
+      "email": "Adresse e-mail",
+      "password": "Mot de passe",
+      "submit": "Se connecter",
+      "noAccount": "Pas encore de compte ?",
+      "register": "S'inscrire",
+      "error": {
+        "invalidCredentials": "E-mail ou mot de passe incorrect",
+        "emailNotConfirmed": "Confirmez votre e-mail avant de vous connecter",
+        "generic": "Échec de la connexion. Réessayez."
+      }
+    },
+    "register": {
+      "title": "Créez votre compte",
+      "subtitle": "14 jours d'essai gratuit avec toutes les fonctions",
+      "email": "Adresse e-mail",
+      "password": "Mot de passe (min. 8 caractères)",
+      "confirmPassword": "Confirmer le mot de passe",
+      "submit": "Créer un compte",
+      "hasAccount": "Déjà un compte ?",
+      "login": "Se connecter",
+      "error": {
+        "emailInUse": "Cet e-mail est déjà enregistré",
+        "weakPassword": "Le mot de passe doit contenir au moins 8 caractères",
+        "passwordMismatch": "Les mots de passe ne correspondent pas",
+        "generic": "Échec de la création du compte. Réessayez."
+      }
+    },
+    "verifyEmail": {
+      "title": "Vérifiez vos e-mails",
+      "message": "Nous avons envoyé un lien de vérification à {{email}}. Cliquez dessus pour activer votre compte, puis connectez-vous.",
+      "resend": "Renvoyer l'e-mail",
+      "resendSuccess": "E-mail renvoyé !",
+      "backToLogin": "Retour à la connexion"
+    },
+    "paywall": {
+      "title": "Votre essai est terminé",
+      "subtitle": "Vos 14 jours d'essai gratuit sont écoulés. Débloquez Vulcan pour un accès à vie.",
+      "offer": "Accès à vie à Vulcan",
+      "price": "9,99 € — paiement unique, sans abonnement",
+      "cta": "Débloquer Vulcan",
+      "ctaNote": "Achat intégré bientôt disponible",
+      "logout": "Se déconnecter"
+    }
+  },
   "tabs": {
     "today": {
       "tab": "Aujourd'hui",

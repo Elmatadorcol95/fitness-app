@@ -160,8 +160,20 @@ Bucle ~1.3 s sobre fondo #141A17:
     (objetivo, plan, físico, equipamiento, lesiones) leídos desde SQLite
   * app-tabs.tsx: 4 triggers con iconos y etiquetas i18n; color acento verde
   * Traducciones completas es/en/fr para todas las pantallas
-- Siguiente: FASE 6 — Supabase Auth (registro, login, verificación por email,
-  trial de 14 días).
+- Hecho: FASE 6 — Supabase Auth:
+  * Proyecto Supabase: nerxwfvlvgjdjtlczuly.supabase.co
+  * Tabla user_status con RLS + trigger on_auth_user_created en Supabase
+  * src/lib/supabase.ts: cliente con almacenamiento en memoria (sin nativo).
+    Migrar a expo-secure-store en el próximo EAS build (ya añadido a app.json)
+  * src/store/auth.store.ts: session, userStatus, isAuthLoading
+  * src/components/auth/: AuthFlow, LoginForm, RegisterForm,
+    VerifyEmailScreen, PaywallScreen
+  * _layout.tsx: flujo completo — splash → auth → paywall → onboarding → tabs
+  * Traducciones completas es/en/fr para auth y paywall
+  * NOTA: sesión no persiste al cerrar la app (in-memory storage);
+    se corregirá con expo-secure-store en el siguiente build
+- Siguiente: FASE 7 — In-app purchase (compra única de por vida, validación
+  en servidor, configuración en App Store Connect y Google Play).
 
 ## Plan de fases (pendiente de aprobación)
 - FASE 3 — Marca Vulcan: renombrar app, nueva paleta de color, icono, 

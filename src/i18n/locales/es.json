@@ -9,6 +9,54 @@
     "delete": "Eliminar",
     "loading": "Cargando..."
   },
+  "auth": {
+    "login": {
+      "title": "Bienvenido de vuelta",
+      "subtitle": "Inicia sesión para continuar",
+      "email": "Correo electrónico",
+      "password": "Contraseña",
+      "submit": "Iniciar sesión",
+      "noAccount": "¿No tienes cuenta?",
+      "register": "Regístrate",
+      "error": {
+        "invalidCredentials": "Correo o contraseña incorrectos",
+        "emailNotConfirmed": "Confirma tu correo antes de iniciar sesión",
+        "generic": "Error al iniciar sesión. Inténtalo de nuevo."
+      }
+    },
+    "register": {
+      "title": "Crea tu cuenta",
+      "subtitle": "14 días de prueba gratuita con todas las funciones",
+      "email": "Correo electrónico",
+      "password": "Contraseña (mín. 8 caracteres)",
+      "confirmPassword": "Confirmar contraseña",
+      "submit": "Crear cuenta",
+      "hasAccount": "¿Ya tienes cuenta?",
+      "login": "Inicia sesión",
+      "error": {
+        "emailInUse": "Este correo ya está registrado",
+        "weakPassword": "La contraseña debe tener al menos 8 caracteres",
+        "passwordMismatch": "Las contraseñas no coinciden",
+        "generic": "Error al crear la cuenta. Inténtalo de nuevo."
+      }
+    },
+    "verifyEmail": {
+      "title": "Revisa tu correo",
+      "message": "Enviamos un enlace de verificación a {{email}}. Haz clic en él para activar tu cuenta y luego inicia sesión.",
+      "resend": "Reenviar correo",
+      "resendSuccess": "¡Correo reenviado!",
+      "backToLogin": "Volver al inicio de sesión"
+    },
+    "paywall": {
+      "title": "Tu prueba ha terminado",
+      "subtitle": "Los 14 días de prueba gratuita han concluido. Desbloquea Vulcan de por vida para seguir entrenando.",
+      "offer": "Acceso de por vida a Vulcan",
+      "price": "9,99 € — pago único, sin suscripción",
+      "cta": "Desbloquear Vulcan",
+      "ctaNote": "Compra integrada disponible próximamente",
+      "logout": "Cerrar sesión"
+    }
+  },
   "tabs": {
     "today": {
       "tab": "Hoy",
