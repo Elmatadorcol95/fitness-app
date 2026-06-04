@@ -13,7 +13,7 @@
   "onboarding": {
     "step": "Step {{current}} of {{total}}",
     "welcome": {
-      "title": "Welcome to FitApp",
+      "title": "Welcome to Vulcan",
       "subtitle": "Your offline personal trainer",
       "namePlaceholder": "Your name",
       "units": "Units of measurement",

@@ -13,7 +13,7 @@
   "onboarding": {
     "step": "Étape {{current}} sur {{total}}",
     "welcome": {
-      "title": "Bienvenue sur FitApp",
+      "title": "Bienvenue sur Vulcan",
       "subtitle": "Votre coach personnel hors ligne",
       "namePlaceholder": "Votre prénom",
       "units": "Unités de mesure",
