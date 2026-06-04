@@ -172,8 +172,16 @@ Bucle ~1.3 s sobre fondo #141A17:
   * Traducciones completas es/en/fr para auth y paywall
   * NOTA: sesión no persiste al cerrar la app (in-memory storage);
     se corregirá con expo-secure-store en el siguiente build
+- Hecho: deep linking de verificación de email:
+  * emailRedirectTo: 'vulcan://auth/callback' en signUp
+  * src/app/auth/callback.tsx: ruta Expo Router que procesa el código PKCE
+    (exchangeCodeForSession) y redirige a / al terminar
+  * _layout.tsx: usa usePathname(); devuelve <Slot /> para /auth/callback
+    para que Expo Router pueda renderizar la ruta
 - Siguiente: FASE 7 — In-app purchase (compra única de por vida, validación
   en servidor, configuración en App Store Connect y Google Play).
+- PENDIENTE del siguiente EAS build: activar expo-secure-store para que la
+  sesión persista al cerrar la app (ya está en app.json plugins).
 
 ## Plan de fases (pendiente de aprobación)
 - FASE 3 — Marca Vulcan: renombrar app, nueva paleta de color, icono, 
