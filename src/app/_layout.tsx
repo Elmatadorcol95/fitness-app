@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { Linking, StyleSheet } from 'react-native';
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { StyleSheet } from 'react-native';
+import { DarkTheme, DefaultTheme, Slot, ThemeProvider, usePathname } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 
@@ -12,14 +12,17 @@ import { supabase, isTrialValid, daysRemaining } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth.store';
 import { useProfileStore } from '@/store/profile.store';
 
-import { VulcanSplash }    from '@/components/VulcanSplash';
-import { AuthFlow }        from '@/components/auth/AuthFlow';
-import { PaywallScreen }   from '@/components/auth/PaywallScreen';
-import { OnboardingFlow }  from '@/components/onboarding/OnboardingFlow';
-import AppTabs             from '@/components/app-tabs';
+import { VulcanSplash }   from '@/components/VulcanSplash';
+import { AuthFlow }       from '@/components/auth/AuthFlow';
+import { PaywallScreen }  from '@/components/auth/PaywallScreen';
+import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
+import AppTabs            from '@/components/app-tabs';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const pathname    = usePathname();
+
+  const theme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
 
   // ── DB migrations ──────────────────────────────────────────────────────────
   const { success: migrationsReady } = useMigrations(db, migrations);
@@ -33,7 +36,6 @@ export default function RootLayout() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
         setSession(newSession);
-
         if (newSession?.user) {
           const { data } = await supabase
             .from('user_status')
@@ -43,46 +45,13 @@ export default function RootLayout() {
         } else {
           setUserStatus(null);
         }
-
         setAuthLoading(false);
       },
     );
     return () => subscription.unsubscribe();
   }, []);
 
-  // ── Manejar deep link vulcan://auth/callback cuando vuelve de verificar email ──
-  useEffect(() => {
-    const handleUrl = async (url: string) => {
-      if (!url.includes('auth/callback')) return;
-
-      // Flujo PKCE: Supabase manda ?code=xxx
-      const qs = url.split('?')[1] ?? '';
-      const code = new URLSearchParams(qs).get('code');
-      if (code) {
-        await supabase.auth.exchangeCodeForSession(code);
-        return;
-      }
-
-      // Flujo implícito (fallback): tokens en el fragmento #access_token=xxx&...
-      const fragment = url.split('#')[1] ?? '';
-      const p = Object.fromEntries(new URLSearchParams(fragment));
-      if (p.access_token && p.refresh_token) {
-        await supabase.auth.setSession({
-          access_token:  p.access_token,
-          refresh_token: p.refresh_token,
-        });
-      }
-    };
-
-    // App estaba cerrada: obtener URL inicial
-    Linking.getInitialURL().then((url) => { if (url) handleUrl(url); });
-
-    // App en segundo plano: escuchar nuevas URLs
-    const sub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
-    return () => sub.remove();
-  }, []);
-
-  // ── Cargar perfil local (SQLite) una vez que las migraciones estén listas ──
+  // ── Cargar perfil local (SQLite) una vez listas las migraciones ────────────
   useEffect(() => {
     if (!migrationsReady) return;
     (async () => {
@@ -97,6 +66,17 @@ export default function RootLayout() {
     })();
   }, [migrationsReady]);
 
+  // ── Ruta de callback: siempre dejar que auth/callback.tsx se renderice ─────
+  // Expo Router intercepta vulcan://auth/callback y navega aquí.
+  // Devolvemos <Slot /> para que el archivo de ruta pueda ejecutarse.
+  if (pathname === '/auth/callback') {
+    return (
+      <ThemeProvider value={theme}>
+        <Slot />
+      </ThemeProvider>
+    );
+  }
+
   // ── Pantalla de carga ───────────────────────────────────────────────────────
   const stillLoading = !migrationsReady || isProfileLoading || isAuthLoading;
   if (stillLoading) return <VulcanSplash />;
@@ -104,7 +84,7 @@ export default function RootLayout() {
   // ── Sin sesión → pantallas de auth ─────────────────────────────────────────
   if (!session) {
     return (
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <ThemeProvider value={theme}>
         <AuthFlow />
       </ThemeProvider>
     );
@@ -114,7 +94,7 @@ export default function RootLayout() {
   if (userStatus && !isTrialValid(userStatus.trial_started_at, userStatus.is_paid)) {
     const over = 14 - daysRemaining(userStatus.trial_started_at);
     return (
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <ThemeProvider value={theme}>
         <PaywallScreen daysOver={over} />
       </ThemeProvider>
     );
@@ -123,7 +103,7 @@ export default function RootLayout() {
   // ── Sin perfil local → onboarding ───────────────────────────────────────────
   if (!profile) {
     return (
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <ThemeProvider value={theme}>
         <OnboardingFlow />
       </ThemeProvider>
     );
@@ -131,7 +111,7 @@ export default function RootLayout() {
 
   // ── Todo ok → app principal ─────────────────────────────────────────────────
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={theme}>
       <AppTabs />
     </ThemeProvider>
   );
