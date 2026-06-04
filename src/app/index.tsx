@@ -1,22 +1,21 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Moon, Sun, Sunrise } from 'lucide-react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useProfileStore } from '@/store/profile.store';
 import { BottomTabInset, Spacing } from '@/constants/theme';
+import { MoonIcon, SunIcon, SunriseIcon } from '@/components/icons/TimeIcons';
 
-const AMBER = '#F2B450';
+const AMBER      = '#F2B450';
 const MOON_COLOR = '#F1F4F1';
-const ICON_SIZE = 30;
-const ICON_STROKE = 1.6;
+const ICON_SIZE  = 30;
 
 function TimeIcon({ hour }: { hour: number }) {
-  if (hour < 12) return <Sunrise size={ICON_SIZE} color={AMBER} strokeWidth={ICON_STROKE} />;
-  if (hour < 19) return <Sun      size={ICON_SIZE} color={AMBER} strokeWidth={ICON_STROKE} />;
-  return              <Moon      size={ICON_SIZE} color={MOON_COLOR} strokeWidth={ICON_STROKE} />;
+  if (hour < 12) return <SunriseIcon size={ICON_SIZE} color={AMBER} />;
+  if (hour < 19) return <SunIcon     size={ICON_SIZE} color={AMBER} />;
+  return               <MoonIcon    size={ICON_SIZE} color={MOON_COLOR} />;
 }
 
 function greetingText(name: string, hour: number) {
