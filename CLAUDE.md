@@ -115,12 +115,72 @@ Bucle ~1.3 s sobre fondo #141A17:
 - Gráfica de evolución por medida. Idealmente silueta corporal interactiva 
   o lista con mini-gráfica de tendencia.
 
+## Lote de mejoras visuales y de motivación (aprobado)
+### Íconos y emojis
+- Reemplazar TODOS los emojis de sistema por íconos vectoriales de @expo/vector-icons
+  (ya en el build — sin recompilación).
+- Paleta: verde #3FBF7F, ámbar #F2B450, blanco suave #F1F4F1.
+- En estados vacíos usar símbolo Vulcan (martillo + yunque + chispa) bien centrado.
+- Tab bar, pantalla Hoy, progreso, perfil, historial: sin emojis.
+
+### Gráfica de medidas
+- Eje X: fecha de cada medida (formato dd/mm), orden cronológico.
+- Eje Y: valor de la medida.
+
+### Flecha de tendencia (medidas)
+- Compara el valor más reciente con el PRIMERO registrado (no con el anterior).
+- Color según objetivo principal del usuario:
+  * Medidas donde bajar es bueno (cintura, cadera, % grasa, peso): bajar=verde, subir=ámbar.
+  * Medidas donde subir es bueno (brazo, pecho, hombros, muslo, pantorrilla):
+    subir=verde, bajar=ámbar. Cuello y antebrazo = neutro.
+  * Si objetivo principal = fuerza/hipertrofia: prioriza "subir músculo".
+  * Si objetivo principal = fat_loss: prioriza "bajar grasa/cintura".
+
+### Motivación y gamificación (tema herrero)
+- Racha de entrenamiento: días consecutivos, con ícono de brasa/fuego ámbar que crece.
+- Logros temáticos desbloqueables:
+  * "Primera chispa" = 1er entrenamiento
+  * "Aprendiz de herrero" = 10 entrenamientos
+  * "Oficial" = 25 entrenamientos
+  * "Maestro herrero" = 50 entrenamientos
+  * "Forja incandescente" = racha de 7 días
+  * "Acero templado" = racha de 30 días
+  * "Récord personal" = nuevo PR en cualquier ejercicio
+- Insignias: íconos planos en paleta Vulcan.
+- Celebración PR: animación de chispas (misma que el logo) al batir récord.
+
+### Frases motivadoras diarias (voz original de Vulcan)
+- Lista de ~30 frases originales con tema herrero/forja. NO citas de terceros.
+- Rotación diaria (por día del año), sin repetición hasta agotar el ciclo.
+- Mostrar en pantalla Hoy al abrir la app.
+- Ejemplos aprobados: "El hierro no se forja en frío.", "Cada repetición templa
+  tu temple.", "Hoy golpeas; mañana eres acero.", "La fragua no descansa, tú tampoco hoy."
+
+### Recapitulativo mensual y semanal — "Tu forja de [mes]"
+- Pantalla/tarjeta con logo y paleta Vulcan que resume el mes:
+  entrenamientos, volumen total, racha, cambio de peso/medidas, récords, logros.
+- Versión semanal (mini).
+- Se puede compartir como imagen (sin datos sensibles, con permiso del usuario).
+- Tono: divertido y didáctico.
+
+### Anillos de macros y temporizador
+- Anillos de macros del día (proteína y calorías vs. objetivo), estilo anillos de
+  actividad, en verde/ámbar. Implementar con puro RN/Reanimated (sin react-native-svg
+  para evitar recompilación).
+- Temporizador de descanso entre series con animación del martillo.
+
+### Háptica (requiere recompilación)
+- expo-haptics: vibración sutil al completar serie, guardar y desbloquear logro.
+- Agrupar con cualquier otro módulo nativo pendiente en UNA sola recompilación.
+
 ## Reglas de trabajo
 - Trabajar por fases, aprobando una a la vez antes de seguir.
 - Antes de instalar librerías nuevas, explicar qué son y por qué.
 - Claves de API en variables de entorno, nunca en el código del cliente.
 - Incluir descargo: la app no da consejo médico.
 - Al final de cada sesión, actualizar "Estado actual".
+- Marcar siempre si un cambio es solo JS (recarga) o requiere recompilar el build.
+- Agrupar TODOS los módulos nativos en una sola recompilación al final.
 
 ## Estado actual
 - Hecho: estructura base de Expo.
@@ -178,24 +238,139 @@ Bucle ~1.3 s sobre fondo #141A17:
     (exchangeCodeForSession) y redirige a / al terminar
   * _layout.tsx: usa usePathname(); devuelve <Slot /> para /auth/callback
     para que Expo Router pueda renderizar la ruta
-- Siguiente: FASE 7 — In-app purchase (compra única de por vida, validación
-  en servidor, configuración en App Store Connect y Google Play).
-- PENDIENTE del siguiente EAS build: activar expo-secure-store para que la
-  sesión persista al cerrar la app (ya está en app.json plugins).
+- Hecho: FASE 8 — Módulo Progreso:
+  * 4 tablas nuevas en SQLite: weight_log, body_measurements, progress_photos,
+    measurement_prefs (migración 0002_progress_module.sql)
+  * src/store/progress.store.ts: Zustand store completo
+  * src/components/progress/: WeightTab, MeasurementsTab, PhotosTab,
+    BeforeAfterSlider, AddWeightModal, AddMeasurementModal,
+    MeasurementPickerModal, SimpleLineChart
+  * EAS Build completado (2026-06-05) con expo-image-picker, expo-file-system,
+    expo-secure-store, expo-crypto
+- Hecho: correcciones de bugs (sesión 2026-06-08/09):
+  * Bucle infinito auth ("Maximum update depth exceeded"):
+    - auth.store.ts: nueva acción setAuthState(session, userStatus) que hace
+      un solo set() atómico en vez de tres separados.
+    - _layout.tsx: selectores individuales de Zustand en vez de suscripción
+      al store completo; onAuthStateChange usa setAuthState.
+    - auth/callback.tsx: usa <Redirect href="/"> en vez de router.replace()
+      dentro de un efecto, añadido useRef guard para evitar doble ejecución.
+  * Error "FileSystem.documentDirectory es null" en fotos de progreso:
+    - En Expo SDK 56, expo-file-system cambió su API por defecto (orientada a
+      objetos). La API antigua está en expo-file-system/legacy.
+    - PhotosTab.tsx: cambiado import a expo-file-system/legacy. Sin recompilación.
+- Hecho: MEJORA A — Íconos uniformes (JS, recarga):
+  * Nuevo componente src/components/icons/VulcanSymbol.tsx: yunque verde +
+    chispa ámbar para estados vacíos y pantallas de marca.
+  * Todos los emojis del sistema reemplazados por @expo/vector-icons:
+    - index.tsx: GoalChip con Ionicons barbell/body/flame; StatBox acepta
+      ReactNode; icono de ubicación; VulcanSymbol en placeholder de entreno.
+    - profile.tsx: Row acepta ReactNode; objetivos y ubicación con iconos.
+    - history.tsx: Ionicons time-outline en estado vacío.
+    - WeightTab.tsx: MaterialCommunityIcons scale en estado vacío.
+    - MeasurementsTab.tsx: Ionicons body-outline en estado vacío.
+    - PhotosTab.tsx: Ionicons lock-closed (privacidad) + camera-outline (vacío).
+    - StepGoal.tsx: Ionicons por objetivo en lugar del mapa de emojis.
+    - StepSummary.tsx: nombres de objetivos sin prefijo emoji.
+    - PaywallScreen.tsx: VulcanSymbol en lugar de ⚒️.
+    - VerifyEmailScreen.tsx: Ionicons mail-outline en lugar de 📬.
+  * Solo quedan ✓ y ✕ (símbolos Unicode estándar de UI, no emojis).
+- Hecho: correcciones de auth (sesión 2026-06-09):
+  * Bucle infinito definitivo resuelto con patrón "overlay":
+    - _layout.tsx: <AppTabs /> siempre montado; AuthFlow, OnboardingFlow,
+      PaywallScreen y VulcanSplash son Views absolutas encima (absoluteFillObject).
+    - Eliminado usePathname() del layout raíz (suscribía al store de navegación
+      de Expo Router y causaba re-renders al montar/desmontar NativeTabs).
+    - Deep link vulcan://auth/callback manejado con Linking en _layout.tsx;
+      ya no se usa la ruta src/app/auth/callback.tsx para esto.
+  * Validación de sesión con getUser() al arranque:
+    - INITIAL_SESSION de onAuthStateChange se ignora (no confiamos en sesión
+      de memoria sin verificar).
+    - Al arrancar se llama supabase.auth.getUser() contra el servidor. Si la
+      cuenta fue borrada en Supabase, devuelve error → setAuthState(null, null)
+      → aparece AuthFlow. Evita que una sesión en memoria de una cuenta borrada
+      salte directo a la app.
+  * Pestaña Perfil con profile = null:
+    - profile.tsx: ya no devuelve null (pantalla negra). Muestra estado vacío
+      con ícono y botón "Cerrar sesión / reiniciar" siempre accesible.
+    - handleSignOut movido antes del null-check; borra perfil de SQLite, limpia
+      store y llama supabase.auth.signOut().
+- Hecho: diagnóstico de auth + fix cierre de sesión (sesión 2026-06-09):
+  * _layout.tsx: logs [Auth] en onAuthStateChange, startup getUser y
+    setAuthState; StyleSheet.absoluteFillObject → absoluteFill (fix TS).
+  * profile.tsx: handleSignOut usa finally para llamar setAuthState(null, null)
+    siempre (aunque signOut() falle o el evento SIGNED_OUT no llegue).
+    Añadidos logs [Profile] antes/después de signOut para diagnóstico.
+- Hecho: BUG — nombres de objetivos sin traducir (sesión 2026-06-09):
+  * index.tsx y profile.tsx usaban 'onboarding.goals.*' (con 's') pero las
+    claves en los JSON son 'onboarding.goal.*' (sin 's'). Corregido con
+    replace_all en ambos archivos.
+- Hecho: Rediseño StepPhysical + fix campo numérico (sesión 2026-06-09):
+  * StepPhysical.tsx reescrito completamente (solo JS, recarga):
+    - Steppers +/- para altura y peso: elimina el bug de edición numérica.
+    - Segmented control horizontal para género con iconos (male/female/people).
+    - Año de nacimiento: campo de texto con estado local (sin reformateo en
+      cada tecla); edad calculada en tiempo real al lado (ej. "→ 30 años");
+      validación solo al salir del campo con mensaje amable.
+    - Toggle inline de unidades (kg·cm / lb·ft) en la propia pantalla.
+    - Íconos planos (@expo/vector-icons) junto a cada etiqueta.
+    - Borde verde (#3FBF7F) al enfocar el campo de año.
+  * ProgressBar.tsx: fill en verde acento #3FBF7F (antes theme.text).
+  * Traducciones es/en/fr: añadidas claves birthYearError y ageHint.
+- Hecho: mejoras StepPhysical — fecha y stepper editable (sesión 2026-06-09):
+  * Nueva migración 0003_birth_date.sql: ALTER TABLE profile ADD COLUMN birth_date TEXT.
+  * schema.ts: añadido birthDate (text). profile.store.ts: birthDate?: string.
+  * OnboardingFlow.tsx: insert usa birthDate en vez de birthYear.
+  * StepPhysical.tsx reescrito: fecha de nacimiento con 3 Pickers en fila
+    (día/mes/año, ya instalado @react-native-picker/picker); edad calculada
+    dinámicamente respetando si el cumpleaños ya pasó este año. Stepper con
+    TextInput editable en el centro: toca para escribir el número directo,
+    valida/convierte al salir del campo; +/- siguen funcionando para ajuste fino.
+  * profile.tsx: muestra birthDate en formato dd/mm/yyyy + (N años).
+  * Traducciones es/en/fr: keys birthDate, ageHint, yearsOld.
+- Hecho: MEJORA B — Gráfica y tendencias de medidas (JS, recarga):
+  * SimpleLineChart.tsx: añadidos ejes. Eje X con fechas dd/mm (primera,
+    media y última, orden cronológico). Eje Y con máx/medio/mín y líneas
+    guía tenues. Nuevos props labelColor y decimals. WeightTab usa el eje.
+  * MeasurementsTab.tsx: la tendencia ahora compara el valor MÁS RECIENTE con
+    el PRIMER registro (antes comparaba con el penúltimo). Color según
+    objetivo principal (goalPrimary):
+    - UP_IS_GOOD (hombros, pecho, brazo, muslo, pantorrilla): subir=verde
+      acento, bajar=ámbar.
+    - DOWN_IS_GOOD (cintura, cadera, % grasa): bajar=verde, subir=ámbar.
+    - Neutros (cuello, antebrazo): grises, salvo que el objetivo principal
+      sea fat_loss (bajar=bueno) o fuerza/hipertrofia (subir=bueno).
+  * El gráfico de medidas convierte a las unidades del usuario (cm→in) en el
+    eje Y; bodyFatPct se muestra tal cual.
+- Siguiente: MEJORA C — Frases motivadoras diarias (JS, recarga):
+  Lista de 30 frases originales Vulcan, rotación diaria, en pantalla Hoy.
+- Pendiente obligatorio: FASE 7 — In-app purchase.
+  ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
-## Plan de fases (pendiente de aprobación)
-- FASE 3 — Marca Vulcan: renombrar app, nueva paleta de color, icono, 
-  animación de carga.
-- FASE 4 — Onboarding V2: multi-objetivo, dropdowns, equipamiento de casa.
-- FASE 5 — Navegación principal: tabs reales (Hoy, Historial, Progreso, 
-  Perfil), reemplazar demos de Expo.
-- FASE 6 — Supabase Auth: registro, login, verificación por email, 
-  pantalla de trial y paywall.
-- FASE 7 — Compra única: in-app purchase no consumible, validación 
-  en servidor, integración con App Store y Google Play.
-- FASE 8 — Módulo Progreso: peso, medidas corporales, fotos privadas.
-- FASE 9 — Módulo Entrenamiento: base de ejercicios, generador de planes 
-  por reglas, registro de sesiones.
+## Plan de fases
+
+### Completadas
+- FASE 1–8 completadas (ver Estado actual).
+
+### Lote visual/motivación (en curso, sin recompilar hasta la última)
+- MEJORA A — Íconos uniformes (JS, recarga):
+  Reemplazar todos los emojis por @expo/vector-icons; símbolo Vulcan en vacíos.
+- MEJORA B — Gráfica y tendencias de medidas (JS, recarga):
+  Fechas en eje X; flechas de tendencia con color según objetivo del usuario.
+- MEJORA C — Frases motivadoras diarias (JS, recarga):
+  Lista de 30 frases originales Vulcan, rotación diaria, mostradas en pantalla Hoy.
+- MEJORA D — Gamificación (JS, recarga):
+  Racha de entrenamiento, logros temáticos, celebración de PR con chispas.
+- MEJORA E — Recap mensual/semanal (JS, recarga):
+  Tarjeta "Tu forja de [mes]" + versión semanal mini; compartible como imagen.
+- MEJORA F — Háptica (nativo, recompilar):
+  expo-haptics: vibración en completar serie, guardar y desbloquear logro.
+  ⚠️ Agrupar aquí cualquier otro módulo nativo pendiente.
+
+### Pendientes principales
+- FASE 7 — In-app purchase (OBLIGATORIA antes de publicar).
+- FASE 9 — Módulo Entrenamiento: base de ejercicios, generador de planes,
+  registro de sesiones, temporizador de descanso con martillo.
 
 ## IMPORTANTE
 Actualiza la sección "Estado actual" al final de cada sesión, anotando qué se 
