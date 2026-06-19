@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { exerciseTargets, workoutSessions, sessionSets, exerciseRestPrefs } from '@/db/schema';
-import { hapticsLight } from '@/lib/haptics';
+import { hapticsLight, hapticsSuccess } from '@/lib/haptics';
+import { playRestDone } from '@/lib/sounds';
 import { runProgressionAfterSession } from '@/lib/progression';
 import { EXERCISES } from '@/lib/exercises';
 import type { StoredPlanDay } from './workout.store';
@@ -129,7 +130,7 @@ function buildSetState(index: number, targetReps: number, lastWeightKg: number |
     targetReps,
     actualReps: targetReps,
     weightKg: lastWeightKg ?? 0,
-    rir: 2,
+    rir: 3, // 3 = expectativa neutra; el usuario ajusta después de cada serie
     completed: false,
   };
 }
@@ -166,25 +167,28 @@ function computeCoach(
   // ── Peso corporal ────────────────────────────────────────────────────────────
   if (equip === 'bodyweight') {
     if (done.actualReps < planRepsMin) {
-      // Demasiado difícil: por debajo del mínimo
-      const target = Math.max(Math.round(done.actualReps * 0.9), Math.max(planRepsMin - 3, 5));
-      if (target < nextReps) {
-        return { reps: target, kg: 0, reason: `${done.actualReps} reps (bajo rango) → apunta a ${target}` };
+      // Por debajo del mínimo: recomendar bajar objetivo
+      const safeTarget = Math.max(Math.round(done.actualReps * 0.9), 3);
+      if (safeTarget < nextReps) {
+        return { reps: safeTarget, kg: 0, reason: `${done.actualReps} reps (bajo rango) → apunta a ${safeTarget}` };
       }
+      return null;
     }
-    if (done.actualReps >= planRepsMax && done.rir >= 4) {
-      // Demasiado fácil con mucha reserva
-      return { reps: planRepsMax, kg: 0, reason: `${done.actualReps} reps · RIR ${done.rir} → considera variante más difícil` };
-    }
-    if (done.actualReps > planRepsMax && done.rir <= 2) {
-      // Superó el máximo pero con poca reserva: mantener reps máx
-      return { reps: planRepsMax, kg: 0, reason: `${done.actualReps} reps (sobre máx) → mantén ${planRepsMax}` };
+    if (done.actualReps >= planRepsMax) {
+      // Al tope o por encima: sugerir progresión (nunca "mantén X")
+      const msg = done.rir >= 2
+        ? `Te quedó fácil (${done.actualReps} reps · RIR ${done.rir}) → prueba variante difícil o añade lastre`
+        : `${done.actualReps} reps al límite (RIR ${done.rir}) → progresando bien`;
+      return { reps: planRepsMax, kg: 0, reason: msg };
     }
     return null; // En rango: sin cambio
   }
 
   // ── Ejercicio cargable ───────────────────────────────────────────────────────
   if (done.weightKg <= 0) return null;
+
+  // Reps muy por encima del rango (>30% sobre el máx) con RIR alto → salto de peso más decidido
+  const veryHighReps = done.actualReps > planRepsMax * 1.3 && done.rir >= 3;
 
   const effectiveReps = Math.max(done.actualReps + done.rir, 1);
   const e1rm = done.weightKg * (1 + effectiveReps / 30);
@@ -193,8 +197,9 @@ function computeCoach(
   const idealKg = e1rm / (1 + (planRepsMin + 2) / 30);
   const rounded  = Math.round(idealKg / inc) * inc;
 
-  // Cap ±15% por serie
-  const maxSwing = Math.max(done.weightKg * 0.15, inc);
+  // Cap ±15% normal, ±30% cuando las reps superan ampliamente el rango
+  const swingPct = veryHighReps ? 0.30 : 0.15;
+  const maxSwing = Math.max(done.weightKg * swingPct, inc);
   let suggested  = Math.max(done.weightKg - maxSwing, Math.min(done.weightKg + maxSwing, rounded));
   suggested      = Math.round(suggested / inc) * inc;
 
@@ -205,15 +210,20 @@ function computeCoach(
 
   const diff = suggested - nextKg;
 
-  // Diferencia menor que medio incremento → solo mostrar si las reps se salieron del rango
+  // Diferencia menor que medio incremento → revisar casos especiales
   if (Math.abs(diff) < inc * 0.5) {
     if (done.actualReps < planRepsMin) {
       return { reps: done.actualReps, kg: suggested, reason: `${done.actualReps} reps (bajo mín ${planRepsMin}) · mantén ${suggested} kg` };
     }
     if (done.actualReps > planRepsMax && done.rir >= 3) {
-      return { reps: planRepsMin, kg: suggested, reason: `${done.actualReps} reps (sobre máx) · RIR ${done.rir} → considera +peso prox. sesión` };
+      return { reps: planRepsMin, kg: suggested, reason: `${done.actualReps} reps (sobre máx · RIR ${done.rir}) → considera +peso próxima sesión` };
     }
-    return null; // En rango y mismo peso: no spamear
+    // Dentro del rango pero muy fácil (RIR ≥ 4) → sugerir pequeño aumento
+    if (done.actualReps >= planRepsMin && done.rir >= 4) {
+      const nextUp = Math.round((done.weightKg + inc) / inc) * inc;
+      return { reps: planRepsMin, kg: nextUp, reason: `${done.actualReps} reps · RIR ${done.rir} (muy fácil) → prueba ${nextUp} kg` };
+    }
+    return null; // En rango, misma carga, sensación normal
   }
 
   const dir = diff > 0 ? '↑' : '↓';
@@ -262,7 +272,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       const progData  = progressionDataArr[i];
       const lastData  = lastDataArr[i];
       const customRest = customRestArr[i];
-      const targetMin = progData.repsMin ?? minReps;
+      // Ejercicios no-barra: aplicar mínimo 8-12 reps aunque el plan diga 3-5
+      const equip = getEquipLocal(ex.exerciseId);
+      const effMin = (equip !== 'barbell' && equip !== 'bodyweight' && minReps < 8) ? 8 : minReps;
+      const effMax = (equip !== 'barbell' && equip !== 'bodyweight' && maxReps < 12) ? Math.max(maxReps, 12) : maxReps;
+      // Pre-cargar con el punto medio del rango (~10 para 8-12) si no hay datos de progresión
+      const targetMid = Math.round((effMin + effMax) / 2);
+      const targetInit = progData.repsMin ?? targetMid;
       const restSeconds = customRest ?? computeDefaultRest(ex.exerciseId, ex.restSeconds);
       return {
         exerciseId:   ex.exerciseId,
@@ -270,11 +286,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         note:         '',
         lastReps:     lastData.reps,
         lastWeightKg: lastData.weightKg,
-        planRepsMin:  minReps,
-        planRepsMax:  maxReps,
+        planRepsMin:  effMin,
+        planRepsMax:  effMax,
         planSets:     ex.sets,
         sets: Array.from({ length: ex.sets }, (_, s) =>
-          buildSetState(s, targetMin, lastData.weightKg),
+          buildSetState(s, targetInit, lastData.weightKg),
         ),
       };
     });
@@ -319,14 +335,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           sets[nextIdx].weightKg, sets[nextIdx].actualReps,
           ex.planRepsMin, ex.planRepsMax, equip,
         );
-        if (hint) {
-          sets[nextIdx] = {
-            ...sets[nextIdx],
-            actualReps: hint.reps,
-            ...(hint.kg > 0 ? { weightKg: hint.kg } : {}),
-            coachReason: hint.reason,
-          };
-        }
+        // Siempre actualizar coachReason (null limpia hints obsoletos)
+        sets[nextIdx] = {
+          ...sets[nextIdx],
+          coachReason: hint?.reason,
+          ...(hint
+            ? { actualReps: hint.reps, ...(hint.kg > 0 ? { weightKg: hint.kg } : {}) }
+            : {}),
+        };
       }
 
       ex.sets = sets;
@@ -388,7 +404,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     const { restTimerSeconds, restTimerRunning } = get();
     if (!restTimerRunning) return;
     if (restTimerSeconds <= 1) {
-      hapticsLight();
+      hapticsSuccess();
+      playRestDone();
       set({ restTimerSeconds: 0, restTimerRunning: false });
     } else {
       set({ restTimerSeconds: restTimerSeconds - 1 });

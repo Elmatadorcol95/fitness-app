@@ -10,6 +10,7 @@
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "expo": "~56.0.9",
+    "expo-audio": "~56.0.12",
     "expo-constants": "~56.0.17",
     "expo-crypto": "~56.0.4",
     "expo-dev-client": "~56.0.19",
@@ -58,7 +59,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "drizzle:generate": "drizzle-kit generate"
   },
   "private": true
 }

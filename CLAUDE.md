@@ -532,6 +532,42 @@ Bucle ~1.3 s sobre fondo #141A17:
     lee la cola y muestra un overlay con animación de entrada, chispas ámbar y auto-
     dismiss a los 3.5 s. Logros múltiples se encadenan. Está encima de todo en layout.
   * §7 Sonido/vibración: pendiente EAS Build (ver abajo).
+- Hecho: LOTE H — Ejercicios de gimnasio + coach + descanso escribible (JS, recarga):
+  * §A Bug isGym: plan-generator.ts, session.tsx y training.tsx usaban solo
+    location==='gym'. Corregido a location==='gym' || location==='both'. Ahora
+    los usuarios con "ambos" ven ejercicios de cable/máquina en su plan y en
+    ChangeExerciseModal.
+  * §B computeCoach bodyweight corregido:
+    - Eliminado mensaje "mantén X" (no aplica a peso corporal).
+    - Nueva lógica: bajo mínimo → apunta a safeTarget; al tope o por encima →
+      "Te quedó fácil → prueba variante difícil" (RIR≥2) o "progresando bien"
+      (RIR<2). Se cubre el hueco donde RIR 3 antes caía a null sin mensaje.
+    - completeSet: siempre limpia coachReason en la siguiente serie aunque hint
+      sea null, para evitar mensajes obsoletos de series anteriores.
+  * §C Descanso escribible: área de descanso idle rediseñada. El tiempo en
+    segundos es un TextInput ámbar editable directamente. Botón ▶ a la derecha
+    inicia el timer. ±15s siguen como ajuste rápido. El valor se persiste por
+    ejercicio en SQLite (mismo mecanismo que §1 del LOTE G).
+- Hecho: LOTE I — Sesión en vivo, coach y detalle de ejercicio (JS, recarga):
+  * §1 Reps por defecto: getEffectiveReps en plan-generator.ts solo permite esquemas
+    de fuerza bajos (3-5) en barra con discos (BARBELL_EQUIP). Máquina/mancuerna/
+    cable/kettlebell siempre arrancan en 8-12. startSession aplica effMin/effMax y
+    usa el punto medio (~10) como valor inicial cuando no hay datos de progresión.
+  * §2 Calibración: banner ámbar "Pon tu peso de partida / El coach ajustará las
+    siguientes series" cuando el ejercicio cargado no tiene historial (lastWeightKg=null).
+  * §3 Descanso visible: restEditInput ensanchado de 56→72px para que "180" quepa.
+  * §4 Coach mejorado: rir default buildSetState 2→3 (más neutro). Dos mejoras en
+    computeCoach cargado: (a) cap 30% en vez de 15% cuando reps > 1.3×planRepsMax y
+    RIR≥3 (salto más decidido); (b) dentro del rango con RIR≥4 → sugiere +1 incremento
+    aunque el peso calculado coincida. El RIR mostrado en el mensaje es siempre el que
+    el usuario introdujo.
+  * §5 Recap: eliminada la tarjeta "Volumen total" (confusa). El grid pasa de 5 a 4
+    tarjetas: Entrenamientos, Racha, Cambio de peso, Logros.
+  * §6 Evolución por ejercicio (exercise/[id].tsx): si el ejercicio tiene historial,
+    muestra: etiqueta del gráfico (1RM estimado Epley para cargados, reps para peso
+    corporal), mini-gráfica de tendencia (SimpleLineChart, ≥2 sesiones), lista de las
+    últimas 6 sesiones con fecha localizada + mejor serie + badge "★ PR" dorado.
+    Respeta sistema de unidades (kg/lb).
 - Pendiente obligatorio: FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 

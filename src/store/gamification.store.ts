@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { achievements as achievementsTable, gamificationMeta } from '@/db/schema';
 import { hapticsSuccess } from '@/lib/haptics';
+import { playAchievement } from '@/lib/sounds';
 
 export type AchievementId =
   | 'first_spark'
@@ -143,6 +144,7 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
       celebrationQueue: [...celebrationQueue, id],
     });
     await hapticsSuccess();
+    playAchievement();
   },
 
   // Quita el primer logro de la cola (llamado cuando el overlay lo muestra)

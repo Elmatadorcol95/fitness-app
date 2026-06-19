@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useGamificationStore } from '@/store/gamification.store';
+import { useProfileStore } from '@/store/profile.store';
 
 const AMBER = '#F2B450';
 const MUTED = '#9DA89F';
@@ -22,8 +23,12 @@ function flameProps(streak: number): { size: number; color: string; name: 'flame
 export function StreakWidget() {
   const { t } = useTranslation();
   const { streak, totalWorkouts, loadGamification } = useGamificationStore();
+  const isDbReady = useProfileStore(s => s.isDbReady);
 
-  useEffect(() => { loadGamification(); }, []);
+  useEffect(() => {
+    if (!isDbReady) return;
+    loadGamification();
+  }, [isDbReady]);
 
   const flame = flameProps(streak);
 

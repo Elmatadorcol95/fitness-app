@@ -118,7 +118,7 @@ export default function TrainingScreen() {
 
   const lang      = normalizeLang(i18n.language);
   const equipment = parseEquipment(profile?.equipment);
-  const isGym     = profile?.location === 'gym';
+  const isGym     = profile?.location === 'gym' || profile?.location === 'both';
 
   const bwLabel = lang === 'es' ? 'Peso corporal' : lang === 'fr' ? 'Poids du corps' : 'Bodyweight';
 

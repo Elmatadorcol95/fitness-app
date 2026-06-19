@@ -97,15 +97,16 @@ function safePick<T>(arr: T[], index: number): T | undefined {
   return arr[index % arr.length];
 }
 
-// Equipamiento que añade carga externa; sin él el ejercicio es de peso corporal
-const LOADED_EQUIPMENT_PLAN = new Set(['barbellPlates', 'dumbbells', 'kettlebells', 'weightedVest']);
+// Solo la barra con discos acepta rangos de fuerza bajos (3-5, 4-6 reps)
+const BARBELL_EQUIP = new Set(['barbellPlates']);
 
-// Para ejercicios de peso corporal con esquemas de fuerza (max < 8 reps) → usar 8-12
+// Mancuerna/cable/máquina/kettlebell/peso corporal: mínimo 8-12 reps aunque el objetivo sea fuerza
 function getEffectiveReps(exercise: Exercise, planReps: string): string {
   const parts   = planReps.split('-');
   const maxReps = parseInt(parts[parts.length - 1] ?? parts[0], 10);
-  if (!isNaN(maxReps) && maxReps < 8 && !exercise.equipment.some(e => LOADED_EQUIPMENT_PLAN.has(e))) {
-    return '8-12';
+  if (!isNaN(maxReps) && maxReps < 8) {
+    if (exercise.equipment.some(e => BARBELL_EQUIP.has(e))) return planReps; // barra: respeta el esquema
+    return '8-12'; // todo lo demás: mínimo 8-12
   }
   return planReps;
 }
@@ -173,7 +174,7 @@ export function generatePlan(profile: {
   const equipment: string[] = (() => {
     try { return JSON.parse(profile.equipment) as string[]; } catch { return []; }
   })();
-  const isGym  = profile.location === 'gym';
+  const isGym  = profile.location === 'gym' || profile.location === 'both';
   const scheme = getRepScheme(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null);
   const counts = getExerciseCounts(profile.minutesPerSession);
   const split  = getSplit(profile.daysPerWeek);

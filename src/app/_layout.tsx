@@ -4,13 +4,14 @@ import { Linking, StyleSheet, View, useColorScheme } from 'react-native';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 
 import '@/i18n';
-import { db, schema, sqlite } from '@/db';
+import { db, schema } from '@/db';
 import migrations from '@/db/migrations/migrations';
 
 import { supabase, isTrialValid, daysRemaining } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth.store';
 import { useProfileStore } from '@/store/profile.store';
 import { useWorkoutStore } from '@/store/workout.store';
+import { useGamificationStore } from '@/store/gamification.store';
 
 import { VulcanSplash }   from '@/components/VulcanSplash';
 import { AuthFlow }       from '@/components/auth/AuthFlow';
@@ -116,37 +117,14 @@ export default function RootLayout() {
   }, []);
 
   // Cargar datos SQLite una vez confirmadas las migraciones.
-  // IMPORTANTE: WorkoutCard (y otros componentes) pueden intentar leer la DB
-  // antes de que useMigrations termine de crear las tablas nuevas. Este effect
-  // garantiza que la carga ocurra DESPUÉS de que todas las migraciones estén OK.
+  // Las migraciones (0000-0008) las aplica useMigrations() automáticamente.
+  // Solo después de que terminen es seguro hacer cualquier consulta a la DB.
+  // isDbReady=true es la señal global que usan los componentes para saber que
+  // la DB está lista; sin ella, StreakWidget, AchievementsSection e HistoryScreen
+  // consultarían tablas que aún no existen.
   useEffect(() => {
     if (!migrationsReady) return;
     (async () => {
-      // Safety-net: aplica columnas de migración 0006 si no existen en el dispositivo.
-      // Si ya existen, SQLite lanza un error que capturamos silenciosamente.
-      try { await sqlite.execAsync('ALTER TABLE session_sets ADD COLUMN weight_target_kg REAL'); } catch {}
-      try { await sqlite.execAsync('ALTER TABLE session_sets ADD COLUMN perceived_effort INTEGER'); } catch {}
-      // Safety-net migración 0007: crea tabla exercise_targets si falta.
-      try {
-        await sqlite.execAsync(
-          'CREATE TABLE IF NOT EXISTS exercise_targets (' +
-          'id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, plan_id INTEGER NOT NULL, exercise_id TEXT NOT NULL, ' +
-          'target_sets INTEGER NOT NULL, target_reps_min INTEGER NOT NULL, target_reps_max INTEGER NOT NULL, ' +
-          'target_weight_kg REAL, target_rir INTEGER NOT NULL DEFAULT 2, progression_reason TEXT, ' +
-          'sessions_below_range INTEGER NOT NULL DEFAULT 0, session_count INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL)',
-        );
-        await sqlite.execAsync(
-          'CREATE UNIQUE INDEX IF NOT EXISTS idx_exercise_targets_plan_exercise ON exercise_targets (plan_id, exercise_id)',
-        );
-      } catch {}
-      // Safety-net migración 0008: tabla de preferencias de descanso por ejercicio.
-      try {
-        await sqlite.execAsync(
-          'CREATE TABLE IF NOT EXISTS exercise_rest_prefs (' +
-          'exercise_id TEXT PRIMARY KEY NOT NULL, rest_seconds INTEGER NOT NULL, updated_at INTEGER NOT NULL)',
-        );
-      } catch {}
-
       try {
         const rows = await db.select().from(schema.profile).limit(1);
         useProfileStore.getState().setProfile(rows[0] ?? null);
@@ -155,8 +133,9 @@ export default function RootLayout() {
       } finally {
         useProfileStore.getState().setLoading(false);
       }
-      // Carga el plan de entrenamiento ahora que las tablas existen con certeza
       await useWorkoutStore.getState().loadCurrentPlan();
+      await useGamificationStore.getState().loadGamification();
+      useProfileStore.getState().setDbReady(true);
     })();
   }, [migrationsReady]);
 

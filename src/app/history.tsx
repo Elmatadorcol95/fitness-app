@@ -247,11 +247,13 @@ export default function HistoryScreen() {
   const totalWorkouts = useGamificationStore(s => s.totalWorkouts);
   const { profile }   = useProfileStore();
   const isImperial    = profile?.units === 'imperial';
+  const isDbReady     = useProfileStore(s => s.isDbReady);
 
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
+    if (!isDbReady) return;
     (async () => {
       setLoading(true);
       try {
@@ -303,7 +305,7 @@ export default function HistoryScreen() {
         setLoading(false);
       }
     })();
-  }, [totalWorkouts]);
+  }, [totalWorkouts, isDbReady]);
 
   return (
     <ThemedView style={styles.root}>

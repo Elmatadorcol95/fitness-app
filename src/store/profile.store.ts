@@ -35,9 +35,11 @@ const defaultDraft: OnboardingDraft = {
 interface ProfileState {
   profile: Profile | null;
   isLoading: boolean;
+  isDbReady: boolean;
   draft: OnboardingDraft;
   setProfile: (p: Profile | null) => void;
   setLoading: (v: boolean) => void;
+  setDbReady: (v: boolean) => void;
   updateDraft: (updates: Partial<OnboardingDraft>) => void;
   resetDraft: () => void;
 }
@@ -45,9 +47,11 @@ interface ProfileState {
 export const useProfileStore = create<ProfileState>((set) => ({
   profile: null,
   isLoading: true,
+  isDbReady: false,
   draft: { ...defaultDraft },
   setProfile: (profile) => set({ profile }),
   setLoading: (isLoading) => set({ isLoading }),
+  setDbReady: (isDbReady) => set({ isDbReady }),
   updateDraft: (updates) => set((s) => ({ draft: { ...s.draft, ...updates } })),
   resetDraft: () => set({ draft: { ...defaultDraft } }),
 }));

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { gte, inArray } from 'drizzle-orm';
+import { gte } from 'drizzle-orm';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -11,7 +11,7 @@ import { Spacing } from '@/constants/theme';
 import { useGamificationStore } from '@/store/gamification.store';
 import { useProfileStore } from '@/store/profile.store';
 import { db } from '@/db';
-import { weightLog, workoutSessions, sessionSets, type WeightEntry } from '@/db/schema';
+import { weightLog, type WeightEntry } from '@/db/schema';
 import { kgToLb } from '@/lib/units';
 
 const GREEN = '#3FBF7F';
@@ -54,7 +54,6 @@ export function RecapModal({ visible, onClose }: Props) {
   const { t, i18n } = useTranslation();
   const [period, setPeriod] = useState<Period>('month');
   const [periodWeights, setPeriodWeights] = useState<WeightEntry[]>([]);
-  const [periodVolume, setPeriodVolume]   = useState<number>(0); // kg total
 
   const { streak, totalWorkouts, unlockedAchievements } = useGamificationStore();
   const { profile } = useProfileStore();
@@ -69,25 +68,6 @@ export function RecapModal({ visible, onClose }: Props) {
       .from(weightLog)
       .where(gte(weightLog.date, start))
       .then(rows => setPeriodWeights(rows.sort((a, b) => a.date.localeCompare(b.date))));
-    // Volumen total levantado en el período (Σ series×reps×peso)
-    (async () => {
-      try {
-        const sessions = await db
-          .select({ id: workoutSessions.id })
-          .from(workoutSessions)
-          .where(gte(workoutSessions.date, start));
-        if (sessions.length === 0) { setPeriodVolume(0); return; }
-        const ids = sessions.map(s => s.id);
-        const setsData = await db
-          .select({ weightKg: sessionSets.weightKg, actualReps: sessionSets.actualReps, completed: sessionSets.completed })
-          .from(sessionSets)
-          .where(inArray(sessionSets.sessionId, ids));
-        const vol = setsData
-          .filter(s => s.completed)
-          .reduce((acc, s) => acc + (s.weightKg ?? 0) * (s.actualReps ?? 0), 0);
-        setPeriodVolume(vol);
-      } catch { setPeriodVolume(0); }
-    })();
   }, [visible, period]);
 
   const weightChange = periodWeights.length >= 2
@@ -111,13 +91,6 @@ export function RecapModal({ visible, onClose }: Props) {
     const goalFatLoss = profile?.goalPrimary === 'fat_loss';
     if (weightChange < 0) return goalFatLoss ? GREEN : AMBER;
     return goalFatLoss ? AMBER : GREEN;
-  }
-
-  function volumeStr(): string {
-    if (periodVolume <= 0) return '—';
-    const val  = isImperial ? kgToLb(periodVolume) : periodVolume;
-    if (val >= 1000) return `${(val / 1000).toFixed(1)} t`;
-    return `${Math.round(val)} ${isImperial ? 'lb' : 'kg'}`;
   }
 
   const now = new Date();
@@ -217,12 +190,6 @@ export function RecapModal({ visible, onClose }: Props) {
                 iconColor={unlockedAchievements.length > 0 ? AMBER : MUTED}
                 value={String(unlockedAchievements.length)}
                 label={t('recap.stats.achievements')}
-              />
-              <StatCard
-                iconName="barbell-outline"
-                iconColor={periodVolume > 0 ? GREEN : MUTED}
-                value={volumeStr()}
-                label={t('recap.stats.volume')}
               />
             </View>
 

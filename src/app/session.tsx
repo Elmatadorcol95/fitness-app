@@ -177,12 +177,13 @@ export default function SessionScreen() {
   const { recordWorkout, unlockAchievement } = useGamificationStore();
   const { profile }           = useProfileStore();
   const equipment = parseEquipment(profile?.equipment);
-  const isGym     = profile?.location === 'gym';
+  const isGym     = profile?.location === 'gym' || profile?.location === 'both';
 
   const [elapsed, setElapsed]       = useState(0);
   const [showNote, setShowNote]     = useState(false);
   const [swapModal, setSwapModal]   = useState(false);
   const [guideExId, setGuideExId]   = useState<string | null>(null);
+  const [restInputStr, setRestInputStr] = useState(() => String(currentEx?.restSeconds ?? 90));
   const carouselRef = useRef<FlatList<any>>(null);
 
   const currentEx = exercises[currentExerciseIdx];
@@ -190,6 +191,10 @@ export default function SessionScreen() {
   const exName    = exercise ? getExerciseName(exercise.id, lang) : '';
   const catColor  = exercise ? CAT_COLORS[exercise.category] : GREEN;
   const catIcon   = (exercise ? CAT_ICONS[exercise.category] : 'barbell-outline') as any;
+
+  const isLoadedExercise = exercise
+    ? exercise.equipment.some(e => ['barbellPlates', 'dumbbells', 'kettlebells', 'cableMachine', 'legPressMachine', 'weightedVest'].includes(e))
+    : false;
 
   const bwLabel = lang === 'es' ? 'Peso corporal' : lang === 'fr' ? 'Poids du corps' : 'Bodyweight';
   const equipText = exercise
@@ -229,7 +234,23 @@ export default function SessionScreen() {
     carouselRef.current?.scrollToIndex({ index: currentExerciseIdx, animated: true, viewPosition: 0.5 });
   }, [currentExerciseIdx]);
 
+  // Sincroniza el campo de descanso con el valor del store (cambia tras ±15s o al cambiar ejercicio)
+  useEffect(() => {
+    if (currentEx) setRestInputStr(String(currentEx.restSeconds));
+  }, [currentEx?.restSeconds, currentExerciseIdx]);
+
   // ── Acciones ──────────────────────────────────────────────────────────────────
+
+  function applyRestInput() {
+    const v = parseInt(restInputStr, 10);
+    if (v >= 15 && v <= 600) {
+      const delta = v - (currentEx?.restSeconds ?? 90);
+      if (delta !== 0) adjustRest(currentExerciseIdx, delta);
+      setRestInputStr(String(v));
+    } else {
+      setRestInputStr(String(currentEx?.restSeconds ?? 90));
+    }
+  }
 
   async function handleFinish() {
     const today = new Date().toISOString().split('T')[0];
@@ -379,6 +400,20 @@ export default function SessionScreen() {
               {musclesText}{equipText ? ` · ${equipText}` : ''}
             </ThemedText>
 
+            {/* Banner de calibración — primera vez con este ejercicio cargado */}
+            {currentEx?.lastWeightKg === null && isLoadedExercise && (
+              <View style={styles.calibBanner}>
+                <Ionicons name="information-circle-outline" size={15} color={AMBER} />
+                <ThemedText style={styles.calibText}>
+                  {lang === 'es'
+                    ? 'Primera vez — indica tu peso de partida ↑ El coach ajustará las siguientes series.'
+                    : lang === 'fr'
+                    ? 'Première fois — indique ton poids de départ ↑ Le coach ajustera les séries suivantes.'
+                    : 'First time — enter your starting weight ↑ The coach will adjust the next sets.'}
+                </ThemedText>
+              </View>
+            )}
+
             {/* Acciones */}
             <View style={styles.actionRow}>
               <ActionBtn icon="book-outline" label={t('workout.session.guide')} onPress={handleGuide} />
@@ -425,15 +460,32 @@ export default function SessionScreen() {
               </View>
             ) : (
               <View style={styles.restIdleRow}>
-                <Pressable
-                  style={styles.restStartBtn}
-                  onPress={() => startRestTimer(currentEx.restSeconds)}
-                >
+                {/* Fila editable: icono + campo numérico + unidad + botón iniciar */}
+                <View style={styles.restEditRow}>
                   <Ionicons name="timer-outline" size={16} color={MUTED} />
-                  <ThemedText themeColor="textSecondary" style={styles.restStartText}>
-                    {t('workout.session.startRest', { sec: currentEx.restSeconds })}
-                  </ThemedText>
-                </Pressable>
+                  <TextInput
+                    style={styles.restEditInput}
+                    keyboardType="numeric"
+                    value={restInputStr}
+                    onChangeText={setRestInputStr}
+                    onEndEditing={applyRestInput}
+                    onSubmitEditing={applyRestInput}
+                    selectTextOnFocus
+                    returnKeyType="done"
+                  />
+                  <ThemedText themeColor="textSecondary" style={styles.restStartText}>s</ThemedText>
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() => {
+                      const v = parseInt(restInputStr, 10);
+                      const secs = v >= 15 && v <= 600 ? v : (currentEx?.restSeconds ?? 90);
+                      startRestTimer(secs);
+                    }}
+                  >
+                    <Ionicons name="play-circle" size={28} color={GREEN} />
+                  </Pressable>
+                </View>
+                {/* Ajuste rápido ±15s */}
                 <View style={styles.restNudgeRow}>
                   <Pressable onPress={() => adjustRest(currentExerciseIdx, -15)} hitSlop={8}>
                     <ThemedText style={styles.restNudgeText}>−15s</ThemedText>
@@ -732,6 +784,15 @@ const styles = StyleSheet.create({
   actionBtnActive: { backgroundColor: GREEN + '14' },
   actionLabel:     { fontSize: 10, color: MUTED, textAlign: 'center' },
 
+  // Calibration banner
+  calibBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
+    backgroundColor: AMBER + '14', borderRadius: Spacing.two,
+    borderLeftWidth: 3, borderLeftColor: AMBER,
+    paddingHorizontal: Spacing.three, paddingVertical: Spacing.two,
+  },
+  calibText: { flex: 1, fontSize: 12, color: AMBER, lineHeight: 18 },
+
   // Note
   noteInput: {
     backgroundColor: BG2, borderRadius: Spacing.two,
@@ -755,10 +816,15 @@ const styles = StyleSheet.create({
   restStopBtn:  { paddingHorizontal: Spacing.two, paddingVertical: 4, borderRadius: Spacing.one, borderWidth: 1, borderColor: AMBER + '55' },
   restStopText: { fontSize: 12, color: AMBER },
   restIdleRow:  { gap: 4 },
-  restStartBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.one,
-    justifyContent: 'center', paddingVertical: Spacing.two,
+  restEditRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: Spacing.two, paddingVertical: Spacing.two,
     borderRadius: Spacing.two, borderWidth: 1, borderColor: MUTED + '33',
+  },
+  restEditInput: {
+    width: 72, height: 36, textAlign: 'center',
+    fontSize: 20, fontWeight: '700', color: AMBER,
+    borderBottomWidth: 1.5, borderBottomColor: AMBER + '88',
   },
   restStartText: { fontSize: 13 },
   restNudgeRow:  { flexDirection: 'row', justifyContent: 'center', gap: Spacing.four },

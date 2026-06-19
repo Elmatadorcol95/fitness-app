@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useGamificationStore, ACHIEVEMENT_DEFS, type AchievementId } from '@/store/gamification.store';
+import { useProfileStore } from '@/store/profile.store';
 
 const GREEN = '#3FBF7F';
 const AMBER = '#F2B450';
@@ -62,8 +63,12 @@ function AchievementCard({ id, iconName, nameKey, descKey, unlocked }: {
 export function AchievementsSection() {
   const { t } = useTranslation();
   const { unlockedAchievements, loadGamification } = useGamificationStore();
+  const isDbReady = useProfileStore(s => s.isDbReady);
 
-  useEffect(() => { loadGamification(); }, []);
+  useEffect(() => {
+    if (!isDbReady) return;
+    loadGamification();
+  }, [isDbReady]);
 
   const unlockedSet = new Set(unlockedAchievements);
 
