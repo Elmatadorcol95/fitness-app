@@ -342,8 +342,196 @@ Bucle ~1.3 s sobre fondo #141A17:
       sea fat_loss (bajar=bueno) o fuerza/hipertrofia (subir=bueno).
   * El gráfico de medidas convierte a las unidades del usuario (cm→in) en el
     eje Y; bodyFatPct se muestra tal cual.
-- Siguiente: MEJORA C — Frases motivadoras diarias (JS, recarga):
-  Lista de 30 frases originales Vulcan, rotación diaria, en pantalla Hoy.
+- Hecho: MEJORA C — Frases motivadoras diarias (JS, recarga):
+  * 30 frases originales con tema herrero/forja en es/en/fr (clave motd.quotes).
+  * Rotación diaria por día del año (getDayOfYear() % 30); sin repetición hasta
+    agotar el ciclo de 30 días.
+  * Tarjeta "Forja del día" en pantalla Hoy: borde izquierdo ámbar, icono
+    flame-outline, título en mayúsculas, frase en cursiva.
+- Hecho: MEJORA D — Gamificación (JS, recarga):
+  * Migración 0004_gamification.sql: tablas achievements + gamification_meta.
+  * gamification.store.ts: racha (streak), racha máxima, total entrenamientos,
+    desbloqueo automático de 7 logros al llamar recordWorkout() desde FASE 9.
+  * StreakWidget: tarjeta en pantalla Hoy con llama que crece con la racha
+    (outline/muted=0, small amber=1-6d, medium=7-29d, large=30d+) y contador
+    de entrenos totales en verde.
+  * AchievementsSection: cuadrícula en Perfil con los 7 logros Vulcan;
+    desbloqueados con borde verde y color vivo, bloqueados grises con candado.
+  * resetAll() en handleSignOut del Perfil (limpia SQLite + store).
+  * FASE 9 debe llamar recordWorkout(date) y unlockAchievement('personal_record')
+    para conectar los datos reales.
+- Hecho: MEJORA E — Recap mensual/semanal (JS, recarga):
+  * RecapModal.tsx: modal completo con toggle Semana/Mes. Datos: entrenos
+    totales, racha actual, cambio de peso del período (consulta directa a DB),
+    logros desbloqueados. Frase motivadora contextual (3 niveles).
+  * Botón banner "Ver mi forja de [mes]" en pantalla Hoy (color ámbar, borde
+    sutil, icono martillo). Abre el modal al tocarlo.
+  * Compartir: Share.share() de React Native (texto formateado, sin módulo nativo).
+    Imagen compartible se añadirá en MEJORA F junto con la recompilación nativa.
+  * Traducciones completas es/en/fr (clave recap.*).
+- Hecho: FASE 9a — Módulo Entrenamiento — base + generador (JS, recarga):
+  * Migración 0005_training_module.sql: 5 tablas — workout_plans, plan_days,
+    workout_sessions, session_sets, exercise_maxes.
+  * src/lib/exercises.ts: catálogo 62 ejercicios (es/en/fr, músculos, equipo).
+  * src/lib/plan-generator.ts: algoritmo con splits PPL/full/upper-lower,
+    esquemas de reps por objetivo, filtro por equipamiento disponible.
+  * src/store/workout.store.ts: Zustand + SQLite — generateAndSavePlan,
+    loadCurrentPlan, advanceDayIndex, resetAll.
+  * src/components/workout/WorkoutCard.tsx: tarjeta en pantalla Hoy (reemplazada
+    en FASE A por TodayBanner).
+  * i18n es/en/fr: clave workout.* completa.
+- Hecho: BUG — race condition "no such table: workout_plans":
+  * workout.store.ts: loadCurrentPlan() captura el error "no such table" sin
+    lanzarlo (deja isLoaded=false para que _layout.tsx reintente).
+  * _layout.tsx: tras migrationsReady, llama loadCurrentPlan() con certeza de
+    que todas las tablas existen. Garantiza carga correcta aunque WorkoutCard
+    monte antes de que useMigrations termine.
+- Hecho: MEJORA F — Háptica + sesión persistente (parcial — pendiente EAS Build):
+  * src/lib/haptics.ts: wrapper seguro con require() + try/catch. No crashea si el
+    módulo no está en el build actual. 3 niveles: light (guardar dato), success (logro).
+  * AddWeightModal, AddMeasurementModal, PhotosTab: hapticsLight() al guardar.
+  * gamification.store.ts: hapticsSuccess() al desbloquear logro.
+  * supabase.ts: migrado de memoria a expo-secure-store (ya compilado). Sesión
+    ahora persiste al cerrar la app. sanitizeKey() para compatibilidad de claves.
+  * RecapModal: captureRef (react-native-view-shot) + expo-sharing para imagen;
+    fallback automático a Share.share() de texto si el módulo no está disponible.
+  ⚠️ PENDIENTE EAS BUILD: ejecutar los comandos de abajo para compilar los nuevos
+     módulos nativos: expo-haptics, react-native-view-shot, expo-sharing.
+- ~~MEJORA F — Háptica (nativo, recompilar)~~ ✓ Código listo — pendiente EAS Build.
+- Hecho: FASE A — Estructura pestaña Entrenamiento (JS, recarga):
+  * Nueva pestaña "Entreno" (2.ª posición): icono mancuerna generado con sharp.
+    Orden final: Hoy · Entreno · Historial · Progreso · Perfil.
+  * src/app/training.tsx: pantalla completa del ciclo de entrenamiento.
+    - Tarjeta de cabecera con plan info + botón "Regenerar plan" (con Alert).
+    - Una tarjeta por día del ciclo, expandible al tocar.
+    - Día activo resaltado con borde verde y badge "HOY"; se auto-expande al abrir.
+    - Por ejercicio: nombre, series×reps, descanso, botón "Cambiar".
+    - Indicador de días de descanso al final.
+  * src/components/workout/TodayBanner.tsx: banner compacto en pantalla Hoy.
+    Muestra "Hoy te toca: Empuje · Día 1 de 3" con botón "Ver →" que navega
+    a la pestaña Entreno. Reemplaza WorkoutCard en index.tsx.
+  * src/components/workout/ChangeExerciseModal.tsx: modal tipo pageSheet con
+    lista de ejercicios alternativos filtrados por: misma categoría, músculos
+    solapados y equipamiento compatible con el perfil del usuario. Al seleccionar
+    uno, persiste el cambio en SQLite y actualiza el store.
+  * workout.store.ts: StoredPlanDay ahora incluye dbId (clave primaria de
+    plan_days). Nueva acción replaceExercise(dayDbId, exerciseIndex, newExId).
+  * Migración 0006_rpe.sql: añade weight_target_kg (REAL) y perceived_effort
+    (INTEGER/RPE 1-10) a session_sets. Sin UI todavía; estructura lista para FASE 9b.
+  * Traducciones es/en/fr: claves tabs.training.* y workout.todayBanner.*.
+- Hecho: FASE 9b — Sesión de entrenamiento en vivo (JS, recarga):
+  * src/store/session.store.ts: Zustand in-memory store completo.
+    - startSession(day): carga último peso de cada ejercicio desde DB (paralelo).
+    - completeSet(): vibración + inicia temporizador de descanso automático.
+    - addSet / removeSet / updateNote / replaceExercise.
+    - finishSession(): guarda en workout_sessions + session_sets (weight_target_kg
+      y perceived_effort=RIR). Usa columnas de migración 0006.
+    - cancelSession(): limpia el store sin guardar.
+    - tickRestTimer(): llamado cada segundo desde un setInterval en SessionScreen.
+  * src/components/workout/ExerciseCard.tsx: tarjeta de ejercicio con placeholder
+    de color por categoría (empuje/jalón/piernas), nombre, músculos, equipamiento
+    y resumen "X series · R reps · P kg". Menú ⋯ → Cambiar ejercicio. Tap → guía.
+  * src/app/exercise/[id].tsx: pantalla de detalle de ejercicio. Hero con icono
+    grande, chips de categoría/dificultad/compuesto, músculos primarios/secundarios,
+    equipamiento. Instrucciones: "próximamente".
+  * src/app/training.tsx — REDISEÑO COMPLETO (PARTE 1):
+    - Cabecera de plan (días/sem, min/sesión) + botón "Regenerar plan".
+    - Cabecera del día activo con badge HOY, icono, nombre, ~min y total series.
+    - Tarjetas ExerciseCard para cada ejercicio del día activo con último peso.
+    - Botón grande verde "Iniciar entrenamiento" → startSession() + push /session.
+    - Sección "Tu ciclo": días restantes como tarjetas condensadas expandibles
+      que muestran ejercicios reales (con getExerciseName) y botón Cambiar.
+    - ChangeExerciseModal integrado para cualquier día del ciclo.
+    - Redirige automáticamente a /session si ya hay sesión activa al montar.
+  * src/app/session.tsx — NUEVA PANTALLA (PARTE 2):
+    - Header fijo: cronómetro (00:00:00, actualizado cada seg) + "Finalizar".
+    - Carrusel horizontal de ejercicios (icono de categoría + nombre, 2 líneas).
+      Se desplaza automáticamente al ejercicio actual.
+    - Hero del ejercicio actual: icono grande en color de categoría + nombre +
+      músculos + equipamiento.
+    - Fila de acciones: Guía (→ /exercise/[id]), Intercambiar (ChangeExerciseModal),
+      Historial (Alert con últimos reps/kg), Nota (TextInput inline).
+    - Tabla de series: # | Reps | Kg | RIR | ✓
+      * TextInput numérico para Reps y Kg, editables; RIR en ámbar.
+      * ✓ = Pressable circular que marca serie completa (vibración + temporizador).
+    - Temporizador de descanso: cuenta regresiva prominente en ámbar cuando corre;
+      botón "Omitir". Botón "Descanso: Xs" para iniciar manualmente.
+    - Botones + / - Serie. Navegación Anterior/Siguiente entre ejercicios.
+    - Finalizar: Alert → finishSession() → recordWorkout() → advanceDayIndex() → back.
+    - Cancelar / BackHandler Android: Alert → cancelSession() → back.
+  * Gamificación integrada: recordWorkout(today) al finalizar sesión.
+  * Progresión de cargas: pendiente (FASE C). Solo se guardan datos por ahora.
+  * Traducciones es/en/fr: claves workout.session.* completas.
+  * JS only — solo recarga en Expo Go / EAS Dev.
+- Hecho: LOTE A+B — Mejoras sesión en vivo e historial (JS, recarga):
+  * A1) history.tsx reescrita: consulta workout_sessions + session_sets con Drizzle;
+    tarjetas expandibles con fecha localizada, duración, series completadas y
+    lista de ejercicios. Se recarga al cambiar totalWorkouts (gamification store).
+  * A2) SetRow: toggle checkmark (desmarcar serie ya marcada). Campos siempre
+    editables, sin bloqueo por completed.
+  * A3) handleFinish cuenta series incompletas; si pending > 0 muestra Alert de
+    aviso con conteo antes de finalizar.
+  * A4) Cabecera RIR con ícono "?" → Alert con explicación. Color dinámico:
+    0-1=rojo, 2-3=verde, 4+=gris.
+  * A5) Músculos y equipamiento traducidos via muscleLabel()/equipmentLabel().
+  * A6) Botón Guía abre ExerciseGuideModal (Modal nativo) con hero, chips de
+    músculos y equipamiento. No usa router.push (incompatible con overlay).
+  * PARTE B) coachReason mostrado bajo cada fila de set (ámbar cursivo) cuando
+    el algoritmo sugiere ajuste de peso/reps para la siguiente serie.
+  * Nuevas claves i18n: finishIncompleteTitle, finishIncompleteMsg, rirHelpTitle,
+    rirHelpBody en es/en/fr.
+- Hecho: FASE C — Algoritmo de progresión de cargas (JS, recarga):
+  * Migración 0007_progression.sql: tabla exercise_targets (plan_id + exercise_id
+    únicos) con target_sets, target_reps_min, target_reps_max, target_weight_kg,
+    target_rir, progression_reason, sessions_below_range, session_count.
+  * src/lib/progression.ts: algoritmo puro + helpers DB.
+    - computeNextTargets(): función PURA testeable, implementa doble progresión
+      + RIR con 5 reglas:
+      1. Calibración (sesión 1): fija el peso de trabajo real.
+      2. Subir reps: en rango pero sin llegar al tope → +1 rep objetivo.
+      3. Subir peso: tope en TODAS las series Y RIR ≥ objetivo → +2.5/2/4 kg
+         (barra/mancuerna/kettlebell). Peso corporal → sugerir variación difícil.
+      4. Mantener: tope al límite (RIR bajo) → consolidar sin subir.
+      5. Bajar peso: 2 sesiones seguidas por debajo del mínimo → −10%.
+    - estimateOneRepMax(kg, reps): Epley (peso × (1 + reps/30)).
+    - runProgressionAfterSession(planId, exercises): guarda nuevos targets en
+      exercise_targets; calcula 1RM por ejercicio; actualiza exercise_maxes si
+      hay récord (PR); devuelve { hasPR }.
+    - getExerciseTargetsForPlan(planId): carga todos los targets del plan activo.
+  * session.store.ts actualizado:
+    - startSession(planId, day): carga targets de exercise_targets para pre-rellenar
+      peso/reps en la sesión; fallback a última sesión registrada.
+    - ExerciseState: añadidos planRepsMin, planRepsMax, planSets (datos del plan).
+    - finishSession(): llama runProgressionAfterSession() tras guardar; devuelve
+      { hasPR } en vez de void.
+  * session.tsx: si hasPR=true → unlockAchievement('personal_record').
+  * training.tsx: carga exercise_targets del plan y los muestra en ExerciseCard:
+    - Peso objetivo (del algoritmo) en lugar del último peso registrado.
+    - Razón de progresión en texto ámbar cursiva bajo el resumen.
+  * ExerciseCard.tsx: prop optional progressionReason (texto ámbar 11px).
+- Hecho: LOTE G — Mejoras sesión, historial, coach y gamificación (JS, recarga):
+  * §1 Descanso por tipo + ajustable: migración 0008 (exercise_rest_prefs). Descanso
+    por defecto: 180s barra compuesto, 120s compuesto cargado, 90s compuesto PC, 60s
+    aislamiento. Botones −15s/+15s en el timer de descanso y en el botón "Descanso:Xs".
+    El ajuste se guarda en SQLite y se recupera en la siguiente sesión.
+  * §2 Historial detallado: tarjetas expandibles con detalle por ejercicio ("3×10 · 40
+    kg" o "4×12 · PC"), volumen total en ámbar, fecha completa con año, duración.
+  * §3 Coach determinista: reescrito computeCoach. Para ejercicios cargados: siempre
+    calcula con Epley y muestra razón si las reps se salen del rango o el RIR difiere;
+    solo omite si el peso sugerido es igual al actual Y las reps están en rango. Para
+    peso corporal: ajuste de reps cuando falla el mínimo o supera con RIR≥4.
+  * §4 Intercambio + equipamiento de gimnasio: 16 nuevos ejercicios (polea/máquina)
+    con equipment keys cableMachine y legPressMachine. Plan-generator ordena primero
+    los ejercicios de gimnasio cuando isGym=true. ChangeExerciseModal muestra músculos
+    y equipo traducidos; para gimnasio incluye todos los ejercicios del mismo grupo.
+  * §5 Recap mejorado: consulta volumen total del período (Σ series×reps×peso). Si no
+    hay registros de peso, muestra "Registra tu peso" en lugar de "—". Tarjeta extra
+    de volumen total.
+  * §6 Tarjeta de logro (overlay): gamification.store tiene celebrationQueue[]. Al
+    desbloquear un logro se encola. AchievementCelebrationOverlay (nuevo componente)
+    lee la cola y muestra un overlay con animación de entrada, chispas ámbar y auto-
+    dismiss a los 3.5 s. Logros múltiples se encadenan. Está encima de todo en layout.
+  * §7 Sonido/vibración: pendiente EAS Build (ver abajo).
 - Pendiente obligatorio: FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
@@ -353,24 +541,23 @@ Bucle ~1.3 s sobre fondo #141A17:
 - FASE 1–8 completadas (ver Estado actual).
 
 ### Lote visual/motivación (en curso, sin recompilar hasta la última)
-- MEJORA A — Íconos uniformes (JS, recarga):
-  Reemplazar todos los emojis por @expo/vector-icons; símbolo Vulcan en vacíos.
-- MEJORA B — Gráfica y tendencias de medidas (JS, recarga):
-  Fechas en eje X; flechas de tendencia con color según objetivo del usuario.
-- MEJORA C — Frases motivadoras diarias (JS, recarga):
-  Lista de 30 frases originales Vulcan, rotación diaria, mostradas en pantalla Hoy.
-- MEJORA D — Gamificación (JS, recarga):
-  Racha de entrenamiento, logros temáticos, celebración de PR con chispas.
-- MEJORA E — Recap mensual/semanal (JS, recarga):
-  Tarjeta "Tu forja de [mes]" + versión semanal mini; compartible como imagen.
-- MEJORA F — Háptica (nativo, recompilar):
-  expo-haptics: vibración en completar serie, guardar y desbloquear logro.
-  ⚠️ Agrupar aquí cualquier otro módulo nativo pendiente.
+- ~~MEJORA A — Íconos uniformes (JS, recarga)~~ ✓ Completado.
+- ~~MEJORA B — Gráfica y tendencias de medidas (JS, recarga)~~ ✓ Completado.
+- ~~MEJORA C — Frases motivadoras diarias (JS, recarga)~~ ✓ Completado.
+- ~~MEJORA D — Gamificación (JS, recarga)~~ ✓ Completado.
+- ~~MEJORA E — Recap mensual/semanal~~ ✓ Completado.
+- ~~MEJORA F — Háptica~~ ✓ Código listo — pendiente EAS Build.
+- ~~FASE 9a — Base de datos entrenamiento + generador de planes~~ ✓ Completado.
+- ~~FASE A — Pestaña Entrenamiento + vista ciclo + cambio ejercicios~~ ✓ Completado.
+- ~~FASE 9b — Sesión en vivo: cronómetro, tabla series, RIR, descanso~~ ✓ Completado.
+- ~~FASE C — Algoritmo de progresión de cargas~~ ✓ Completado.
+- ~~LOTE G — Mejoras sesión + historial + coach + gamificación~~ ✓ Completado (JS, recarga).
 
 ### Pendientes principales
 - FASE 7 — In-app purchase (OBLIGATORIA antes de publicar).
-- FASE 9 — Módulo Entrenamiento: base de ejercicios, generador de planes,
-  registro de sesiones, temporizador de descanso con martillo.
+- ~~FASE 9c — Historial de sesiones~~ ✓ Completado (Lote A+B).
+- FASE D — Deloads automáticos, gráfica de fuerza (1RM) en pestaña Progreso,
+  calentamientos sugeridos basados en el peso objetivo.
 
 ## IMPORTANTE
 Actualiza la sección "Estado actual" al final de cada sesión, anotando qué se 

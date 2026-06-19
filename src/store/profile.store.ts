@@ -8,7 +8,7 @@ export type Units = 'metric' | 'imperial';
 export interface OnboardingDraft {
   name: string;
   units: Units;
-  birthYear?: number;
+  birthDate?: string; // YYYY-MM-DD
   gender?: string;
   heightCm?: number;
   weightKg?: number;

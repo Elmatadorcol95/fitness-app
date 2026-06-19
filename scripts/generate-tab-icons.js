@@ -37,6 +37,15 @@ const ICONS = {
     <circle cx="30" cy="20" r="12" fill="${W}"/>
     <path d="M8 56 C8 38 52 38 52 56" fill="${W}"/>
   </svg>`,
+
+  // ── Entrenamiento: mancuerna/barra ────────────────────────────────────────
+  training: `<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+    <rect x="17" y="28" width="26" height="4" rx="2" fill="${W}"/>
+    <rect x="4"  y="20" width="8"  height="20" rx="3" fill="${W}"/>
+    <rect x="12" y="24" width="5"  height="12" rx="2" fill="${W}"/>
+    <rect x="43" y="24" width="5"  height="12" rx="2" fill="${W}"/>
+    <rect x="48" y="20" width="8"  height="20" rx="3" fill="${W}"/>
+  </svg>`,
 };
 
 const SIZES = [1, 2, 3];  // @1x, @2x, @3x

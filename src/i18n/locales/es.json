@@ -77,18 +77,192 @@
     "progress": {
       "tab": "Progreso",
       "title": "Progreso",
-      "empty": "Sin registros todavía",
-      "emptySub": "Peso · Medidas · Fotos de progreso — próximamente"
+      "tabs": {
+        "weight": "Peso",
+        "measurements": "Medidas",
+        "photos": "Fotos"
+      },
+      "today": "Hoy",
+      "yesterday": "Ayer",
+      "deleteEntry": "Eliminar registro",
+      "deleteConfirm": "¿Eliminar este registro?",
+      "confirm": "Eliminar",
+      "weight": {
+        "addEntry": "Registrar peso",
+        "noEntries": "Sin registros de peso",
+        "noEntriesSub": "Registra tu peso hoy",
+        "lastEntry": "Último registro",
+        "value": "Peso",
+        "date": "Fecha",
+        "notes": "Notas (opcional)",
+        "notesPlaceholder": "Ej: después de entrenar...",
+        "change": "Cambio",
+        "invalidValue": "Introduce un valor válido"
+      },
+      "measurements": {
+        "customize": "Personalizar medidas",
+        "addEntry": "Agregar medidas",
+        "noEntries": "Sin datos para esta medida",
+        "noEntriesSub": "Agrega tu primera medición",
+        "noFieldsSelected": "Elige qué medidas quieres registrar",
+        "chooseMeasurements": "Elegir medidas",
+        "pickerTitle": "¿Qué medidas registrar?",
+        "fields": {
+          "neck": "Cuello",
+          "shoulders": "Hombros",
+          "chest": "Pecho",
+          "waist": "Cintura",
+          "hip": "Cadera",
+          "arm": "Brazo",
+          "forearm": "Antebrazo",
+          "thigh": "Muslo",
+          "calf": "Pantorrilla",
+          "bodyFatPct": "% Grasa corporal"
+        },
+        "trend": {
+          "up": "↑",
+          "down": "↓",
+          "same": "→"
+        }
+      },
+      "photos": {
+        "privacyNote": "Tus fotos se guardan solo en este dispositivo. Nunca se suben a ningún servidor.",
+        "poses": {
+          "front": "Frente",
+          "side": "Perfil",
+          "back": "Espalda"
+        },
+        "addPhoto": "Tomar foto",
+        "noPhotos": "Sin fotos para esta pose",
+        "noPhotosSub": "Toca el botón para agregar tu primera foto",
+        "camera": "Cámara",
+        "gallery": "Galería",
+        "compare": "Comparar antes/después",
+        "before": "Antes",
+        "after": "Después",
+        "limitReached": "Ya tienes una foto de hoy para esta pose",
+        "selectSource": "¿Desde dónde?",
+        "deleteConfirm": "¿Eliminar esta foto?",
+        "deleteWarning": "Esta acción no se puede deshacer.",
+        "confirmDelete": "Eliminar"
+      }
     },
     "profile": {
       "tab": "Perfil",
       "goalSection": "Objetivo",
       "trainingSection": "Entrenamiento",
       "physicalSection": "Datos físicos",
-      "equipmentSection": "Equipamiento"
+      "equipmentSection": "Equipamiento",
+      "signOut": "Cerrar sesión / reiniciar",
+      "signOutMsg": "Se borrarán los datos locales. Volverás a la pantalla de inicio.",
+      "signOutConfirm": "Confirmar",
+      "noProfile": "No hay perfil guardado. Cierra sesión para empezar de nuevo."
+    },
+    "training": {
+      "tab": "Entreno",
+      "title": "Entrenamiento",
+      "cycle": "Tu ciclo",
+      "regen": "Regenerar plan",
+      "regenConfirm": "¿Seguro que quieres regenerar el plan? Se reiniciará el ciclo de entrenamiento.",
+      "regenOk": "Sí, regenerar",
+      "regenCancel": "Cancelar",
+      "todayLabel": "HOY",
+      "restDays": "{{n}} días de descanso en el ciclo",
+      "changeEx": "Cambiar",
+      "changeExTitle": "Elegir ejercicio alternativo",
+      "noAlternatives": "No hay alternativas para tu equipamiento actual"
     }
   },
   "disclaimer": "Esta app no proporciona consejo médico. Consulta a un profesional de la salud antes de iniciar cualquier programa de ejercicio o dieta.",
+  "recap": {
+    "weekly": {
+      "tab": "Semana",
+      "title": "Tu semana",
+      "subtitle": "Resumen de los últimos 7 días"
+    },
+    "monthly": {
+      "tab": "Mes",
+      "title": "Tu forja de {{month}}",
+      "subtitle": "Resumen del mes en Vulcan"
+    },
+    "stats": {
+      "workouts": "Entrenos",
+      "streak": "Racha actual",
+      "weightChange": "Cambio de peso",
+      "achievements": "Logros",
+      "noData": "Sin datos",
+      "volume": "Volumen total",
+      "noWeightData": "Registra tu peso"
+    },
+    "praise": {
+      "begin": "La fragua espera. Completa tu primer entrenamiento y enciende la forja.",
+      "started": "Estás forjando tu cuerpo. Cada entrenamiento es un golpe de martillo.",
+      "streak": "¡La fragua arde! Tu racha demuestra que eres de acero templado."
+    },
+    "share": {
+      "button": "Compartir resumen",
+      "text": "⚒ Mi forja de {{period}} — Vulcan\n\n🏋 Entrenos: {{workouts}}\n🔥 Racha: {{streak}} días\n⚖ Peso: {{weightChange}}\n💪 Logros: {{achievements}}\n\n#Vulcan #Fitness"
+    },
+    "openRecap": "Ver mi forja de {{month}}"
+  },
+  "achievement": {
+    "forged": "¡Logro forjado!",
+    "tapToDismiss": "Toca para continuar"
+  },
+  "gamification": {
+    "streak": {
+      "title": "Racha de entrenamiento",
+      "days": "días seguidos",
+      "workouts": "entrenos totales",
+      "noStreak": "Empieza tu racha hoy"
+    },
+    "achievements": {
+      "title": "Logros",
+      "locked": "Bloqueado",
+      "first_spark":     { "name": "Primera chispa",       "desc": "Completa tu primer entrenamiento" },
+      "apprentice":      { "name": "Aprendiz de herrero",  "desc": "Completa 10 entrenamientos" },
+      "journeyman":      { "name": "Oficial",              "desc": "Completa 25 entrenamientos" },
+      "master":          { "name": "Maestro herrero",      "desc": "Completa 50 entrenamientos" },
+      "incandescent":    { "name": "Forja incandescente",  "desc": "Racha de 7 días consecutivos" },
+      "tempered_steel":  { "name": "Acero templado",       "desc": "Racha de 30 días consecutivos" },
+      "personal_record": { "name": "Récord personal",      "desc": "Bate un récord en cualquier ejercicio" }
+    }
+  },
+  "motd": {
+    "title": "Forja del día",
+    "quotes": [
+      "El hierro no se forja en frío.",
+      "Cada repetición templa tu temple.",
+      "Hoy golpeas; mañana eres acero.",
+      "La fragua no descansa, tú tampoco hoy.",
+      "El acero más duro nace de las llamas más intensas.",
+      "No hay metal que resista a quien nunca para.",
+      "Un golpe más. Siempre uno más.",
+      "La forja no miente: lo que entra blando, sale duro.",
+      "Suda hoy lo que quieres ser mañana.",
+      "El herrero no teme el calor; lo busca.",
+      "Cada serie es un martillazo en tu futuro.",
+      "El yunque aguanta. Tú también.",
+      "Templa el cuerpo, afila la mente.",
+      "Las chispas de hoy son los logros de mañana.",
+      "No hay atajos en la fragua.",
+      "El hierro crudo no impresiona a nadie; el acero templado, sí.",
+      "Forja tu cuerpo en silencio; el resultado hablará.",
+      "El fuego revela de qué estás hecho.",
+      "Cada gota de sudor es combustible para la fragua.",
+      "El herrero sabe que la constancia supera al talento.",
+      "Un cuerpo fuerte se construye golpe a golpe.",
+      "La fragua no distingue días malos. Solo hierro y martillo.",
+      "Lo que no te cuesta, no te cambia.",
+      "El metal que huye del fuego nunca se convierte en espada.",
+      "Hoy la fragua arde. Mañana, el resultado brilla.",
+      "Ser fuerte no es un destino; es un proceso diario.",
+      "El buen herrero no culpa al yunque.",
+      "Cada entrenamiento es una capa más de acero.",
+      "La disciplina forja lo que la motivación solo sueña.",
+      "Golpea hasta que el hierro cante."
+    ]
+  },
   "onboarding": {
     "step": "Paso {{current}} de {{total}}",
     "welcome": {
@@ -101,7 +275,9 @@
     },
     "physical": {
       "title": "Tus datos físicos",
-      "birthYear": "Año de nacimiento",
+      "birthDate": "Fecha de nacimiento",
+      "ageHint": "→ {{age}} años",
+      "yearsOld": "años",
       "gender": "Género",
       "male": "Hombre",
       "female": "Mujer",
@@ -173,6 +349,57 @@
       "units": "Unidades",
       "disclaimer": "⚠️ Esta app no proporciona consejo médico. Consulta a un profesional de la salud antes de iniciar cualquier programa de ejercicio o nutrición.",
       "start": "¡Empezar a entrenar!"
+    }
+  },
+  "workout": {
+    "noplan": {
+      "title": "Tu plan de entrenamiento",
+      "subtitle": "Genera tu plan personalizado según tu objetivo y equipamiento disponible",
+      "button": "Generar mi plan"
+    },
+    "days": {
+      "full_body": "Cuerpo completo",
+      "push": "Empuje",
+      "pull": "Jalón",
+      "legs": "Piernas",
+      "upper": "Tren superior",
+      "lower": "Tren inferior"
+    },
+    "planDay": "Día {{current}} de {{total}}",
+    "startWorkout": "Iniciar entrenamiento",
+    "todayBanner": {
+      "prefix": "Hoy te toca:",
+      "view": "Ver →"
+    },
+    "session": {
+      "guide": "Guía",
+      "swap": "Intercambiar",
+      "history": "Historial",
+      "note": "Nota",
+      "addNote": "Añadir una nota...",
+      "addSet": "+ Serie",
+      "removeSet": "- Serie",
+      "skipRest": "Omitir",
+      "startRest": "Descanso: {{sec}} s",
+      "finishSession": "Finalizar",
+      "finishConfirmTitle": "¿Terminar entrenamiento?",
+      "finishConfirmMsg": "Se guardarán todas las series completadas.",
+      "cancelConfirmTitle": "¿Salir sin guardar?",
+      "cancelConfirmMsg": "Se perderá el progreso de esta sesión.",
+      "stay": "Seguir entrenando",
+      "exitNoSave": "Salir sin guardar",
+      "col": {
+        "reps": "Reps",
+        "done": "✓"
+      },
+      "lastSession": "Última sesión",
+      "noHistory": "Sin historial previo",
+      "prevEx": "Anterior",
+      "nextEx": "Siguiente",
+      "finishIncompleteTitle": "¿Terminar sin completar?",
+      "finishIncompleteMsg": "Te faltan {{count}} series por completar. ¿Seguro que quieres terminar?",
+      "rirHelpTitle": "Repeticiones en reserva (RIR)",
+      "rirHelpBody": "RIR indica cuántas repeticiones más habrías podido hacer antes de fallar.\n\nSi terminas la serie y aún podías hacer 2 más → RIR 2.\n\n• RIR 0–1: al límite (rojo)\n• RIR 2–3: zona ideal (verde)\n• RIR 4+: demasiado fácil, sube la carga (gris)"
     }
   }
 }

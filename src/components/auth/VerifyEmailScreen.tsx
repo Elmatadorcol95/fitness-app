@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -22,7 +23,7 @@ export function VerifyEmailScreen({ email, onBack }: Props) {
   return (
     <ThemedView style={styles.root}>
       <ThemedText style={styles.logo}>VULCAN</ThemedText>
-      <ThemedText style={styles.icon}>📬</ThemedText>
+      <Ionicons name="mail-outline" size={56} color="#3FBF7F" />
       <ThemedText type="subtitle" style={styles.title}>{t('auth.verifyEmail.title')}</ThemedText>
       <ThemedText themeColor="textSecondary" style={styles.msg}>
         {t('auth.verifyEmail.message', { email })}
@@ -45,7 +46,6 @@ export function VerifyEmailScreen({ email, onBack }: Props) {
 const styles = StyleSheet.create({
   root:            { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.five, gap: Spacing.three },
   logo:            { fontSize: 28, fontWeight: '900', letterSpacing: 10, color: '#3FBF7F' },
-  icon:            { fontSize: 56 },
   title:           { textAlign: 'center' },
   msg:             { textAlign: 'center', fontSize: 15, lineHeight: 22 },
   actions:         { gap: Spacing.two, width: '100%', alignItems: 'center', marginTop: Spacing.two },

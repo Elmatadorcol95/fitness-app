@@ -1,14 +1,16 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
+import * as SecureStore from 'expo-secure-store';
 
-// Almacenamiento en memoria (sin módulos nativos).
-// La sesión no persiste si el usuario cierra la app, pero es suficiente
-// para esta fase. En el próximo EAS build se migrará a expo-secure-store.
-const _mem = new Map<string, string>();
-const memStorage = {
-  getItem:    async (key: string) => _mem.get(key) ?? null,
-  setItem:    async (key: string, value: string) => { _mem.set(key, value); },
-  removeItem: async (key: string) => { _mem.delete(key); },
+// expo-secure-store: claves solo con alfanumérico + . - _  (máx 255 chars)
+function sanitizeKey(key: string): string {
+  return key.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 255);
+}
+
+const secureStorage = {
+  getItem:    (key: string) => SecureStore.getItemAsync(sanitizeKey(key)),
+  setItem:    (key: string, value: string) => SecureStore.setItemAsync(sanitizeKey(key), value),
+  removeItem: (key: string) => SecureStore.deleteItemAsync(sanitizeKey(key)),
 };
 
 export const supabase = createClient(
@@ -16,7 +18,7 @@ export const supabase = createClient(
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
   {
     auth: {
-      storage: memStorage,
+      storage: secureStorage,
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,

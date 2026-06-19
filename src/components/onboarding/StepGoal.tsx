@@ -1,15 +1,17 @@
 import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useProfileStore, type Goal } from '@/store/profile.store';
 
 const GOALS: Goal[] = ['strength', 'hypertrophy', 'fat_loss'];
-const ICONS: Record<Goal, string> = {
-  strength: '🏋️',
-  hypertrophy: '💪',
-  fat_loss: '🔥',
+
+const GOAL_DEFS: Record<Goal, { iconName: string; color: string }> = {
+  strength:    { iconName: 'barbell-outline', color: '#3FBF7F' },
+  hypertrophy: { iconName: 'body-outline',    color: '#3FBF7F' },
+  fat_loss:    { iconName: 'flame-outline',   color: '#F2B450' },
 };
 
 export function StepGoal() {
@@ -22,19 +24,14 @@ export function StepGoal() {
     const isSecondary = current[1] === goal;
 
     if (isPrimary) {
-      // Deseleccionar principal: el secundario sube a principal
       updateDraft({ goals: current[1] ? [current[1]] : [] });
     } else if (isSecondary) {
-      // Deseleccionar secundario
       updateDraft({ goals: [current[0]] });
     } else if (current.length === 0) {
-      // Ninguno seleccionado → se convierte en principal
       updateDraft({ goals: [goal] });
     } else if (current.length === 1) {
-      // Uno seleccionado → se convierte en secundario
       updateDraft({ goals: [current[0], goal] });
     }
-    // Si ya hay 2 seleccionados y se toca un tercero → no hace nada
   };
 
   return (
@@ -50,6 +47,7 @@ export function StepGoal() {
         const isPrimary   = draft.goals[0] === goal;
         const isSecondary = draft.goals[1] === goal;
         const isSelected  = isPrimary || isSecondary;
+        const def = GOAL_DEFS[goal];
 
         return (
           <ThemedView
@@ -58,7 +56,7 @@ export function StepGoal() {
             style={[styles.card, isSelected && styles.cardSelected]}
             onTouchEnd={() => handleTap(goal)}
           >
-            <ThemedText style={styles.icon}>{ICONS[goal]}</ThemedText>
+            <Ionicons name={def.iconName as any} size={30} color={def.color} />
 
             <View style={styles.cardText}>
               <ThemedText type="defaultSemiBold">{t(`onboarding.goal.${goal}`)}</ThemedText>
@@ -100,7 +98,6 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   cardSelected: { borderColor: '#3FBF7F33' },
-  icon: { fontSize: 30 },
   cardText: { flex: 1, gap: 4 },
   desc: { fontSize: 13 },
   badge: {

@@ -23,6 +23,14 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="training">
+        <NativeTabs.Trigger.Label>{t('tabs.training.tab')}</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          src={require('@/assets/images/tabIcons/training.png')}
+          renderingMode="template"
+        />
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="history">
         <NativeTabs.Trigger.Label>{t('tabs.history.tab')}</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon

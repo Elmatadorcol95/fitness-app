@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import { useProfileStore, type Goal, type Location } from '@/store/profile.store';
+import { useProfileStore, type Location } from '@/store/profile.store';
 import { cmToFtIn, kgToLb } from '@/lib/units';
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -14,12 +14,6 @@ function Row({ label, value }: { label: string; value: string }) {
     </View>
   );
 }
-
-const goalEmoji: Record<Goal, string> = {
-  strength: '🏋️',
-  hypertrophy: '💪',
-  fat_loss: '🔥',
-};
 
 const locationLabels: Record<Location, string> = {
   home: 'En casa',
@@ -45,9 +39,9 @@ export function StepSummary() {
   const goalDisplay = () => {
     const [primary, secondary] = draft.goals;
     if (!primary) return '—';
-    const pLabel = `${goalEmoji[primary]} ${t(`onboarding.goal.${primary}`)}`;
+    const pLabel = t(`onboarding.goal.${primary}`);
     if (!secondary) return pLabel;
-    return `${pLabel}  +  ${goalEmoji[secondary]} ${t(`onboarding.goal.${secondary}`)}`;
+    return `${pLabel}  +  ${t(`onboarding.goal.${secondary}`)}`;
   };
 
   return (

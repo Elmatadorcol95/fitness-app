@@ -1,5 +1,6 @@
 // Conversiones entre métrico e imperial.
 // Internamente todo se guarda en kg y cm.
+// Las medidas corporales se muestran en cm (métrico) o in (imperial).
 
 export const kgToLb = (kg: number) => +(kg * 2.20462).toFixed(1);
 export const lbToKg = (lb: number) => +(lb / 2.20462).toFixed(2);
@@ -11,3 +12,5 @@ export const cmToFtIn = (cm: number) => {
 };
 export const ftInToCm = (ft: number, inches: number) =>
   +((ft * 12 + inches) * 2.54).toFixed(1);
+export const cmToIn = (cm: number) => +(cm / 2.54).toFixed(1);
+export const inToCm = (inches: number) => +(inches * 2.54).toFixed(1);

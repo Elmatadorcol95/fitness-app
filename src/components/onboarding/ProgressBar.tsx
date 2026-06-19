@@ -15,7 +15,7 @@ export function ProgressBar({ current, total }: Props) {
       <View
         style={[
           styles.fill,
-          { width: `${progress * 100}%`, backgroundColor: theme.text },
+          { width: `${progress * 100}%`, backgroundColor: '#3FBF7F' },
         ]}
       />
     </View>

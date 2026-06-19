@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { VulcanSymbol } from '@/components/icons/VulcanSymbol';
 import { Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
@@ -18,7 +19,7 @@ export function PaywallScreen({ daysOver }: Props) {
   return (
     <ThemedView style={styles.root}>
       <ThemedText style={styles.logo}>VULCAN</ThemedText>
-      <ThemedText style={styles.icon}>⚒️</ThemedText>
+      <VulcanSymbol size={56} />
 
       <ThemedText type="subtitle" style={styles.title}>{t('auth.paywall.title')}</ThemedText>
       <ThemedText themeColor="textSecondary" style={styles.sub}>
@@ -50,7 +51,6 @@ export function PaywallScreen({ daysOver }: Props) {
 const styles = StyleSheet.create({
   root:        { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.five, gap: Spacing.three },
   logo:        { fontSize: 28, fontWeight: '900', letterSpacing: 10, color: '#3FBF7F' },
-  icon:        { fontSize: 56 },
   title:       { textAlign: 'center' },
   sub:         { textAlign: 'center', fontSize: 14, lineHeight: 20 },
   offerCard:   { borderRadius: Spacing.three, padding: Spacing.four, alignItems: 'center', gap: Spacing.one, width: '100%' },

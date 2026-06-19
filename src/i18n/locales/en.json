@@ -77,18 +77,192 @@
     "progress": {
       "tab": "Progress",
       "title": "Progress",
-      "empty": "No records yet",
-      "emptySub": "Weight · Measurements · Progress photos — coming soon"
+      "tabs": {
+        "weight": "Weight",
+        "measurements": "Measurements",
+        "photos": "Photos"
+      },
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "deleteEntry": "Delete entry",
+      "deleteConfirm": "Delete this entry?",
+      "confirm": "Delete",
+      "weight": {
+        "addEntry": "Log weight",
+        "noEntries": "No weight records",
+        "noEntriesSub": "Log your weight today",
+        "lastEntry": "Last entry",
+        "value": "Weight",
+        "date": "Date",
+        "notes": "Notes (optional)",
+        "notesPlaceholder": "E.g. after workout...",
+        "change": "Change",
+        "invalidValue": "Please enter a valid value"
+      },
+      "measurements": {
+        "customize": "Customize measurements",
+        "addEntry": "Add measurements",
+        "noEntries": "No data for this measurement",
+        "noEntriesSub": "Add your first measurement",
+        "noFieldsSelected": "Choose which measurements to track",
+        "chooseMeasurements": "Choose measurements",
+        "pickerTitle": "Which measurements to track?",
+        "fields": {
+          "neck": "Neck",
+          "shoulders": "Shoulders",
+          "chest": "Chest",
+          "waist": "Waist",
+          "hip": "Hips",
+          "arm": "Arm",
+          "forearm": "Forearm",
+          "thigh": "Thigh",
+          "calf": "Calf",
+          "bodyFatPct": "Body fat %"
+        },
+        "trend": {
+          "up": "↑",
+          "down": "↓",
+          "same": "→"
+        }
+      },
+      "photos": {
+        "privacyNote": "Your photos are stored only on this device. They are never uploaded to any server.",
+        "poses": {
+          "front": "Front",
+          "side": "Side",
+          "back": "Back"
+        },
+        "addPhoto": "Take photo",
+        "noPhotos": "No photos for this pose",
+        "noPhotosSub": "Tap the button to add your first photo",
+        "camera": "Camera",
+        "gallery": "Gallery",
+        "compare": "Before / After",
+        "before": "Before",
+        "after": "After",
+        "limitReached": "You already have a photo for today in this pose",
+        "selectSource": "From where?",
+        "deleteConfirm": "Delete this photo?",
+        "deleteWarning": "This action cannot be undone.",
+        "confirmDelete": "Delete"
+      }
     },
     "profile": {
       "tab": "Profile",
       "goalSection": "Goal",
       "trainingSection": "Training",
       "physicalSection": "Physical data",
-      "equipmentSection": "Equipment"
+      "equipmentSection": "Equipment",
+      "signOut": "Sign out / reset",
+      "signOutMsg": "Local data will be cleared. You will return to the start screen.",
+      "signOutConfirm": "Confirm",
+      "noProfile": "No profile saved. Sign out to start over."
+    },
+    "training": {
+      "tab": "Training",
+      "title": "Training",
+      "cycle": "Your cycle",
+      "regen": "Regenerate plan",
+      "regenConfirm": "Regenerate the plan? Your training cycle will restart.",
+      "regenOk": "Yes, regenerate",
+      "regenCancel": "Cancel",
+      "todayLabel": "TODAY",
+      "restDays": "{{n}} rest days in the cycle",
+      "changeEx": "Change",
+      "changeExTitle": "Choose an alternative exercise",
+      "noAlternatives": "No alternatives for your current equipment"
     }
   },
   "disclaimer": "This app does not provide medical advice. Consult a healthcare professional before starting any exercise or diet program.",
+  "recap": {
+    "weekly": {
+      "tab": "Week",
+      "title": "Your week",
+      "subtitle": "Summary of the last 7 days"
+    },
+    "monthly": {
+      "tab": "Month",
+      "title": "Your forge of {{month}}",
+      "subtitle": "Monthly summary on Vulcan"
+    },
+    "stats": {
+      "workouts": "Workouts",
+      "streak": "Current streak",
+      "weightChange": "Weight change",
+      "achievements": "Achievements",
+      "noData": "No data",
+      "volume": "Total volume",
+      "noWeightData": "Log your weight"
+    },
+    "praise": {
+      "begin": "The forge is waiting. Complete your first workout and light the fire.",
+      "started": "You're forging your body. Every workout is a hammer blow.",
+      "streak": "The forge is blazing! Your streak proves you're tempered steel."
+    },
+    "share": {
+      "button": "Share summary",
+      "text": "⚒ My forge of {{period}} — Vulcan\n\n🏋 Workouts: {{workouts}}\n🔥 Streak: {{streak}} days\n⚖ Weight: {{weightChange}}\n💪 Achievements: {{achievements}}\n\n#Vulcan #Fitness"
+    },
+    "openRecap": "View my {{month}} forge"
+  },
+  "achievement": {
+    "forged": "Achievement forged!",
+    "tapToDismiss": "Tap to continue"
+  },
+  "gamification": {
+    "streak": {
+      "title": "Training streak",
+      "days": "days in a row",
+      "workouts": "total workouts",
+      "noStreak": "Start your streak today"
+    },
+    "achievements": {
+      "title": "Achievements",
+      "locked": "Locked",
+      "first_spark":     { "name": "First spark",         "desc": "Complete your first workout" },
+      "apprentice":      { "name": "Blacksmith's apprentice", "desc": "Complete 10 workouts" },
+      "journeyman":      { "name": "Journeyman",          "desc": "Complete 25 workouts" },
+      "master":          { "name": "Master blacksmith",   "desc": "Complete 50 workouts" },
+      "incandescent":    { "name": "Incandescent forge",  "desc": "7-day streak" },
+      "tempered_steel":  { "name": "Tempered steel",      "desc": "30-day streak" },
+      "personal_record": { "name": "Personal record",     "desc": "Beat a record in any exercise" }
+    }
+  },
+  "motd": {
+    "title": "Forge of the day",
+    "quotes": [
+      "Iron is not forged cold.",
+      "Every rep tempers your resolve.",
+      "Strike today; be steel tomorrow.",
+      "The forge never rests — neither do you.",
+      "The hardest steel is born in the fiercest flames.",
+      "No metal withstands the one who never stops.",
+      "One more strike. Always one more.",
+      "The forge doesn't lie: what enters soft, leaves hard.",
+      "Sweat today what you want to be tomorrow.",
+      "The blacksmith doesn't fear the heat; he seeks it.",
+      "Every set is a hammer blow to your future.",
+      "The anvil holds firm. So do you.",
+      "Temper the body, sharpen the mind.",
+      "Today's sparks are tomorrow's achievements.",
+      "There are no shortcuts in the forge.",
+      "Raw iron impresses no one; tempered steel does.",
+      "Forge your body in silence; let the result speak.",
+      "The fire reveals what you're made of.",
+      "Every drop of sweat is fuel for the forge.",
+      "The blacksmith knows consistency beats talent.",
+      "A strong body is built blow by blow.",
+      "The forge doesn't distinguish bad days. Only iron and hammer.",
+      "What costs you nothing, changes nothing in you.",
+      "Metal that flees the fire never becomes a sword.",
+      "Today the forge burns. Tomorrow the result shines.",
+      "Being strong isn't a destination; it's a daily process.",
+      "A good blacksmith doesn't blame the anvil.",
+      "Every training session is one more layer of steel.",
+      "Discipline forges what motivation only dreams of.",
+      "Strike until the iron sings."
+    ]
+  },
   "onboarding": {
     "step": "Step {{current}} of {{total}}",
     "welcome": {
@@ -101,7 +275,9 @@
     },
     "physical": {
       "title": "Your physical data",
-      "birthYear": "Birth year",
+      "birthDate": "Date of birth",
+      "ageHint": "→ {{age}} years old",
+      "yearsOld": "years old",
       "gender": "Gender",
       "male": "Male",
       "female": "Female",
@@ -173,6 +349,57 @@
       "units": "Units",
       "disclaimer": "⚠️ This app does not provide medical advice. Consult a healthcare professional before starting any exercise or nutrition program.",
       "start": "Start training!"
+    }
+  },
+  "workout": {
+    "noplan": {
+      "title": "Your workout plan",
+      "subtitle": "Generate your personalized plan based on your goal and available equipment",
+      "button": "Generate my plan"
+    },
+    "days": {
+      "full_body": "Full body",
+      "push": "Push",
+      "pull": "Pull",
+      "legs": "Legs",
+      "upper": "Upper body",
+      "lower": "Lower body"
+    },
+    "planDay": "Day {{current}} of {{total}}",
+    "startWorkout": "Start workout",
+    "todayBanner": {
+      "prefix": "Today's workout:",
+      "view": "View →"
+    },
+    "session": {
+      "guide": "Guide",
+      "swap": "Swap",
+      "history": "History",
+      "note": "Note",
+      "addNote": "Add a note...",
+      "addSet": "+ Set",
+      "removeSet": "- Set",
+      "skipRest": "Skip",
+      "startRest": "Rest: {{sec}} s",
+      "finishSession": "Finish",
+      "finishConfirmTitle": "Finish workout?",
+      "finishConfirmMsg": "All completed sets will be saved.",
+      "cancelConfirmTitle": "Exit without saving?",
+      "cancelConfirmMsg": "This session's progress will be lost.",
+      "stay": "Keep training",
+      "exitNoSave": "Exit without saving",
+      "col": {
+        "reps": "Reps",
+        "done": "✓"
+      },
+      "lastSession": "Last session",
+      "noHistory": "No previous history",
+      "prevEx": "Previous",
+      "nextEx": "Next",
+      "finishIncompleteTitle": "Finish without completing?",
+      "finishIncompleteMsg": "You have {{count}} incomplete sets. Are you sure you want to finish?",
+      "rirHelpTitle": "Reps in Reserve (RIR)",
+      "rirHelpBody": "RIR indicates how many more reps you could have done before failure.\n\nIf you finish the set and could still do 2 more → RIR 2.\n\n• RIR 0–1: at the limit (red)\n• RIR 2–3: ideal zone (green)\n• RIR 4+: too easy, increase the load (grey)"
     }
   }
 }

@@ -46,7 +46,7 @@ export function OnboardingFlow() {
     try {
       await db.insert(schema.profile).values({
         name:             draft.name.trim(),
-        birthYear:        draft.birthYear,
+        birthDate:        draft.birthDate ?? null,
         gender:           draft.gender,
         heightCm:         draft.heightCm,
         weightKg:         draft.weightKg,

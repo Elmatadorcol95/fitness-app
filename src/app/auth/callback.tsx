@@ -1,24 +1,21 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, StyleSheet } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { supabase } from '@/lib/supabase';
 
-/**
- * Pantalla de callback del deep link vulcan://auth/callback.
- * Expo Router la renderiza cuando el usuario regresa a la app
- * tras hacer clic en el enlace de confirmación de correo.
- *
- * Supabase redirige con ?code=xxx (flujo PKCE) o #access_token=xxx (flujo implícito).
- * Aquí se extrae el token, se cierra la sesión y se redirige a la app principal.
- */
 export default function AuthCallbackScreen() {
-  const router = useRouter();
   const { code } = useLocalSearchParams<{ code?: string }>();
+  // Evita ejecutar el intercambio más de una vez (p. ej. en React Strict Mode)
+  const hasRun = useRef(false);
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
+
     (async () => {
       try {
         // ── Flujo PKCE (por defecto en Supabase v2): ?code=xxx ──────────────
@@ -42,11 +39,18 @@ export default function AuthCallbackScreen() {
       } catch (e) {
         console.error('Auth callback error:', e);
       } finally {
-        // Volver al inicio: _layout.tsx reevalúa el estado y muestra lo correcto
-        router.replace('/');
+        // Señalamos que terminamos. El render devolverá <Redirect>,
+        // que navega DESPUÉS del ciclo de render actual — sin colisionar
+        // con las actualizaciones de estado de onAuthStateChange.
+        setDone(true);
       }
     })();
   }, [code]);
+
+  // La navegación ocurre de forma declarativa, fuera del ciclo de render activo
+  if (done) {
+    return <Redirect href="/" />;
+  }
 
   return (
     <ThemedView style={styles.root}>

@@ -37,7 +37,16 @@
         }
       ],
       "expo-sqlite",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Vulcan necesita acceso a tus fotos para las fotos de progreso.",
+          "cameraPermission": "Vulcan necesita acceso a la cámara para las fotos de progreso."
+        }
+      ],
+      "expo-image",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,
