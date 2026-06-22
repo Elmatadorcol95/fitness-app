@@ -822,7 +822,8 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two, borderWidth: 1, borderColor: MUTED + '33',
   },
   restEditInput: {
-    width: 72, height: 36, textAlign: 'center',
+    width: 72, height: 44, textAlign: 'center',
+    textAlignVertical: 'center',
     fontSize: 20, fontWeight: '700', color: AMBER,
     borderBottomWidth: 1.5, borderBottomColor: AMBER + '88',
   },

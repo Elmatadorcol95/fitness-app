@@ -206,32 +206,52 @@ function computeCoach(
   // No subir si fue al fallo (RIR ≤ 1)
   if (done.rir <= 1 && suggested > done.weightKg) suggested = done.weightKg;
 
-  if (suggested <= 0) return null;
-
-  const diff = suggested - nextKg;
-
-  // Diferencia menor que medio incremento → revisar casos especiales
-  if (Math.abs(diff) < inc * 0.5) {
-    if (done.actualReps < planRepsMin) {
-      return { reps: done.actualReps, kg: suggested, reason: `${done.actualReps} reps (bajo mín ${planRepsMin}) · mantén ${suggested} kg` };
-    }
-    if (done.actualReps > planRepsMax && done.rir >= 3) {
-      return { reps: planRepsMin, kg: suggested, reason: `${done.actualReps} reps (sobre máx · RIR ${done.rir}) → considera +peso próxima sesión` };
-    }
-    // Dentro del rango pero muy fácil (RIR ≥ 4) → sugerir pequeño aumento
-    if (done.actualReps >= planRepsMin && done.rir >= 4) {
-      const nextUp = Math.round((done.weightKg + inc) / inc) * inc;
-      return { reps: planRepsMin, kg: nextUp, reason: `${done.actualReps} reps · RIR ${done.rir} (muy fácil) → prueba ${nextUp} kg` };
-    }
-    return null; // En rango, misma carga, sensación normal
+  // Piso mínimo garantizado: si la fórmula devuelve el mismo peso (o menos) pero fue fácil,
+  // forzar una subida proporcional al RIR (cuanto más fácil, mayor el salto)
+  if (done.rir >= 3 && suggested <= done.weightKg) {
+    const extraIncs = done.rir >= 7 ? 3 : done.rir >= 5 ? 2 : 1;
+    suggested = Math.round((done.weightKg + extraIncs * inc) / inc) * inc;
   }
 
-  const dir = diff > 0 ? '↑' : '↓';
-  return {
-    reps: planRepsMin,
-    kg: suggested,
-    reason: `${done.actualReps} reps · RIR ${done.rir} → ${dir} ${suggested} kg`,
-  };
+  if (suggested <= 0) return null;
+
+  // Mensaje claro: mostrar siempre el peso DESTINO, no la dirección ambigua
+  const isUp   = suggested > done.weightKg;
+  const isDown = suggested < done.weightKg;
+
+  if (done.actualReps < planRepsMin) {
+    // Por debajo del rango: mantener o bajar peso
+    const dir = isDown ? `baja a ${suggested} kg` : `mantén ${suggested} kg`;
+    return { reps: done.actualReps, kg: suggested, reason: `${done.actualReps} reps (bajo mín ${planRepsMin}) → ${dir}` };
+  }
+
+  if (done.actualReps > planRepsMax) {
+    // Por encima del rango
+    if (isUp) {
+      return { reps: planRepsMin, kg: suggested, reason: `${done.actualReps} reps (sobre máx · RIR ${done.rir}) → sube a ${suggested} kg` };
+    }
+    return { reps: planRepsMin, kg: suggested, reason: `${done.actualReps} reps (sobre máx · RIR ${done.rir}) → consolida en ${suggested} kg` };
+  }
+
+  // Dentro del rango
+  if (isUp) {
+    const easyLabel = done.rir >= 5 ? 'Muy fácil' : done.rir >= 3 ? 'Fácil' : null;
+    const prefix = easyLabel ? `${easyLabel} (RIR ${done.rir})` : `${done.actualReps} reps · RIR ${done.rir}`;
+    return { reps: planRepsMin, kg: suggested, reason: `${prefix} → sube a ${suggested} kg` };
+  }
+
+  if (isDown) {
+    return { reps: planRepsMin, kg: suggested, reason: `${done.actualReps} reps · RIR ${done.rir} → baja a ${suggested} kg` };
+  }
+
+  // Mismo peso sugerido: solo comentar si RIR fuera de lo esperado
+  if (done.rir >= 4) {
+    // Rango y peso correctos pero RIR algo alto — pequeño empuje hacia arriba
+    const nextUp = Math.round((done.weightKg + inc) / inc) * inc;
+    return { reps: planRepsMin, kg: nextUp, reason: `Fácil (RIR ${done.rir}) → prueba ${nextUp} kg` };
+  }
+
+  return null; // En rango, peso ajustado, sensación normal
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
