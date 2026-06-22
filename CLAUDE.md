@@ -568,6 +568,16 @@ Bucle ~1.3 s sobre fondo #141A17:
     corporal), mini-gráfica de tendencia (SimpleLineChart, ≥2 sesiones), lista de las
     últimas 6 sesiones con fecha localizada + mejor serie + badge "★ PR" dorado.
     Respeta sistema de unidades (kg/lb).
+- Hecho: correcciones post-LOTE I (sesión 2026-06-22, JS, recarga):
+  * restEditInput.height 36→44 px + textAlignVertical:'center' en session.tsx:
+    el número de segundos en modo edición ya no se corta por arriba/abajo.
+  * computeCoach — piso mínimo garantizado (session.store.ts):
+    - Bug: Epley con pesos bajos y pocas reps redondeaba al mismo peso actual.
+    - Fix: si done.rir>=3 && suggested<=done.weightKg → forzar subida proporcional
+      al RIR: 3-4→+1 inc, 5-6→+2 inc, 7+→+3 inc.
+    - Mensajes reescritos con peso DESTINO explícito ("sube a 12 kg", no "↑ 8 kg").
+    - Auto-relleno de reps+kg en la siguiente serie siempre trae un peso mayor
+      al actual cuando la serie fue fácil.
 - Pendiente obligatorio: FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
