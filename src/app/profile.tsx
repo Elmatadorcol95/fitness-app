@@ -1,5 +1,6 @@
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -203,19 +204,38 @@ export default function ProfileScreen() {
           </Section>
 
           {/* ── Equipamiento ── */}
-          {equipment.length > 0 && (
-            <Section title={t('tabs.profile.equipmentSection')}>
-              <View style={styles.chips}>
-                {equipment.map((e) => (
-                  <ThemedView key={e} type="backgroundSelected" style={styles.chip}>
-                    <ThemedText style={styles.chipText}>
-                      {t(`onboarding.location.equipmentItems.${e}`, { defaultValue: e })}
-                    </ThemedText>
-                  </ThemedView>
-                ))}
-              </View>
-            </Section>
-          )}
+          <View style={sectionStyles.wrap}>
+            <View style={styles.equipHeader}>
+              <ThemedText style={sectionStyles.title}>
+                {t('tabs.profile.equipmentSection')}
+              </ThemedText>
+              <Pressable
+                onPress={() => router.push('/equipment' as any)}
+                style={styles.editEquipBtn}
+                hitSlop={8}
+              >
+                <Ionicons name="create-outline" size={15} color="#3FBF7F" />
+                <ThemedText style={styles.editEquipText}>{t('equipment.editBtn')}</ThemedText>
+              </Pressable>
+            </View>
+            <ThemedView type="backgroundElement" style={sectionStyles.card}>
+              {equipment.length > 0 ? (
+                <View style={styles.chips}>
+                  {equipment.map((e) => (
+                    <ThemedView key={e} type="backgroundSelected" style={styles.chip}>
+                      <ThemedText style={styles.chipText}>
+                        {t(`onboarding.location.equipmentItems.${e}`, { defaultValue: e })}
+                      </ThemedText>
+                    </ThemedView>
+                  ))}
+                </View>
+              ) : (
+                <ThemedText themeColor="textSecondary" style={styles.gymEquipNote}>
+                  {t('onboarding.location.gymNote')}
+                </ThemedText>
+              )}
+            </ThemedView>
+          </View>
 
           {/* ── Lesiones ── */}
           {profile.injuries ? (
@@ -253,6 +273,10 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one + 2 },
   chip: { borderRadius: Spacing.two, paddingHorizontal: Spacing.two, paddingVertical: 4 },
   chipText: { fontSize: 13 },
+  equipHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 },
+  editEquipBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  editEquipText: { fontSize: 13, color: '#3FBF7F' },
+  gymEquipNote: { fontSize: 13 },
   injuriesText: { fontSize: 14, lineHeight: 20 },
   signOutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: Spacing.three, marginTop: Spacing.two },
   signOutText: { fontSize: 14, color: '#9DA89F' },

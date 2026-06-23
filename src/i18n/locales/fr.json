@@ -399,7 +399,20 @@
       "finishIncompleteTitle": "Terminer sans compléter ?",
       "finishIncompleteMsg": "Il vous reste {{count}} séries à compléter. Voulez-vous vraiment terminer ?",
       "rirHelpTitle": "Répétitions en réserve (RIR)",
-      "rirHelpBody": "Le RIR indique combien de répétitions supplémentaires vous auriez pu faire avant l'échec.\n\nSi vous terminez la série et pouviez encore en faire 2 → RIR 2.\n\n• RIR 0–1 : à la limite (rouge)\n• RIR 2–3 : zone idéale (vert)\n• RIR 4+ : trop facile, augmentez la charge (gris)"
+      "rirHelpBody": "Le RIR indique combien de répétitions supplémentaires vous auriez pu faire avant l'échec.\n\nSi vous terminez la série et pouviez encore en faire 2 → RIR 2.\n\n• RIR 0–1 : à la limite (rouge)\n• RIR 2–3 : zone idéale (vert)\n• RIR 4+ : trop facile, augmentez la charge (gris)",
+      "whereTitle": "Où vous entraînez-vous aujourd'hui ?",
+      "whereMsg": "Le plan s'adaptera à votre équipement disponible.",
+      "whereGym": "Salle de sport",
+      "whereHome": "Maison",
+      "noHomeAlt": "Pas d'équivalent à domicile avec votre équipement"
     }
+  },
+  "equipment": {
+    "title": "Mon équipement",
+    "editBtn": "Modifier l'équipement",
+    "regenTitle": "Équipement mis à jour",
+    "regenMsg": "Votre équipement a changé. Voulez-vous régénérer le plan d'entraînement avec les nouveaux paramètres ?",
+    "regenYes": "Oui, régénérer",
+    "regenNo": "Garder le plan actuel"
   }
 }

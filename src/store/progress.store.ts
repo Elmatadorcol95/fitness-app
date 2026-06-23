@@ -6,6 +6,7 @@ import {
   bodyMeasurements,
   progressPhotos,
   measurementPrefs,
+  profile,
   type WeightEntry,
   type MeasurementEntry,
   type ProgressPhoto,
@@ -64,12 +65,41 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   loadAll: async () => {
     set({ isLoading: true });
     try {
-      const [weights, measures, ph, prefs] = await Promise.all([
+      const [wRaw, measures, ph, prefs] = await Promise.all([
         db.select().from(weightLog).orderBy(desc(weightLog.date)),
         db.select().from(bodyMeasurements).orderBy(desc(bodyMeasurements.date)),
         db.select().from(progressPhotos).orderBy(desc(progressPhotos.date)),
         db.select().from(measurementPrefs).limit(1),
       ]);
+
+      let weights = wRaw;
+
+      // Semilla para usuarios que completaron el onboarding antes de que existiera
+      // el historial de peso. Solo se ejecuta si weight_log está vacío Y el perfil
+      // ya existe (garantía de que el onboarding terminó y no estamos en medio de él).
+      if (weights.length === 0) {
+        const profileRows = await db.select().from(profile).limit(1);
+        const p = profileRows[0];
+        if (p?.weightKg && p.weightKg > 0) {
+          const d = new Date(p.createdAt);
+          const seedDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          // Guarda de deduplicación: no insertar si ya existe una fila para esa fecha
+          const already = await db
+            .select({ id: weightLog.id })
+            .from(weightLog)
+            .where(eq(weightLog.date, seedDate))
+            .limit(1);
+          if (already.length === 0) {
+            await db.insert(weightLog).values({
+              weightKg:  p.weightKg,
+              date:      seedDate,
+              notes:     '',
+              createdAt: p.createdAt,
+            });
+          }
+          weights = await db.select().from(weightLog).orderBy(desc(weightLog.date));
+        }
+      }
 
       const activeFields: MeasurementField[] = prefs[0]
         ? (JSON.parse(prefs[0].activeFields) as MeasurementField[])

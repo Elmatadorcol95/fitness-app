@@ -30,6 +30,7 @@ export interface ExerciseState {
   planRepsMin: number;
   planRepsMax: number;
   planSets: number;
+  targetRir: number;
 }
 
 interface SessionStore {
@@ -41,8 +42,10 @@ interface SessionStore {
   exercises: ExerciseState[];
   restTimerSeconds: number;
   restTimerRunning: boolean;
+  trainingContext: 'gym' | 'home' | null;
 
   startSession: (planId: number, day: StoredPlanDay) => Promise<void>;
+  setTrainingContext: (ctx: 'gym' | 'home' | null) => void;
   setCurrentExercise: (idx: number) => void;
   updateSetField: (exIdx: number, setIdx: number, field: 'actualReps' | 'weightKg' | 'rir', value: number) => void;
   completeSet: (exIdx: number, setIdx: number) => void;
@@ -111,16 +114,16 @@ async function getLastSetData(exerciseId: string): Promise<{ reps: number | null
   }
 }
 
-async function getTargetFromProgression(planId: number, exerciseId: string): Promise<{ weightKg: number | null; repsMin: number | null }> {
+async function getTargetFromProgression(planId: number, exerciseId: string): Promise<{ weightKg: number | null; repsMin: number | null; targetRir: number | null }> {
   try {
     const rows = await db
-      .select({ targetWeightKg: exerciseTargets.targetWeightKg, targetRepsMin: exerciseTargets.targetRepsMin })
+      .select({ targetWeightKg: exerciseTargets.targetWeightKg, targetRepsMin: exerciseTargets.targetRepsMin, targetRir: exerciseTargets.targetRir })
       .from(exerciseTargets)
       .where(and(eq(exerciseTargets.planId, planId), eq(exerciseTargets.exerciseId, exerciseId)))
       .limit(1);
-    return { weightKg: rows[0]?.targetWeightKg ?? null, repsMin: rows[0]?.targetRepsMin ?? null };
+    return { weightKg: rows[0]?.targetWeightKg ?? null, repsMin: rows[0]?.targetRepsMin ?? null, targetRir: rows[0]?.targetRir ?? null };
   } catch {
-    return { weightKg: null, repsMin: null };
+    return { weightKg: null, repsMin: null, targetRir: null };
   }
 }
 
@@ -161,6 +164,7 @@ function computeCoach(
   planRepsMin: number,
   planRepsMax: number,
   equip: EquipLocal,
+  targetRir: number,
 ): { reps: number; kg: number; reason: string } | null {
   const inc = EQUIP_INC[equip];
 
@@ -203,13 +207,15 @@ function computeCoach(
   let suggested  = Math.max(done.weightKg - maxSwing, Math.min(done.weightKg + maxSwing, rounded));
   suggested      = Math.round(suggested / inc) * inc;
 
-  // No subir si fue al fallo (RIR ≤ 1)
-  if (done.rir <= 1 && suggested > done.weightKg) suggested = done.weightKg;
+  // Red de seguridad doble: relativa (más duro de lo esperado) + absoluta (fallo/casi fallo).
+  // Ambas condiciones bloquean cualquier subida de peso.
+  const serieDura = done.rir < targetRir || done.rir <= 1;
+  if (serieDura && suggested > done.weightKg) suggested = done.weightKg;
 
-  // Piso mínimo garantizado: si la fórmula devuelve el mismo peso (o menos) pero fue fácil,
-  // forzar una subida proporcional al RIR (cuanto más fácil, mayor el salto)
-  if (done.rir >= 3 && suggested <= done.weightKg) {
-    const extraIncs = done.rir >= 7 ? 3 : done.rir >= 5 ? 2 : 1;
+  // Piso mínimo garantizado: si la fórmula devuelve el mismo peso (o menos) pero fue más
+  // fácil de lo esperado, forzar una subida proporcional a cuánto le sobró.
+  if (done.rir > targetRir && suggested <= done.weightKg) {
+    const extraIncs = done.rir >= targetRir + 4 ? 3 : done.rir >= targetRir + 2 ? 2 : 1;
     suggested = Math.round((done.weightKg + extraIncs * inc) / inc) * inc;
   }
 
@@ -234,34 +240,39 @@ function computeCoach(
   }
 
   // Dentro del rango
+  if (serieDura) {
+    // Serie más dura de lo esperado o casi al fallo: mantener peso y reportar el RIR real
+    const hardLabel = done.rir <= 1 ? 'Al límite' : 'Duro';
+    return { reps: planRepsMin, kg: done.weightKg, reason: `${hardLabel} (RIR ${done.rir}) → mantén ${done.weightKg} kg` };
+  }
+
   if (isUp) {
-    const easyLabel = done.rir >= 5 ? 'Muy fácil' : done.rir >= 3 ? 'Fácil' : null;
-    const prefix = easyLabel ? `${easyLabel} (RIR ${done.rir})` : `${done.actualReps} reps · RIR ${done.rir}`;
-    return { reps: planRepsMin, kg: suggested, reason: `${prefix} → sube a ${suggested} kg` };
+    const easyLabel = done.rir >= targetRir + 2 ? 'Muy fácil' : 'Fácil';
+    return { reps: planRepsMin, kg: suggested, reason: `${easyLabel} (RIR ${done.rir}) → sube a ${suggested} kg` };
   }
 
   if (isDown) {
     return { reps: planRepsMin, kg: suggested, reason: `${done.actualReps} reps · RIR ${done.rir} → baja a ${suggested} kg` };
   }
 
-  // Mismo peso sugerido: solo comentar si RIR fuera de lo esperado
-  if (done.rir >= 4) {
-    // Rango y peso correctos pero RIR algo alto — pequeño empuje hacia arriba
+  // Mismo peso: RIR en el objetivo → progresar por reps (sin cambiar peso)
+  if (done.rir > targetRir) {
     const nextUp = Math.round((done.weightKg + inc) / inc) * inc;
     return { reps: planRepsMin, kg: nextUp, reason: `Fácil (RIR ${done.rir}) → prueba ${nextUp} kg` };
   }
 
-  return null; // En rango, peso ajustado, sensación normal
+  return null; // En rango y en objetivo: sin cambio
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 const EMPTY_STATE: Pick<SessionStore,
   'isActive' | 'planId' | 'planDayId' | 'startTime' | 'currentExerciseIdx' |
-  'exercises' | 'restTimerSeconds' | 'restTimerRunning'
+  'exercises' | 'restTimerSeconds' | 'restTimerRunning' | 'trainingContext'
 > = {
   isActive: false, planId: null, planDayId: null, startTime: null,
   currentExerciseIdx: 0, exercises: [], restTimerSeconds: 0, restTimerRunning: false,
+  trainingContext: null,
 };
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -309,6 +320,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         planRepsMin:  effMin,
         planRepsMax:  effMax,
         planSets:     ex.sets,
+        targetRir:    progData.targetRir ?? 3,
         sets: Array.from({ length: ex.sets }, (_, s) =>
           buildSetState(s, targetInit, lastData.weightKg),
         ),
@@ -354,6 +366,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           { actualReps: doneSt.actualReps, weightKg: doneSt.weightKg, rir: doneSt.rir },
           sets[nextIdx].weightKg, sets[nextIdx].actualReps,
           ex.planRepsMin, ex.planRepsMax, equip,
+          ex.targetRir,
         );
         // Siempre actualizar coachReason (null limpia hints obsoletos)
         sets[nextIdx] = {
@@ -507,6 +520,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     set({ ...EMPTY_STATE });
     return { hasPR };
   },
+
+  setTrainingContext: (ctx) => set({ trainingContext: ctx }),
 
   cancelSession: () => set({ ...EMPTY_STATE }),
 }));

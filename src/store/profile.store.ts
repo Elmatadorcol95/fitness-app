@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import { eq } from 'drizzle-orm';
+import { db } from '@/db';
+import { profile as profileTable } from '@/db/schema';
 import type { Profile } from '@/db/schema';
 
 export type Goal = 'strength' | 'hypertrophy' | 'fat_loss';
@@ -42,9 +45,10 @@ interface ProfileState {
   setDbReady: (v: boolean) => void;
   updateDraft: (updates: Partial<OnboardingDraft>) => void;
   resetDraft: () => void;
+  updateEquipmentAndLocation: (location: Location, equipment: string[]) => Promise<void>;
 }
 
-export const useProfileStore = create<ProfileState>((set) => ({
+export const useProfileStore = create<ProfileState>((set, get) => ({
   profile: null,
   isLoading: true,
   isDbReady: false,
@@ -54,4 +58,14 @@ export const useProfileStore = create<ProfileState>((set) => ({
   setDbReady: (isDbReady) => set({ isDbReady }),
   updateDraft: (updates) => set((s) => ({ draft: { ...s.draft, ...updates } })),
   resetDraft: () => set({ draft: { ...defaultDraft } }),
+  updateEquipmentAndLocation: async (location, equipment) => {
+    const current = get().profile;
+    if (!current) return;
+    const equipmentJson = JSON.stringify(equipment);
+    await db
+      .update(profileTable)
+      .set({ location, equipment: equipmentJson })
+      .where(eq(profileTable.id, current.id));
+    set({ profile: { ...current, location, equipment: equipmentJson } });
+  },
 }));

@@ -141,8 +141,17 @@ function SetRow({ num, actualReps, weightKg, rir, completed, coachReason, onChan
           }}
         />
 
-        {/* Toggle checkmark (A2) */}
-        <Pressable onPress={onComplete} style={[styles.checkBtn, completed && styles.checkBtnDone]}>
+        {/* Toggle checkmark — vuelca los tres campos al store ANTES de completar,
+            por si el teclado sigue abierto (onEndEditing no habría disparado aún). */}
+        <Pressable onPress={() => {
+          const rVal = parseInt(repsStr, 10);
+          if (!isNaN(rVal) && rVal > 0) onChangeReps(rVal);
+          const kVal = parseFloat(kgStr);
+          if (!isNaN(kVal) && kVal >= 0) onChangeWeight(kVal);
+          const rirVal = parseInt(rirStr, 10);
+          if (!isNaN(rirVal) && rirVal >= 0) onChangeRir(rirVal);
+          onComplete();
+        }} style={[styles.checkBtn, completed && styles.checkBtnDone]}>
           <Ionicons
             name={completed ? 'checkmark' : 'ellipse-outline'}
             size={22}
@@ -167,7 +176,7 @@ export default function SessionScreen() {
 
   const {
     isActive, startTime, currentExerciseIdx, exercises,
-    restTimerSeconds, restTimerRunning,
+    restTimerSeconds, restTimerRunning, trainingContext,
     setCurrentExercise, updateSetField, completeSet,
     addSet, removeSet, updateNote, adjustRest, startRestTimer, stopRestTimer,
     tickRestTimer, finishSession, cancelSession, replaceExercise,
@@ -351,6 +360,22 @@ export default function SessionScreen() {
               <ThemedText style={styles.finishBtnText}>{t('workout.session.finishSession')}</ThemedText>
             </Pressable>
           </View>
+
+          {/* ── Badge de contexto (solo para usuarios "ambos") ── */}
+          {trainingContext !== null && (
+            <View style={styles.contextBadgeRow}>
+              <View style={styles.contextBadge}>
+                <Ionicons
+                  name={trainingContext === 'home' ? 'home-outline' : 'barbell-outline'}
+                  size={12}
+                  color={MUTED}
+                />
+                <ThemedText style={styles.contextBadgeText}>
+                  {t(`workout.session.where${trainingContext === 'home' ? 'Home' : 'Gym'}`)}
+                </ThemedText>
+              </View>
+            </View>
+          )}
 
           {/* ── Carrusel de ejercicios ── */}
           <FlatList
@@ -752,6 +777,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three, paddingVertical: 6,
   },
   finishBtnText: { color: '#04261A', fontSize: 13, fontWeight: '700' },
+
+  // Context badge
+  contextBadgeRow: { alignItems: 'center', paddingVertical: 4 },
+  contextBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#FFFFFF0A',
+    borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3,
+  },
+  contextBadgeText: { fontSize: 11, color: MUTED, letterSpacing: 0.3 },
 
   // Carousel
   carousel: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, gap: Spacing.two },

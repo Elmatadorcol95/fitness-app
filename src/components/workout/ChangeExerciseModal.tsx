@@ -3,7 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { EXERCISES, getExerciseName, type Exercise } from '@/lib/exercises';
+import { EXERCISES, getAlternatives, getExerciseName } from '@/lib/exercises';
 import { muscleLabel, equipmentLabel } from '@/components/workout/ExerciseCard';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/theme';
@@ -16,29 +16,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   push: GREEN, pull: AMBER, legs: '#5BD897', core: GREEN, cardio: AMBER, full_body: GREEN,
 };
 
-function getAlternatives(currentId: string, equipment: string[], isGym: boolean): Exercise[] {
-  const current = EXERCISES.find(e => e.id === currentId);
-  if (!current) return [];
-
-  return EXERCISES.filter(ex => {
-    if (ex.id === currentId) return false;
-    if (ex.category !== current.category) return false;
-
-    // Para gimnasio: todos los ejercicios del mismo grupo son válidos
-    // Para casa: solo los que el usuario puede hacer con su equipo
-    const canDo = isGym
-      ? true
-      : ex.equipment.length === 0 || ex.equipment.every(eq => equipment.includes(eq));
-    if (!canDo) return false;
-
-    return ex.primaryMuscles.some(m => current.primaryMuscles.includes(m));
-  }).sort((a, b) => {
-    // Ordenar: mismos músculos primarios primero
-    const aOverlap = a.primaryMuscles.filter(m => current.primaryMuscles.includes(m)).length;
-    const bOverlap = b.primaryMuscles.filter(m => current.primaryMuscles.includes(m)).length;
-    return bOverlap - aOverlap;
-  });
-}
 
 interface Props {
   visible: boolean;

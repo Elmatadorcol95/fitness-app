@@ -593,3 +593,39 @@ export function getExerciseName(id: string, lang: string): string {
   const l = lang.startsWith('fr') ? 'fr' : lang.startsWith('es') ? 'es' : 'en';
   return ex.name[l];
 }
+
+/** Verdadero si el usuario puede hacer el ejercicio con su equipamiento en casa. */
+export function canDoAtHome(exerciseId: string, homeEquipment: string[]): boolean {
+  const ex = EXERCISES.find(e => e.id === exerciseId);
+  if (!ex) return true;
+  if (ex.equipment.length === 0) return true; // peso corporal, siempre disponible
+  return ex.equipment.every(eq => homeEquipment.includes(eq));
+}
+
+/**
+ * Devuelve ejercicios alternativos al indicado, filtrados por equipamiento disponible
+ * y ordenados por mayor solapamiento muscular. Reutilizada en ChangeExerciseModal y
+ * en el filtro ligero de sesión (E-3).
+ */
+export function getAlternatives(
+  currentId: string,
+  equipment: string[],
+  isGym: boolean,
+): Exercise[] {
+  const current = EXERCISES.find(e => e.id === currentId);
+  if (!current) return [];
+
+  return EXERCISES.filter(ex => {
+    if (ex.id === currentId) return false;
+    if (ex.category !== current.category) return false;
+    const canDo = isGym
+      ? true
+      : ex.equipment.length === 0 || ex.equipment.every(eq => equipment.includes(eq));
+    if (!canDo) return false;
+    return ex.primaryMuscles.some(m => current.primaryMuscles.includes(m));
+  }).sort((a, b) => {
+    const aOverlap = a.primaryMuscles.filter(m => current.primaryMuscles.includes(m)).length;
+    const bOverlap = b.primaryMuscles.filter(m => current.primaryMuscles.includes(m)).length;
+    return bOverlap - aOverlap;
+  });
+}

@@ -1,155 +1,199 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
-  interpolate,
-  useAnimatedStyle,
+  useAnimatedProps,
   useSharedValue,
-  withDelay,
   withRepeat,
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
+import Svg, { Circle, Ellipse, G, Line, Path, Rect } from 'react-native-svg';
 import { ThemedText } from '@/components/themed-text';
+
+const AnimatedG    = Animated.createAnimatedComponent(G);
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
 const { width: SW } = Dimensions.get('window');
 
-// ─── Paleta fija (splash siempre oscuro) ─────────────────────────────────────
 const BG       = '#141A17';
 const GREEN    = '#3FBF7F';
-const GREEN_LT = '#5BD897';
-const AMBER    = '#F2B450';
 const TEXT     = '#F1F4F1';
 const TEXT_DIM = '#9DA89F';
-const SURFACE  = '#1C231F';
 
-// ─── Dimensiones del martillo ─────────────────────────────────────────────────
-const HANDLE_W  = 18;
-const HANDLE_H  = 110;
-const HEAD_W    = 100;
-const HEAD_H    = 34;
-// El wrapper tiene su CENTRO en el punto de pivote (parte superior del mango).
-// El mango y la cabeza cuelgan desde el centro hacia abajo.
-const WRAP      = 240;          // tamaño del cuadrado de rotación
-const PIVOT_Y   = WRAP / 2;    // el mango empieza en el centro del wrapper
-
-// Ángulos (positivo = horario en React Native)
-const RAISED   = -65;   // martillo levantado (antes del golpe)
-const IMPACT   =  -5;   // posición de impacto
-
-const MESSAGES = [
-  'Forjando tu plan…',
-  'Templando los datos…',
-  'Ajustando las cargas…',
-  'Calentando motores…',
-];
+// SVG viewBox del archivo de marca: 300×360. Mostramos solo la zona del logo
+// (los 250px superiores) y renderizamos el texto/barra como elementos RN.
+const SVG_VW = 300;
+const SVG_VH = 250;
+const SVG_W  = SW;
+const SVG_H  = SW * SVG_VH / SVG_VW;
 
 export function VulcanSplash() {
-  const [msgIdx, setMsgIdx] = useState(0);
-
-  const swing  = useSharedValue(RAISED);
-  const sparks = useSharedValue(0);
-  const bar    = useSharedValue(0);
+  const hammerRot  = useSharedValue(-42);
+  const sparkOp    = useSharedValue(0);
+  const sparkScale = useSharedValue(0.4);
+  const barW       = useSharedValue(16);
 
   useEffect(() => {
-    // Martillo: sube → baja → rebote → pausa → repite (~1.3 s)
-    swing.value = withRepeat(
+    // Martillo — ciclo de 1300 ms (idéntico al SMIL del HTML de marca)
+    // keyTimes: 0 | 0.35 | 0.44 | 0.56 | 1  →  0 | 455 | 572 | 728 | 1300 ms
+    // ángulos:  -42 | 0 | -8 | -3 | -42
+    hammerRot.value = withRepeat(
       withSequence(
-        withTiming(IMPACT, { duration: 420, easing: Easing.in(Easing.quad) }),
-        withTiming(IMPACT + 12, { duration: 80 }),
-        withTiming(IMPACT, { duration: 100 }),
-        withDelay(100, withTiming(RAISED, { duration: 600, easing: Easing.out(Easing.quad) })),
+        withTiming(  0, { duration: 455, easing: Easing.bezier(0.30, 0, 0.70, 1) }),
+        withTiming( -8, { duration: 117, easing: Easing.bezier(0.40, 0, 0.60, 1) }),
+        withTiming( -3, { duration: 156, easing: Easing.bezier(0.40, 0, 0.60, 1) }),
+        withTiming(-42, { duration: 572, easing: Easing.bezier(0.45, 0, 0.55, 1) }),
       ),
       -1,
       false,
     );
 
-    // Chispas: aparecen en el momento del impacto
-    sparks.value = withRepeat(
+    // Chispas — opacity: keyTimes 0;0.33;0.40;0.64;1  →  0|429|520|832|1300 ms
+    sparkOp.value = withRepeat(
       withSequence(
-        withDelay(380, withTiming(1, { duration: 60 })),
-        withTiming(0, { duration: 350 }),
-        withDelay(510, withTiming(0, { duration: 0 })),
+        withTiming(0, { duration: 429 }),
+        withTiming(1, { duration:  91 }),
+        withTiming(0, { duration: 312 }),
+        withTiming(0, { duration: 468 }),
       ),
       -1,
       false,
     );
 
-    // Barra de progreso: oscila de 0 → 1 → 0 en ~3 s
-    bar.value = withRepeat(
-      withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
+    // Chispas — scale: keyTimes 0;0.33;0.42;0.64;1  →  0|429|546|832|1300 ms
+    sparkScale.value = withRepeat(
+      withSequence(
+        withTiming(0.40, { duration: 429 }),
+        withTiming(1.15, { duration: 117 }),
+        withTiming(1.28, { duration: 286 }),
+        withTiming(0.40, { duration: 468 }),
+      ),
       -1,
-      true,
+      false,
     );
 
-    const t = setInterval(() => setMsgIdx((i) => (i + 1) % MESSAGES.length), 1300);
-    return () => clearInterval(t);
+    // Barra de progreso — 2400 ms ida/vuelta (del HTML de marca)
+    barW.value = withRepeat(
+      withSequence(
+        withTiming(164, { duration: 1200, easing: Easing.bezier(0.4, 0, 0.2, 1) }),
+        withTiming( 16, { duration: 1200, easing: Easing.bezier(0.4, 0, 0.2, 1) }),
+      ),
+      -1,
+      false,
+    );
   }, []);
 
-  const hammerAnim = useAnimatedStyle(() => ({
-    // 45° estático del diseño + oscilación animada
-    transform: [{ rotate: `${45 + swing.value}deg` }],
+  const hammerProps = useAnimatedProps(() => ({
+    transform: `rotate(${hammerRot.value}, 121, 60)`,
   }));
 
-  const sparksAnim = useAnimatedStyle(() => ({ opacity: sparks.value }));
+  const sparkGroupProps = useAnimatedProps(() => ({
+    opacity: sparkOp.value,
+  }));
 
-  const barAnim = useAnimatedStyle(() => ({
-    width: `${interpolate(bar.value, [0, 1], [0, 100])}%`,
+  const sparkInnerProps = useAnimatedProps(() => ({
+    transform: `scale(${sparkScale.value})`,
+  }));
+
+  const barProps = useAnimatedProps(() => ({
+    width: barW.value,
   }));
 
   return (
     <View style={styles.root}>
 
-      {/* ── Animación: martillo + yunque ── */}
-      <View style={styles.scene}>
+      {/* Logo animado — paths exactos del archivo assets/brand/vulcan-animado-nuevo.html */}
+      <Svg viewBox={`0 0 ${SVG_VW} ${SVG_VH}`} width={SVG_W} height={SVG_H}>
+        <G transform="translate(0, 8)">
 
-        {/* El wrapper rota alrededor de su centro = punto de pivote */}
-        <Animated.View style={[styles.hammerWrap, hammerAnim]}>
-          {/* Mango: empieza en el centro del wrapper y baja */}
-          <View style={styles.handle} />
-          {/* Cabeza: al final del mango, perpendicular (más ancha) */}
-          <View style={styles.head} />
-        </Animated.View>
+          {/* Yunque */}
+          <G transform="translate(150,150) scale(0.62) translate(-158,-155)">
+            <Path d="M128 178 L240 178 L262 206 L262 214 L214 214 L214 207 L154 207 L154 214 L106 214 L106 206 Z" fill="#3FBF7F"/>
+            <Path d="M152 126 C161 144 161 162 140 180 L228 180 C208 162 208 144 216 126 Z" fill="#3FBF7F"/>
+            <Path d="M138 96 L252 96 L252 126 L138 126 Z" fill="#3FBF7F"/>
+            <Path d="M120 104 L138 104 L138 126 L120 126 Z" fill="#3FBF7F"/>
+            <Path d="M120 105 Q82 104 54 112 Q86 120 120 124 Z" fill="#3FBF7F"/>
+            <Path d="M120 124 L152 124 L152 130 L122 132 Z" fill="#2E8C5B"/>
+            <Path d="M216 124 L252 124 L250 132 L216 130 Z" fill="#2E8C5B"/>
+            <Path d="M128 178 L240 178 L237 184 L131 184 Z" fill="#2E8C5B"/>
+            <Rect x={140} y={96} width={112} height={7} rx={3} fill="#5BD897"/>
+            <Rect x={121} y={104} width={17} height={5} rx={2} fill="#5BD897"/>
+            <Path d="M120 105 Q86 105 58 112 Q86 114 120 115 Z" fill="#5BD897" opacity={0.85}/>
+          </G>
 
-        {/* Chispas en el punto de impacto */}
-        <Animated.View style={[styles.sparksWrap, sparksAnim]}>
-          <View style={[styles.spark, { width: 10, height: 10, top: 4, left: 8 }]} />
-          <View style={[styles.spark, { width:  7, height:  7, top: -6, left: -2 }]} />
-          <View style={[styles.spark, { width:  7, height:  7, top: -8, left: 22 }]} />
-          <View style={[styles.spark, { width:  5, height:  5, top:  2, left: -14 }]} />
-          <View style={[styles.spark, { width:  5, height:  5, top: -14, left: 10 }]} />
-        </Animated.View>
+          {/* Martillo — rota alrededor del pivote (121, 60) */}
+          <AnimatedG animatedProps={hammerProps}>
+            <G transform="translate(170,112) rotate(108) scale(0.58) translate(-220,-104)">
+              <G transform="rotate(-6 160 130)">
+                <Path d="M150 114 C148 152 147 184 147 200 Q147 216 160 216 Q173 216 173 200 C173 184 172 152 170 114 Z" fill="#5BD897"/>
+                <Path d="M170 114 C172 152 173 184 173 200 Q173 210 165 214 C169 204 167 152 161 114 Z" fill="#2E8C5B" opacity={0.5}/>
+                <Ellipse cx={160} cy={206} rx={13} ry={9} fill="#5BD897"/>
+                <Path d="M112 82 L138 60 L188 60 Q220 60 220 76 L220 102 Q220 120 188 120 L138 120 L112 96 Z" fill="#3FBF7F"/>
+                <Ellipse cx={158} cy={90} rx={10} ry={17} fill="#2E8C5B" opacity={0.4}/>
+                <Path d="M112 96 L138 120 L188 120 Q212 120 218 108 L216 118 Q210 124 188 124 L138 124 L112 102 Z" fill="#2E8C5B" opacity={0.5}/>
+                <Path d="M116 84 L138 64 L188 64 Q210 64 216 71 L188 67 L140 67 L120 86 Z" fill="#5BD897" opacity={0.9}/>
+                <Rect x={210} y={70} width={8} height={34} rx={4} fill="#5BD897"/>
+              </G>
+            </G>
+          </AnimatedG>
 
-        {/* Yunque */}
-        <View style={styles.anvilGroup}>
-          <View style={styles.anvilTop} />
-          <View style={styles.anvilBody} />
-          <View style={styles.anvilBase} />
-        </View>
-      </View>
+          {/* Chispas — estallan en el impacto */}
+          <AnimatedG animatedProps={sparkGroupProps}>
+            <G transform="translate(165, 107)">
+              <AnimatedG animatedProps={sparkInnerProps}>
+                <Line x1={-3.7}  y1={2.1}  x2={-14.9} y2={8.6}  stroke="#F2B450" strokeWidth={2.5} strokeLinecap="round"/>
+                <Line x1={-6.0}  y1={1.9}  x2={-15.6} y2={5.1}  stroke="#FFD98A" strokeWidth={2.4} strokeLinecap="round"/>
+                <Line x1={-3.8}  y1={0.3}  x2={-16.2} y2={1.1}  stroke="#F2B450" strokeWidth={2.2} strokeLinecap="round"/>
+                <Line x1={-3.3}  y1={-0.6} x2={-21.0} y2={-3.7} stroke="#F2B450" strokeWidth={2.8} strokeLinecap="round"/>
+                <Line x1={-6.2}  y1={-2.9} x2={-22.2} y2={-10.3} stroke="#F2B450" strokeWidth={2.4} strokeLinecap="round"/>
+                <Line x1={-4.2}  y1={-3.3} x2={-16.5} y2={-12.9} stroke="#F2B450" strokeWidth={3.0} strokeLinecap="round"/>
+                <Line x1={-3.2}  y1={-4.1} x2={-10.5} y2={-13.4} stroke="#FFD98A" strokeWidth={2.2} strokeLinecap="round"/>
+                <Line x1={-1.3}  y1={-3.2} x2={-7.4}  y2={-18.2} stroke="#F2B450" strokeWidth={2.7} strokeLinecap="round"/>
+                <Line x1={-0.5}  y1={-3.4} x2={-3.3}  y2={-23.3} stroke="#F2B450" strokeWidth={1.9} strokeLinecap="round"/>
+                <Line x1={0.7}   y1={-5.1} x2={2.2}   y2={-15.8} stroke="#F2B450" strokeWidth={1.7} strokeLinecap="round"/>
+                <Line x1={1.9}   y1={-4.6} x2={8.6}   y2={-21.3} stroke="#F7C97A" strokeWidth={2.7} strokeLinecap="round"/>
+                <Line x1={3.3}   y1={-4.2} x2={13.4}  y2={-17.2} stroke="#F2B450" strokeWidth={2.0} strokeLinecap="round"/>
+                <Line x1={4.7}   y1={-3.4} x2={15.1}  y2={-11.0} stroke="#FFD98A" strokeWidth={2.4} strokeLinecap="round"/>
+                <Line x1={4.7}   y1={-1.7} x2={18.9}  y2={-6.9}  stroke="#FFD98A" strokeWidth={2.2} strokeLinecap="round"/>
+                <Line x1={6.9}   y1={-0.5} x2={16.7}  y2={-1.2}  stroke="#F7C97A" strokeWidth={2.2} strokeLinecap="round"/>
+                <Line x1={3.5}   y1={0.8}  x2={21.8}  y2={4.6}   stroke="#FFD98A" strokeWidth={1.7} strokeLinecap="round"/>
+                <Line x1={2.9}   y1={1.6}  x2={20.6}  y2={11.0}  stroke="#F7C97A" strokeWidth={2.7} strokeLinecap="round"/>
+                <Circle cx={-11.2} cy={-13.7} r={1.8} fill="#F7C97A"/>
+                <Circle cx={-11.7} cy={2.8}   r={1.5} fill="#FFD98A"/>
+                <Circle cx={7.0}   cy={-8.9}  r={2.2} fill="#FFD98A"/>
+                <Circle cx={7.5}   cy={-23.8} r={1.8} fill="#FFD98A"/>
+                <Circle cx={-11.7} cy={-21.8} r={1.1} fill="#F7C97A"/>
+                <Circle cx={-13.6} cy={-19.1} r={1.8} fill="#F2B450"/>
+                <Circle cx={11.4}  cy={-5.9}  r={1.5} fill="#F7C97A"/>
+                <Circle cx={20.7}  cy={3.0}   r={1.3} fill="#F7C97A"/>
+                <Circle cx={5.5}   cy={-28.9} r={2.3} fill="#FFD98A"/>
+                <Circle cx={-15.4} cy={-11.3} r={1.6} fill="#F7C97A"/>
+                <Circle cx={12.7}  cy={4.1}   r={1.4} fill="#F2B450"/>
+                <Circle cx={-8.5}  cy={-5.4}  r={1.7} fill="#F7C97A"/>
+                <Circle cx={7.2}   cy={-15.4} r={1.3} fill="#FFD98A"/>
+              </AnimatedG>
+            </G>
+          </AnimatedG>
 
-      {/* ── Texto y barra ── */}
+        </G>
+      </Svg>
+
+      {/* Texto y barra — idéntico al HTML de marca */}
       <View style={styles.bottom}>
-        <ThemedText style={styles.appName}>VULCAN</ThemedText>
-        <ThemedText style={styles.msg}>{MESSAGES[msgIdx]}</ThemedText>
-        <View style={styles.barTrack}>
-          <Animated.View style={[styles.barFill, barAnim]} />
+        <ThemedText style={styles.appName}>Vulcan</ThemedText>
+        <ThemedText style={styles.msg}>Forjando tu plan…</ThemedText>
+        <View style={styles.barOuter}>
+          <Svg viewBox="0 0 180 6" width={180} height={6}>
+            <Rect x={0} y={0} width={180} height={6} rx={3} fill="#243029"/>
+            <AnimatedRect x={0} y={0} height={6} rx={3} fill={GREEN} animatedProps={barProps}/>
+          </Svg>
         </View>
       </View>
+
     </View>
   );
 }
-
-// ─── Estilos ──────────────────────────────────────────────────────────────────
-const SCENE_H     = 300;
-// El wrapper se centra en la escena con un offset para que el yunque
-// quede justo debajo del impacto
-const WRAP_LEFT   = SW / 2 - WRAP / 2 - 50; // ligeramente a la izquierda del centro
-const WRAP_TOP    = 30;
-
-// En el punto de impacto (~-5°), el extremo del mango + cabeza llega justo
-// encima del yunque. El yunque se posiciona aquí:
-const ANVIL_TOP_Y = WRAP_TOP + PIVOT_Y + HANDLE_H + HEAD_H / 2 + 10;
 
 const styles = StyleSheet.create({
   root: {
@@ -158,110 +202,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  // ── Escena ──
-  scene: {
-    width: SW,
-    height: SCENE_H,
-    position: 'relative',
-  },
-
-  // ── Martillo ──
-  hammerWrap: {
-    position: 'absolute',
-    width:  WRAP,
-    height: WRAP,
-    top:    WRAP_TOP,
-    left:   WRAP_LEFT,
-  },
-  handle: {
-    position: 'absolute',
-    top:  PIVOT_Y,                         // empieza en el centro del wrapper
-    left: WRAP / 2 - HANDLE_W / 2,
-    width: HANDLE_W,
-    height: HANDLE_H,
-    backgroundColor: GREEN_LT,
-    borderRadius: 4,
-  },
-  head: {
-    position: 'absolute',
-    top:  PIVOT_Y + HANDLE_H,             // justo debajo del mango
-    left: WRAP / 2 - HEAD_W / 2,
-    width: HEAD_W,
-    height: HEAD_H,
-    backgroundColor: GREEN,
-    borderRadius: 6,
-  },
-
-  // ── Chispas ──
-  sparksWrap: {
-    position: 'absolute',
-    width: 50,
-    height: 50,
-    top:  ANVIL_TOP_Y - 30,
-    left: SW / 2 + 10,
-  },
-  spark: {
-    position: 'absolute',
-    backgroundColor: AMBER,
-    borderRadius: 99,
-  },
-
-  // ── Yunque ──
-  anvilGroup: {
-    position: 'absolute',
-    alignItems: 'center',
-    top:  ANVIL_TOP_Y,
-    left: SW / 2 - 110,                   // centrado en la pantalla
-  },
-  anvilTop: {
-    width: 220,
-    height: 22,
-    backgroundColor: GREEN,
-    borderRadius: 5,
-  },
-  anvilBody: {
-    width: 150,
-    height: 55,
-    backgroundColor: '#2D9966',
-    borderRadius: 4,
-  },
-  anvilBase: {
-    width: 180,
-    height: 14,
-    backgroundColor: GREEN,
-    borderRadius: 4,
-    marginTop: 2,
-  },
-
-  // ── Texto ──
   bottom: {
     alignItems: 'center',
     gap: 10,
-    marginTop: 32,
+    marginTop: 12,
   },
   appName: {
     fontSize: 30,
-    fontWeight: '700',
-    letterSpacing: 10,
+    fontWeight: '600',
+    letterSpacing: 1.5,
     color: TEXT,
   },
   msg: {
-    fontSize: 14,
+    fontSize: 13.5,
     color: TEXT_DIM,
-    letterSpacing: 0.5,
   },
-  barTrack: {
-    width: 180,
-    height: 3,
-    backgroundColor: SURFACE,
-    borderRadius: 2,
-    overflow: 'hidden',
+  barOuter: {
     marginTop: 4,
-  },
-  barFill: {
-    height: 3,
-    backgroundColor: GREEN,
-    borderRadius: 2,
   },
 });

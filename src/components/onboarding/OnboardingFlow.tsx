@@ -14,6 +14,8 @@ import { StepLocation } from './StepLocation';
 import { StepInjuries } from './StepInjuries';
 import { StepSummary } from './StepSummary';
 
+import { eq } from 'drizzle-orm';
+
 import { db, schema } from '@/db';
 import { useProfileStore } from '@/store/profile.store';
 import { Spacing } from '@/constants/theme';
@@ -44,6 +46,7 @@ export function OnboardingFlow() {
 
     setSaving(true);
     try {
+      const now = Date.now();
       await db.insert(schema.profile).values({
         name:             draft.name.trim(),
         birthDate:        draft.birthDate ?? null,
@@ -58,8 +61,29 @@ export function OnboardingFlow() {
         equipment:        JSON.stringify(draft.equipment),
         injuries:         draft.injuries,
         units:            draft.units,
-        createdAt:        Date.now(),
+        createdAt:        now,
       });
+
+      // Primera entrada en el historial de peso: usa la fecha LOCAL (no UTC) para
+      // evitar que aparezca fechada el día anterior en zonas horarias UTC+.
+      // Guarda antes de leer el perfil; si ya existía una fila para hoy, no duplica.
+      if (draft.weightKg && draft.weightKg > 0) {
+        const d = new Date(now);
+        const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const already = await db
+          .select({ id: schema.weightLog.id })
+          .from(schema.weightLog)
+          .where(eq(schema.weightLog.date, localDate))
+          .limit(1);
+        if (already.length === 0) {
+          await db.insert(schema.weightLog).values({
+            weightKg: draft.weightKg,
+            date:      localDate,
+            notes:     '',
+            createdAt: now,
+          });
+        }
+      }
 
       const rows = await db.select().from(schema.profile).orderBy(schema.profile.id);
       setProfile(rows[rows.length - 1] ?? null);

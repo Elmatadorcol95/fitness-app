@@ -173,6 +173,45 @@ Bucle ~1.3 s sobre fondo #141A17:
 - expo-haptics: vibración sutil al completar serie, guardar y desbloquear logro.
 - Agrupar con cualquier otro módulo nativo pendiente en UNA sola recompilación.
 
+## Equipamiento del usuario (Fases E-1/E-2/E-3)
+
+### FUNCIÓN 1 — Pantalla "Mi equipamiento" en Ajustes (Fase E-1)
+- Misma lista del onboarding (StepLocation). Lee/escribe **únicamente** en
+  `profile.equipment` (JSON string en SQLite) — única fuente de la verdad.
+- Muestra la ubicación actual (gym / casa / ambos) y, si no es solo gym, la
+  lista de casillas de equipamiento en casa con su estado actual.
+- Al guardar: persiste en `profile` + actualiza el profile store. Si el
+  equipamiento cambia respecto al anterior, ofrecer regenerar el plan.
+- El catálogo de ejercicios y `ChangeExerciseModal` ya usan `profile.equipment`
+  en tiempo real; no hace falta re-generar solo para que el intercambio funcione.
+
+### PENDIENTE FASE E-4 — Priorizar máquinas en accesorios (gym)
+- `cableMachine` y `legPressMachine` se asumen disponibles si `location='gym'|'both'`
+  pero NO están en la lista de equipamiento del perfil (ni en `HOME_EQUIPMENT` del
+  onboarding). Para E-4: añadirlos como EquipmentKey implícito de gym y usarlos para
+  priorizar ejercicios de cable/máquina en los bloques accesorios cuando el usuario
+  elige entrenar en gym. Resolver antes de implementar si se añaden al perfil o se
+  infieren desde `location`.
+
+### FUNCIÓN 2 — "¿Dónde entrenas hoy?" (Fases E-2 y E-3)
+- **Solo aparece si `profile.location === 'both'`**. Si solo gym o solo casa,
+  arranca directo sin preguntar.
+- Pregunta antes de `startSession()`: "¿Dónde entrenas hoy? Gym / Casa".
+  La respuesta se guarda en el session store como `trainingContext: 'gym' | 'home'`
+  (volátil, no persiste entre sesiones).
+- **Filtro ligero** (no duplica planes):
+  * `trainingContext === 'home'`: para cada ejercicio del plan que requiere
+    equipo de gym y el usuario no lo tiene en casa, buscar alternativa con
+    `getAlternatives()` pasando `isGym=false` y el equipamiento casero del perfil.
+    Si no hay alternativa válida, marcar el ejercicio con nota "Sin equivalente
+    en casa" (no inventar ejercicio imposible).
+  * `trainingContext === 'gym'`: plan sin cambios (isGym=true); en el generador
+    los básicos con barra/mancuerna son columna vertebral; máquinas solo en
+    accesorios. Comportamiento ya existente.
+- La sustitución del Fase E-3 ocurre al iniciar la sesión, antes de que el
+  usuario vea la pantalla de sesión (o durante el startSession, no como pop-up
+  por ejercicio).
+
 ## Reglas de trabajo
 - Trabajar por fases, aprobando una a la vez antes de seguir.
 - Antes de instalar librerías nuevas, explicar qué son y por qué.
@@ -578,6 +617,41 @@ Bucle ~1.3 s sobre fondo #141A17:
     - Mensajes reescritos con peso DESTINO explícito ("sube a 12 kg", no "↑ 8 kg").
     - Auto-relleno de reps+kg en la siguiente serie siempre trae un peso mayor
       al actual cuando la serie fue fácil.
+- Hecho: FASE E-1 — "Mi equipamiento" en Ajustes (JS, recarga):
+  * profile.store.ts: nueva acción updateEquipmentAndLocation(location, equipment)
+    que actualiza profile.location + profile.equipment en SQLite y en el store.
+  * src/app/equipment.tsx: pantalla nueva con misma UI que StepLocation.
+    - Selector de ubicación (home/gym/both) + lista de casillas para casa/ambos.
+    - 'bodyweight' se muestra pero su valor es cosmético (los ejercicios PC tienen
+      equipment:[] y siempre están disponibles, independientemente de esta casilla).
+    - Al cambiar a gym, borra el equipamiento (igual que StepLocation).
+    - Botón "Guardar" activo solo si hubo cambios; al guardar ofrece regenerar el plan.
+  * profile.tsx: sección Equipamiento siempre visible con botón "Editar equipamiento".
+    Gym users ven la nota "Equipamiento completo"; home/both ven sus chips.
+  * Traducciones es/en/fr: claves equipment.title/editBtn/regenTitle/regenMsg/regenYes/regenNo.
+- Hecho: FASE E-2 — "¿Dónde entrenas hoy?" — pregunta de contexto (JS, recarga):
+  * session.store.ts: trainingContext: 'gym' | 'home' | null + setTrainingContext().
+    Se limpia automáticamente al finalizar o cancelar sesión (vía EMPTY_STATE).
+  * training.tsx: handleStart() intercepta el flujo para usuarios con
+    location==='both'. Muestra Alert con opciones "Gimnasio / En casa" antes de
+    llamar a startSession(). Para solo-gym o solo-casa, arranca directo sin Alert.
+    setTrainingContext() se llama ANTES de startSession().
+  * session.tsx: badge discreto (icono + texto) en la barra de header cuando
+    trainingContext no es null. Visible solo para usuarios "ambos".
+  * Traducciones es/en/fr: claves workout.session.whereTitle/whereMsg/whereGym/whereHome.
+- Hecho: FASE E-3 — Filtro ligero de ejercicios en sesión (JS, recarga):
+  * exercises.ts: exportadas getAlternatives() y canDoAtHome() como funciones
+    compartidas. ChangeExerciseModal ya no define su propia copia local.
+  * training.tsx: doStartSession() aplica el filtro cuando context==='home':
+    - Por cada ejercicio del plan, comprueba canDoAtHome(id, homeEquipment).
+    - Si no está disponible en casa: busca la mejor alternativa con
+      getAlternatives(id, homeEquipment, false) (mismo grupo muscular, mismo equipo).
+    - Si hay alternativa: reemplaza el exerciseId silenciosamente.
+    - Si no hay alternativa: mantiene el original y, tras startSession(), añade
+      una nota "Sin equivalente en casa" al ejercicio (visible en la sesión).
+    - Para context==='gym' o null: plan sin cambios.
+  * Traducciones es/en/fr: clave workout.session.noHomeAlt.
+- Siguiente: FASE 7 — In-app purchase (OBLIGATORIA antes de publicar).
 - Pendiente obligatorio: FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
@@ -602,6 +676,9 @@ Bucle ~1.3 s sobre fondo #141A17:
 ### Pendientes principales
 - FASE 7 — In-app purchase (OBLIGATORIA antes de publicar).
 - ~~FASE 9c — Historial de sesiones~~ ✓ Completado (Lote A+B).
+- ~~FASE E-1 — "Mi equipamiento" en Ajustes~~ ✓ Completado (JS, recarga).
+- ~~FASE E-2 — "¿Dónde entrenas hoy?" pregunta de contexto~~ ✓ Completado (JS, recarga).
+- ~~FASE E-3 — Filtro ligero de ejercicios en sesión~~ ✓ Completado (JS, recarga).
 - FASE D — Deloads automáticos, gráfica de fuerza (1RM) en pestaña Progreso,
   calentamientos sugeridos basados en el peso objetivo.
 

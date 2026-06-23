@@ -399,7 +399,20 @@
       "finishIncompleteTitle": "Finish without completing?",
       "finishIncompleteMsg": "You have {{count}} incomplete sets. Are you sure you want to finish?",
       "rirHelpTitle": "Reps in Reserve (RIR)",
-      "rirHelpBody": "RIR indicates how many more reps you could have done before failure.\n\nIf you finish the set and could still do 2 more → RIR 2.\n\n• RIR 0–1: at the limit (red)\n• RIR 2–3: ideal zone (green)\n• RIR 4+: too easy, increase the load (grey)"
+      "rirHelpBody": "RIR indicates how many more reps you could have done before failure.\n\nIf you finish the set and could still do 2 more → RIR 2.\n\n• RIR 0–1: at the limit (red)\n• RIR 2–3: ideal zone (green)\n• RIR 4+: too easy, increase the load (grey)",
+      "whereTitle": "Where are you training today?",
+      "whereMsg": "The plan will adapt to your available equipment.",
+      "whereGym": "Gym",
+      "whereHome": "Home",
+      "noHomeAlt": "No home alternative for your equipment"
     }
+  },
+  "equipment": {
+    "title": "My Equipment",
+    "editBtn": "Edit equipment",
+    "regenTitle": "Equipment updated",
+    "regenMsg": "Your equipment has changed. Do you want to regenerate the workout plan with the new settings?",
+    "regenYes": "Yes, regenerate",
+    "regenNo": "Keep current plan"
   }
 }

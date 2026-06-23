@@ -14,7 +14,7 @@ import { useWorkoutStore, type StoredPlanDay } from '@/store/workout.store';
 import { useSessionStore } from '@/store/session.store';
 import { useProfileStore } from '@/store/profile.store';
 import { BottomTabInset, Spacing } from '@/constants/theme';
-import { getExerciseName } from '@/lib/exercises';
+import { getExerciseName, getAlternatives, canDoAtHome } from '@/lib/exercises';
 import { getExerciseTargetsForPlan } from '@/lib/progression';
 import type { PlannedExercise } from '@/lib/plan-generator';
 
@@ -106,7 +106,9 @@ export default function TrainingScreen() {
     currentPlan, isLoaded, isGenerating,
     loadCurrentPlan, generateAndSavePlan, replaceExercise,
   } = useWorkoutStore();
-  const startSession = useSessionStore(s => s.startSession);
+  const startSession       = useSessionStore(s => s.startSession);
+  const setTrainingContext = useSessionStore(s => s.setTrainingContext);
+  const updateNote         = useSessionStore(s => s.updateNote);
 
   const [expandedOtherDay, setExpandedOtherDay] = useState<number | null>(null);
   const [changeModal, setChangeModal] = useState({
@@ -140,20 +142,67 @@ export default function TrainingScreen() {
     })();
   }, [currentPlan?.id, currentPlan?.activeDayIndex]);
 
-  async function handleStart() {
+  async function doStartSession(context: 'gym' | 'home' | null) {
     if (!currentPlan) return;
-    const activeIdx = currentPlan.activeDayIndex % currentPlan.days.length;
-    const today     = currentPlan.days[activeIdx];
-    console.log('[Training] handleStart — planId:', currentPlan.id, 'day:', today.dayType, 'exercises:', today.exercises.length);
+    const activeIdx  = currentPlan.activeDayIndex % currentPlan.days.length;
+    let   sessionDay = currentPlan.days[activeIdx];
+
+    // ── E-3: Filtro ligero para contexto de casa ─────────────────────────────
+    // Solo si el usuario eligió "En casa" en el Alert de E-2.
+    // Para gym o sin contexto, el plan queda intacto.
+    const noAltIndices: number[] = [];
+    if (context === 'home') {
+      const homeEquipment = parseEquipment(profile?.equipment);
+      const filteredExercises = sessionDay.exercises.map((ex, i) => {
+        if (canDoAtHome(ex.exerciseId, homeEquipment)) return ex;
+        // El ejercicio requiere equipo de gym no disponible en casa → buscar alternativa
+        const alts = getAlternatives(ex.exerciseId, homeEquipment, false);
+        if (alts.length > 0) {
+          const best = alts[0];
+          return { ...ex, exerciseId: best.id, isCompound: best.isCompound };
+        }
+        // Sin alternativa: mantener original y añadir nota después
+        noAltIndices.push(i);
+        return ex;
+      });
+      sessionDay = { ...sessionDay, exercises: filteredExercises };
+    }
+
+    console.log('[Training] doStartSession — context:', context, 'day:', sessionDay.dayType);
+    setTrainingContext(context);
     setIsStarting(true);
     try {
-      await startSession(currentPlan.id, today);
-      console.log('[Training] startSession OK — isActive=true, overlay aparecerá');
+      await startSession(currentPlan.id, sessionDay);
+      // Marcar los ejercicios sin alternativa en casa con una nota visible
+      if (noAltIndices.length > 0) {
+        const noteText = t('workout.session.noHomeAlt');
+        for (const idx of noAltIndices) {
+          updateNote(idx, noteText);
+        }
+      }
+      console.log('[Training] startSession OK — swaps:', sessionDay.exercises.length - noAltIndices.length, 'no-alt:', noAltIndices.length);
     } catch (err) {
       console.error('[Training] startSession ERROR:', err);
       Alert.alert('Error al iniciar', String(err instanceof Error ? err.message : err));
     } finally {
       setIsStarting(false);
+    }
+  }
+
+  function handleStart() {
+    if (!currentPlan) return;
+    // Solo preguntar si el perfil permite entrenar en ambos lugares
+    if (profile?.location === 'both') {
+      Alert.alert(
+        t('workout.session.whereTitle'),
+        t('workout.session.whereMsg'),
+        [
+          { text: t('workout.session.whereHome'), onPress: () => doStartSession('home') },
+          { text: t('workout.session.whereGym'),  onPress: () => doStartSession('gym') },
+        ],
+      );
+    } else {
+      void doStartSession(null);
     }
   }
 
