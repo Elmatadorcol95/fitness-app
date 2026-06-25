@@ -27,6 +27,8 @@ export interface OnboardingDraft {
 const defaultDraft: OnboardingDraft = {
   name: '',
   units: 'metric',
+  heightCm: 170,
+  weightKg: 70,
   goals: [],
   daysPerWeek: 3,
   minutesPerSession: 45,
@@ -40,12 +42,15 @@ interface ProfileState {
   isLoading: boolean;
   isDbReady: boolean;
   draft: OnboardingDraft;
+  equipmentVisible: boolean;
   setProfile: (p: Profile | null) => void;
   setLoading: (v: boolean) => void;
   setDbReady: (v: boolean) => void;
   updateDraft: (updates: Partial<OnboardingDraft>) => void;
   resetDraft: () => void;
   updateEquipmentAndLocation: (location: Location, equipment: string[]) => Promise<void>;
+  openEquipment: () => void;
+  closeEquipment: () => void;
 }
 
 export const useProfileStore = create<ProfileState>((set, get) => ({
@@ -53,11 +58,14 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   isLoading: true,
   isDbReady: false,
   draft: { ...defaultDraft },
+  equipmentVisible: false,
   setProfile: (profile) => set({ profile }),
   setLoading: (isLoading) => set({ isLoading }),
   setDbReady: (isDbReady) => set({ isDbReady }),
   updateDraft: (updates) => set((s) => ({ draft: { ...s.draft, ...updates } })),
   resetDraft: () => set({ draft: { ...defaultDraft } }),
+  openEquipment:  () => set({ equipmentVisible: true }),
+  closeEquipment: () => set({ equipmentVisible: false }),
   updateEquipmentAndLocation: async (location, equipment) => {
     const current = get().profile;
     if (!current) return;

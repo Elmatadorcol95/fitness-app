@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -56,15 +55,17 @@ export function AddWeightModal({ visible, onClose, units }: Props) {
   const [dateStr, setDateStr] = useState(todayStr());
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [weightError, setWeightError] = useState('');
 
   const unitLabel = units === 'metric' ? 'kg' : 'lb';
 
   async function handleSave() {
     const raw = parseFloat(weightStr.replace(',', '.'));
     if (!raw || raw <= 0 || isNaN(raw)) {
-      Alert.alert('', t('tabs.progress.weight.invalidValue'));
+      setWeightError(t('tabs.progress.weight.invalidValue'));
       return;
     }
+    setWeightError('');
     const kg = units === 'imperial' ? lbToKg(raw) : raw;
     setSaving(true);
     try {
@@ -83,6 +84,7 @@ export function AddWeightModal({ visible, onClose, units }: Props) {
     setWeightStr('');
     setNotes('');
     setDateStr(todayStr());
+    setWeightError('');
     onClose();
   }
 
@@ -103,13 +105,13 @@ export function AddWeightModal({ visible, onClose, units }: Props) {
           <View
             style={[
               styles.inputRow,
-              { borderColor: theme.accent + '40', backgroundColor: theme.background },
+              { borderColor: weightError ? '#E05C5C' : theme.accent + '40', backgroundColor: theme.background },
             ]}
           >
             <TextInput
               style={[styles.input, { color: theme.text }]}
               value={weightStr}
-              onChangeText={setWeightStr}
+              onChangeText={(v) => { setWeightStr(v); if (weightError) setWeightError(''); }}
               keyboardType="decimal-pad"
               placeholder={units === 'metric' ? '75.0' : '165.3'}
               placeholderTextColor={theme.textSecondary}
@@ -119,6 +121,9 @@ export function AddWeightModal({ visible, onClose, units }: Props) {
               {unitLabel}
             </ThemedText>
           </View>
+          {weightError ? (
+            <ThemedText style={styles.errorText}>{weightError}</ThemedText>
+          ) : null}
 
           <ThemedText themeColor="textSecondary" style={styles.label}>
             {t('tabs.progress.weight.date')}
@@ -208,6 +213,7 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, fontSize: 22, fontWeight: '600' },
   unitSuffix: { fontSize: 16, marginLeft: Spacing.two },
+  errorText: { fontSize: 12, color: '#E05C5C', marginTop: 4 },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',

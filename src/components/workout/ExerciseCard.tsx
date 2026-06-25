@@ -1,4 +1,4 @@
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -93,23 +93,6 @@ export function ExerciseCard({ plannedEx, lastWeightKg, progressionReason, lang,
 
   const summaryText = `${plannedEx.sets} series · ${plannedEx.reps} reps · ${weightText}`;
 
-  function openMenu() {
-    Alert.alert(
-      name,
-      undefined,
-      [
-        {
-          text: lang === 'es' ? 'Cambiar ejercicio' : lang === 'fr' ? 'Changer exercice' : 'Change exercise',
-          onPress: onChangeExercise,
-        },
-        {
-          text: lang === 'es' ? 'Cancelar' : lang === 'fr' ? 'Annuler' : 'Cancel',
-          style: 'cancel',
-        },
-      ],
-    );
-  }
-
   function openDetail() {
     router.push(`/exercise/${exercise!.id}` as any);
   }
@@ -131,7 +114,7 @@ export function ExerciseCard({ plannedEx, lastWeightKg, progressionReason, lang,
             <ThemedText type="defaultSemiBold" style={styles.name} numberOfLines={2}>
               {name}
             </ThemedText>
-            <Pressable onPress={openMenu} hitSlop={12} style={styles.menuBtn}>
+            <Pressable onPress={onChangeExercise} hitSlop={12} style={styles.menuBtn}>
               <Ionicons name="ellipsis-horizontal" size={20} color={MUTED} />
             </Pressable>
           </View>

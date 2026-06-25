@@ -1,14 +1,15 @@
 import {
-  Alert, BackHandler, FlatList, KeyboardAvoidingView, Modal, Platform,
+  BackHandler, FlatList, KeyboardAvoidingView, Modal, Platform,
   Pressable, ScrollView, StyleSheet, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { ThemedText }          from '@/components/themed-text';
 import { ThemedView }          from '@/components/themed-view';
+import { VulcanDialog }        from '@/components/ui/VulcanDialog';
 import { ChangeExerciseModal } from '@/components/workout/ChangeExerciseModal';
 import { useSessionStore }     from '@/store/session.store';
 import { useWorkoutStore }     from '@/store/workout.store';
@@ -193,6 +194,12 @@ export default function SessionScreen() {
   const [swapModal, setSwapModal]   = useState(false);
   const [guideExId, setGuideExId]   = useState<string | null>(null);
   const [restInputStr, setRestInputStr] = useState(() => String(currentEx?.restSeconds ?? 90));
+  const [finishState,  setFinishState]  = useState<'idle' | 'confirm' | 'incomplete'>('idle');
+  const [pendingCount, setPendingCount] = useState(0);
+  const [cancelOpen,   setCancelOpen]   = useState(false);
+  const [historyOpen,  setHistoryOpen]  = useState(false);
+  const [historyMsg,   setHistoryMsg]   = useState('');
+  const [rirHelpOpen,  setRirHelpOpen]  = useState(false);
   const carouselRef = useRef<FlatList<any>>(null);
 
   const currentEx = exercises[currentExerciseIdx];
@@ -252,7 +259,7 @@ export default function SessionScreen() {
 
   function applyRestInput() {
     const v = parseInt(restInputStr, 10);
-    if (v >= 15 && v <= 600) {
+    if (v >= 1 && v <= 600) {
       const delta = v - (currentEx?.restSeconds ?? 90);
       if (delta !== 0) adjustRest(currentExerciseIdx, delta);
       setRestInputStr(String(v));
@@ -261,55 +268,24 @@ export default function SessionScreen() {
     }
   }
 
-  async function handleFinish() {
+  const doFinish = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0];
+    const { hasPR } = await finishSession();
+    if (hasPR) unlockAchievement('personal_record');
+    recordWorkout(today);
+    await advanceDayIndex();
+  }, [finishSession, unlockAchievement, recordWorkout, advanceDayIndex]);
 
-    // Cuenta series sin completar en toda la sesión (A3)
+  function handleFinish() {
     const pending = exercises.reduce(
       (acc, ex) => acc + ex.sets.filter(s => !s.completed).length, 0,
     );
-
-    const doFinish = async () => {
-      const { hasPR } = await finishSession();
-      if (hasPR) unlockAchievement('personal_record');
-      recordWorkout(today);
-      await advanceDayIndex();
-    };
-
-    if (pending === 0) {
-      Alert.alert(
-        t('workout.session.finishConfirmTitle'),
-        t('workout.session.finishConfirmMsg'),
-        [
-          { text: t('workout.session.stay'), style: 'cancel' },
-          { text: t('workout.session.finishSession'), onPress: doFinish },
-        ],
-      );
-    } else {
-      Alert.alert(
-        t('workout.session.finishIncompleteTitle'),
-        t('workout.session.finishIncompleteMsg', { count: pending }),
-        [
-          { text: t('workout.session.stay'), style: 'cancel' },
-          { text: t('workout.session.finishSession'), style: 'destructive', onPress: doFinish },
-        ],
-      );
-    }
+    setPendingCount(pending);
+    setFinishState(pending === 0 ? 'confirm' : 'incomplete');
   }
 
   function handleCancel() {
-    Alert.alert(
-      t('workout.session.cancelConfirmTitle'),
-      t('workout.session.cancelConfirmMsg'),
-      [
-        { text: t('workout.session.stay'), style: 'cancel' },
-        {
-          text: t('workout.session.exitNoSave'),
-          style: 'destructive',
-          onPress: () => { cancelSession(); },
-        },
-      ],
-    );
+    setCancelOpen(true);
   }
 
   function handleHistory() {
@@ -317,7 +293,8 @@ export default function SessionScreen() {
     const last = currentEx.lastWeightKg !== null
       ? `${currentEx.lastReps ?? '?'} reps · ${currentEx.lastWeightKg} kg`
       : t('workout.session.noHistory');
-    Alert.alert(t('workout.session.lastSession'), last);
+    setHistoryMsg(last);
+    setHistoryOpen(true);
   }
 
   function handleGuide() {
@@ -325,10 +302,7 @@ export default function SessionScreen() {
   }
 
   function showRirHelp() {
-    Alert.alert(
-      t('workout.session.rirHelpTitle'),
-      t('workout.session.rirHelpBody'),
-    );
+    setRirHelpOpen(true);
   }
 
   if (!isActive || !currentEx) {
@@ -384,6 +358,7 @@ export default function SessionScreen() {
             data={exercises}
             keyExtractor={(_, i) => String(i)}
             showsHorizontalScrollIndicator={false}
+            style={styles.carouselList}
             contentContainerStyle={styles.carousel}
             onScrollToIndexFailed={() => {}}
             renderItem={({ item, index }) => {
@@ -401,6 +376,8 @@ export default function SessionScreen() {
                   </View>
                   <ThemedText
                     numberOfLines={2}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
                     style={[styles.carouselLabel, isCurr && { color: c2 }]}
                   >
                     {ex2 ? getExerciseName(ex2.id, lang) : item.exerciseId}
@@ -503,7 +480,7 @@ export default function SessionScreen() {
                     hitSlop={8}
                     onPress={() => {
                       const v = parseInt(restInputStr, 10);
-                      const secs = v >= 15 && v <= 600 ? v : (currentEx?.restSeconds ?? 90);
+                      const secs = v >= 1 && v <= 600 ? v : (currentEx?.restSeconds ?? 90);
                       startRestTimer(secs);
                     }}
                   >
@@ -621,6 +598,63 @@ export default function SessionScreen() {
           onClose={() => setGuideExId(null)}
         />
       )}
+
+      {/* ── ¿Finalizar sesión? ── */}
+      <VulcanDialog
+        visible={finishState === 'confirm'}
+        onClose={() => setFinishState('idle')}
+        title={t('workout.session.finishConfirmTitle')}
+        message={t('workout.session.finishConfirmMsg')}
+        confirmLabel={t('workout.session.finishSession')}
+        cancelLabel={t('workout.session.stay')}
+        onConfirm={() => { setFinishState('idle'); void doFinish(); }}
+      />
+
+      {/* ── ¿Finalizar sin completar? ── */}
+      <VulcanDialog
+        visible={finishState === 'incomplete'}
+        onClose={() => setFinishState('idle')}
+        title={t('workout.session.finishIncompleteTitle')}
+        message={t('workout.session.finishIncompleteMsg', { count: pendingCount })}
+        confirmLabel={t('workout.session.finishSession')}
+        cancelLabel={t('workout.session.stay')}
+        destructive
+        onConfirm={() => { setFinishState('idle'); void doFinish(); }}
+      />
+
+      {/* ── ¿Cancelar sesión? ── */}
+      <VulcanDialog
+        visible={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        title={t('workout.session.cancelConfirmTitle')}
+        message={t('workout.session.cancelConfirmMsg')}
+        confirmLabel={t('workout.session.exitNoSave')}
+        cancelLabel={t('workout.session.stay')}
+        destructive
+        onConfirm={() => { setCancelOpen(false); cancelSession(); }}
+      />
+
+      {/* ── Historial del ejercicio ── */}
+      <VulcanDialog
+        visible={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        title={t('workout.session.lastSession')}
+        message={historyMsg}
+        confirmLabel="OK"
+        onConfirm={() => setHistoryOpen(false)}
+        hideCancel
+      />
+
+      {/* ── Ayuda RIR ── */}
+      <VulcanDialog
+        visible={rirHelpOpen}
+        onClose={() => setRirHelpOpen(false)}
+        title={t('workout.session.rirHelpTitle')}
+        message={t('workout.session.rirHelpBody')}
+        confirmLabel="OK"
+        onConfirm={() => setRirHelpOpen(false)}
+        hideCancel
+      />
     </ThemedView>
   );
 }
@@ -788,19 +822,22 @@ const styles = StyleSheet.create({
   contextBadgeText: { fontSize: 11, color: MUTED, letterSpacing: 0.3 },
 
   // Carousel
-  carousel: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, gap: Spacing.two },
+  carouselList: { flexShrink: 0 },
+  carousel: { paddingHorizontal: Spacing.three, gap: Spacing.two, alignItems: 'flex-start' },
   carouselItem: {
-    alignItems: 'center', gap: 4, width: 72,
-    paddingVertical: Spacing.one,
+    alignItems: 'center', justifyContent: 'center', gap: 4,
+    width: 72, height: 90,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.one,
     borderRadius: Spacing.two,
     borderWidth: 1, borderColor: 'transparent',
   },
   carouselItemActive: { borderColor: GREEN + '55', backgroundColor: GREEN + '0D' },
   carouselIcon:  { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  carouselLabel: { fontSize: 10, textAlign: 'center', color: MUTED, lineHeight: 13 },
+  carouselLabel: { fontSize: 10, textAlign: 'center', color: MUTED, lineHeight: 15 },
 
   // Body
-  body: { paddingHorizontal: Spacing.four, gap: Spacing.three, paddingBottom: 40 },
+  body: { paddingHorizontal: Spacing.four, paddingTop: 8, gap: Spacing.three, paddingBottom: 40 },
   exHero: {
     height: 140, borderRadius: Spacing.three,
     alignItems: 'center', justifyContent: 'center',
@@ -840,7 +877,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: AMBER + '14', borderRadius: Spacing.two,
     paddingHorizontal: Spacing.three, paddingVertical: Spacing.two,
-    gap: Spacing.two, justifyContent: 'center',
+    gap: Spacing.two,
     borderWidth: 1, borderColor: AMBER + '44',
   },
   restCenter:   { flexDirection: 'row', alignItems: 'center', gap: 4 },

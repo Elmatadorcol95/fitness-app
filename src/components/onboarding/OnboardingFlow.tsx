@@ -37,7 +37,8 @@ export function OnboardingFlow() {
 
   const canGoNext = () => {
     if (step === 0) return draft.name.trim().length > 0;
-    if (step === 2) return draft.goals.length > 0; // al menos 1 objetivo
+    if (step === 1) return !!draft.gender && !!draft.birthDate;
+    if (step === 2) return draft.goals.length > 0;
     return true;
   };
 

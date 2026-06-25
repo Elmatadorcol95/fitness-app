@@ -85,7 +85,7 @@ export function VulcanSplash() {
   }, []);
 
   const hammerProps = useAnimatedProps(() => ({
-    transform: `rotate(${hammerRot.value}, 121, 60)`,
+    rotation: hammerRot.value,
   }));
 
   const sparkGroupProps = useAnimatedProps(() => ({
@@ -93,7 +93,7 @@ export function VulcanSplash() {
   }));
 
   const sparkInnerProps = useAnimatedProps(() => ({
-    transform: `scale(${sparkScale.value})`,
+    scale: sparkScale.value,
   }));
 
   const barProps = useAnimatedProps(() => ({
@@ -123,7 +123,7 @@ export function VulcanSplash() {
           </G>
 
           {/* Martillo — rota alrededor del pivote (121, 60) */}
-          <AnimatedG animatedProps={hammerProps}>
+          <AnimatedG animatedProps={hammerProps} originX={121} originY={60}>
             <G transform="translate(170,112) rotate(108) scale(0.58) translate(-220,-104)">
               <G transform="rotate(-6 160 130)">
                 <Path d="M150 114 C148 152 147 184 147 200 Q147 216 160 216 Q173 216 173 200 C173 184 172 152 170 114 Z" fill="#5BD897"/>

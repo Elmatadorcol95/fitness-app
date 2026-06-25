@@ -1,6 +1,8 @@
 import {
-  ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View,
+  ActivityIndicator, Pressable, ScrollView, StyleSheet, View,
 } from 'react-native';
+import { VulcanBottomSheet, type SheetOption } from '@/components/ui/VulcanBottomSheet';
+import { VulcanDialog } from '@/components/ui/VulcanDialog';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -14,7 +16,7 @@ import { useWorkoutStore, type StoredPlanDay } from '@/store/workout.store';
 import { useSessionStore } from '@/store/session.store';
 import { useProfileStore } from '@/store/profile.store';
 import { BottomTabInset, Spacing } from '@/constants/theme';
-import { getExerciseName, getAlternatives, canDoAtHome } from '@/lib/exercises';
+import { getExerciseName, getAlternatives, canDoAtHome, EXERCISES } from '@/lib/exercises';
 import { getExerciseTargetsForPlan } from '@/lib/progression';
 import type { PlannedExercise } from '@/lib/plan-generator';
 
@@ -116,7 +118,10 @@ export default function TrainingScreen() {
   });
   // targetMap: exerciseId → { weightKg, reason } del sistema de progresión
   const [targetMap, setTargetMap] = useState<Record<string, { weightKg: number | null; reason: string | null }>>({});
-  const [isStarting, setIsStarting] = useState(false);
+  const [isStarting,   setIsStarting]  = useState(false);
+  const [whereOpen,    setWhereOpen]   = useState(false);
+  const [regenOpen,    setRegenOpen]   = useState(false);
+  const [startError,   setStartError]  = useState('');
 
   const lang      = normalizeLang(i18n.language);
   const equipment = parseEquipment(profile?.equipment);
@@ -153,17 +158,49 @@ export default function TrainingScreen() {
     const noAltIndices: number[] = [];
     if (context === 'home') {
       const homeEquipment = parseEquipment(profile?.equipment);
+
+      // Cuenta usos para no repetir el mismo sustituto más de 2 veces.
+      // Incluimos los ejercicios que ya pasan canDoAtHome (sin sustituir).
+      const usageCount = new Map<string, number>();
+      for (const ex of sessionDay.exercises) {
+        if (canDoAtHome(ex.exerciseId, homeEquipment)) {
+          usageCount.set(ex.exerciseId, (usageCount.get(ex.exerciseId) ?? 0) + 1);
+        }
+      }
+
       const filteredExercises = sessionDay.exercises.map((ex, i) => {
         if (canDoAtHome(ex.exerciseId, homeEquipment)) return ex;
-        // El ejercicio requiere equipo de gym no disponible en casa → buscar alternativa
+
         const alts = getAlternatives(ex.exerciseId, homeEquipment, false);
-        if (alts.length > 0) {
-          const best = alts[0];
-          return { ...ex, exerciseId: best.id, isCompound: best.isCompound };
+        if (alts.length === 0) {
+          noAltIndices.push(i);
+          return ex;
         }
-        // Sin alternativa: mantener original y añadir nota después
-        noAltIndices.push(i);
-        return ex;
+
+        // 1. Mejor alternativa con menos de 2 usos (por solapamiento muscular)
+        let chosen = alts.find(a => (usageCount.get(a.id) ?? 0) < 2);
+
+        // 2. Búsqueda ampliada: cualquier ejercicio de casa de la misma categoría
+        //    con menos de 2 usos (evita una 3.ª repetición forzada)
+        if (!chosen) {
+          const srcEx = EXERCISES.find(e => e.id === ex.exerciseId);
+          if (srcEx) {
+            const broader = EXERCISES.filter(e =>
+              e.id !== ex.exerciseId &&
+              e.category === srcEx.category &&
+              (e.equipment.length === 0 || e.equipment.every(eq => homeEquipment.includes(eq))),
+            );
+            chosen = broader.find(a => (usageCount.get(a.id) ?? 0) < 2);
+          }
+        }
+
+        // 3. Último recurso: la menos usada entre las alternativas primarias
+        const winner = chosen ?? alts.reduce((min, a) =>
+          (usageCount.get(a.id) ?? 0) < (usageCount.get(min.id) ?? 0) ? a : min,
+        );
+
+        usageCount.set(winner.id, (usageCount.get(winner.id) ?? 0) + 1);
+        return { ...ex, exerciseId: winner.id, isCompound: winner.isCompound };
       });
       sessionDay = { ...sessionDay, exercises: filteredExercises };
     }
@@ -183,7 +220,7 @@ export default function TrainingScreen() {
       console.log('[Training] startSession OK — swaps:', sessionDay.exercises.length - noAltIndices.length, 'no-alt:', noAltIndices.length);
     } catch (err) {
       console.error('[Training] startSession ERROR:', err);
-      Alert.alert('Error al iniciar', String(err instanceof Error ? err.message : err));
+      setStartError(String(err instanceof Error ? err.message : err));
     } finally {
       setIsStarting(false);
     }
@@ -191,34 +228,15 @@ export default function TrainingScreen() {
 
   function handleStart() {
     if (!currentPlan) return;
-    // Solo preguntar si el perfil permite entrenar en ambos lugares
     if (profile?.location === 'both') {
-      Alert.alert(
-        t('workout.session.whereTitle'),
-        t('workout.session.whereMsg'),
-        [
-          { text: t('workout.session.whereHome'), onPress: () => doStartSession('home') },
-          { text: t('workout.session.whereGym'),  onPress: () => doStartSession('gym') },
-        ],
-      );
+      setWhereOpen(true);
     } else {
       void doStartSession(null);
     }
   }
 
   function handleRegen() {
-    Alert.alert(
-      t('tabs.training.regen'),
-      t('tabs.training.regenConfirm'),
-      [
-        { text: t('tabs.training.regenCancel'), style: 'cancel' },
-        {
-          text: t('tabs.training.regenOk'),
-          style: 'destructive',
-          onPress: () => profile && generateAndSavePlan(profile),
-        },
-      ],
-    );
+    setRegenOpen(true);
   }
 
   // ── Loading ──────────────────────────────────────────────────────────────────
@@ -408,6 +426,41 @@ export default function TrainingScreen() {
           replaceExercise(changeModal.dayDbId, changeModal.exIdx, newId);
           setChangeModal(m => ({ ...m, visible: false }));
         }}
+      />
+
+      {/* ── ¿Dónde entrenas hoy? (solo location=both) ── */}
+      <VulcanBottomSheet<'gym' | 'home'>
+        visible={whereOpen}
+        onClose={() => setWhereOpen(false)}
+        onSelect={(ctx) => { setWhereOpen(false); void doStartSession(ctx); }}
+        options={[
+          { value: 'gym',  label: t('workout.session.whereGym') },
+          { value: 'home', label: t('workout.session.whereHome') },
+        ]}
+        title={t('workout.session.whereTitle')}
+        cancelLabel={t('common.cancel')}
+      />
+
+      {/* ── ¿Regenerar plan? ── */}
+      <VulcanDialog
+        visible={regenOpen}
+        onClose={() => setRegenOpen(false)}
+        title={t('tabs.training.regen')}
+        message={t('tabs.training.regenConfirm')}
+        confirmLabel={t('tabs.training.regenOk')}
+        cancelLabel={t('tabs.training.regenCancel')}
+        destructive
+        onConfirm={() => { if (profile) generateAndSavePlan(profile); }}
+      />
+
+      <VulcanDialog
+        visible={startError !== ''}
+        onClose={() => setStartError('')}
+        title="Error al iniciar"
+        message={startError}
+        confirmLabel="OK"
+        onConfirm={() => setStartError('')}
+        hideCancel
       />
     </ThemedView>
   );

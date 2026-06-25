@@ -1,6 +1,7 @@
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { VulcanDialog } from '@/components/ui/VulcanDialog';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -60,40 +61,27 @@ export default function ProfileScreen() {
   const { profile } = useProfileStore();
   const theme = useTheme();
 
-  // Definido antes del null-check para que sea accesible en ambas ramas
   const resetGamification = useGamificationStore(s => s.resetAll);
+  const [signOutOpen, setSignOutOpen] = useState(false);
 
-  const handleSignOut = () => {
-    Alert.alert(
-      t('tabs.profile.signOut'),
-      t('tabs.profile.signOutMsg'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('tabs.profile.signOutConfirm'),
-          style: 'destructive',
-          onPress: async () => {
-            console.log('[Profile] signOut — isAuthenticated antes:', !!useAuthStore.getState().session);
-            try {
-              await db.delete(schema.profile);
-              useProfileStore.getState().setProfile(null);
-              await resetGamification();
-              await supabase.auth.signOut();
-              console.log('[Profile] supabase.auth.signOut() completado');
-            } catch (e) {
-              console.error('[Profile] signOut error:', e);
-            } finally {
-              // Garantizamos limpieza del store aunque signOut falle o el evento
-              // SIGNED_OUT no llegue (ej. error de red o sesión ya inválida).
-              console.log('[Profile] finally — forzando setAuthState(null, null)');
-              console.log('[Profile] session en store después de signOut:', useAuthStore.getState().session?.user?.email ?? null);
-              useAuthStore.getState().setAuthState(null, null);
-            }
-          },
-        },
-      ],
-    );
+  const doSignOut = async () => {
+    console.log('[Profile] signOut — isAuthenticated antes:', !!useAuthStore.getState().session);
+    try {
+      await db.delete(schema.profile);
+      useProfileStore.getState().setProfile(null);
+      await resetGamification();
+      await supabase.auth.signOut();
+      console.log('[Profile] supabase.auth.signOut() completado');
+    } catch (e) {
+      console.error('[Profile] signOut error:', e);
+    } finally {
+      console.log('[Profile] finally — forzando setAuthState(null, null)');
+      console.log('[Profile] session en store después de signOut:', useAuthStore.getState().session?.user?.email ?? null);
+      useAuthStore.getState().setAuthState(null, null);
+    }
   };
+
+  const handleSignOut = () => setSignOutOpen(true);
 
   // Sin perfil: estado vacío con botón de reinicio siempre accesible
   if (!profile) {
@@ -210,7 +198,7 @@ export default function ProfileScreen() {
                 {t('tabs.profile.equipmentSection')}
               </ThemedText>
               <Pressable
-                onPress={() => router.push('/equipment' as any)}
+                onPress={() => useProfileStore.getState().openEquipment()}
                 style={styles.editEquipBtn}
                 hitSlop={8}
               >
@@ -255,6 +243,17 @@ export default function ProfileScreen() {
 
         </ScrollView>
       </SafeAreaView>
+
+      <VulcanDialog
+        visible={signOutOpen}
+        onClose={() => setSignOutOpen(false)}
+        title={t('tabs.profile.signOut')}
+        message={t('tabs.profile.signOutMsg')}
+        confirmLabel={t('tabs.profile.signOutConfirm')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        onConfirm={doSignOut}
+      />
     </ThemedView>
   );
 }

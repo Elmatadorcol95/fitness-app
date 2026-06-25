@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useColorScheme } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import { Pressable, ScrollView, StyleSheet, TextInput, View, useColorScheme } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { VulcanBottomSheet, type SheetOption } from '@/components/ui/VulcanBottomSheet';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Colors, Spacing } from '@/constants/theme';
 import { useProfileStore } from '@/store/profile.store';
 import { useTheme } from '@/hooks/use-theme';
@@ -183,9 +182,12 @@ export function StepPhysical() {
     return { year: DEF_YEAR, month: DEF_MONTH, day: DEF_DAY };
   })();
 
-  const [selYear,  setSelYear]  = useState(initDate.year);
-  const [selMonth, setSelMonth] = useState(initDate.month);
-  const [selDay,   setSelDay]   = useState(initDate.day);
+  const [selYear,   setSelYear]   = useState(initDate.year);
+  const [selMonth,  setSelMonth]  = useState(initDate.month);
+  const [selDay,    setSelDay]    = useState(initDate.day);
+  const [dayOpen,   setDayOpen]   = useState(false);
+  const [monthOpen, setMonthOpen] = useState(false);
+  const [yearOpen,  setYearOpen]  = useState(false);
 
   const maxDay = daysInMonth(selYear, selMonth);
   const MONTHS = monthNames(i18n.language);
@@ -294,50 +296,103 @@ export function StepPhysical() {
 
         <View style={styles.dateRow}>
           {/* Día */}
-          <ThemedView type="backgroundElement" style={[styles.datePicker, { flex: 1 }]}>
-            <Picker
-              selectedValue={selDay}
-              onValueChange={handleDayChange}
-              style={[styles.picker, { color: colors.text }]}
-              dropdownIconColor={colors.textSecondary}
-              itemStyle={{ color: colors.text, fontSize: 15 }}
+          <View style={{ flex: 1 }}>
+            <ThemedText themeColor="textSecondary" style={styles.dateFieldLabel}>
+              {t('onboarding.physical.day')}
+            </ThemedText>
+            <Pressable
+              style={({ pressed }) => [
+                styles.dateTrigger,
+                { backgroundColor: colors.backgroundElement },
+                pressed && { backgroundColor: colors.backgroundSelected },
+              ]}
+              onPress={() => setDayOpen(true)}
             >
-              {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
-                <Picker.Item key={d} label={String(d)} value={d} color={colors.text} />
-              ))}
-            </Picker>
-          </ThemedView>
+              <ThemedText style={styles.dateTriggerText}>{selDay}</ThemedText>
+              <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
+            </Pressable>
+          </View>
 
           {/* Mes */}
-          <ThemedView type="backgroundElement" style={[styles.datePicker, { flex: 1.2 }]}>
-            <Picker
-              selectedValue={selMonth}
-              onValueChange={handleMonthChange}
-              style={[styles.picker, { color: colors.text }]}
-              dropdownIconColor={colors.textSecondary}
-              itemStyle={{ color: colors.text, fontSize: 15 }}
+          <View style={{ flex: 1.5 }}>
+            <ThemedText themeColor="textSecondary" style={styles.dateFieldLabel}>
+              {t('onboarding.physical.month')}
+            </ThemedText>
+            <Pressable
+              style={({ pressed }) => [
+                styles.dateTrigger,
+                { backgroundColor: colors.backgroundElement },
+                pressed && { backgroundColor: colors.backgroundSelected },
+              ]}
+              onPress={() => setMonthOpen(true)}
             >
-              {MONTHS.map((name, i) => (
-                <Picker.Item key={i} label={name} value={i + 1} color={colors.text} />
-              ))}
-            </Picker>
-          </ThemedView>
+              <ThemedText style={styles.dateTriggerText} numberOfLines={1}>
+                {MONTHS[selMonth - 1]}
+              </ThemedText>
+              <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
+            </Pressable>
+          </View>
 
           {/* Año */}
-          <ThemedView type="backgroundElement" style={[styles.datePicker, { flex: 1.1 }]}>
-            <Picker
-              selectedValue={selYear}
-              onValueChange={handleYearChange}
-              style={[styles.picker, { color: colors.text }]}
-              dropdownIconColor={colors.textSecondary}
-              itemStyle={{ color: colors.text, fontSize: 15 }}
+          <View style={{ flex: 1.3 }}>
+            <ThemedText themeColor="textSecondary" style={styles.dateFieldLabel}>
+              {t('onboarding.physical.year')}
+            </ThemedText>
+            <Pressable
+              style={({ pressed }) => [
+                styles.dateTrigger,
+                { backgroundColor: colors.backgroundElement },
+                pressed && { backgroundColor: colors.backgroundSelected },
+              ]}
+              onPress={() => setYearOpen(true)}
             >
-              {YEARS.map((y) => (
-                <Picker.Item key={y} label={String(y)} value={y} color={colors.text} />
-              ))}
-            </Picker>
-          </ThemedView>
+              <ThemedText style={styles.dateTriggerText}>{selYear}</ThemedText>
+              <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
+            </Pressable>
+          </View>
         </View>
+
+        {!draft.birthDate && (
+          <ThemedText style={styles.fieldRequired}>{t('onboarding.physical.required')}</ThemedText>
+        )}
+
+        {/* Sheets — opciones de día ajustadas dinámicamente al mes/año elegidos */}
+        <VulcanBottomSheet<number>
+          visible={dayOpen}
+          onClose={() => setDayOpen(false)}
+          onSelect={handleDayChange}
+          options={Array.from({ length: maxDay }, (_, i) => ({
+            value: i + 1,
+            label: String(i + 1),
+          } satisfies SheetOption<number>))}
+          selectedValue={selDay}
+          title={t('onboarding.physical.day')}
+          cancelLabel={t('common.cancel')}
+        />
+        <VulcanBottomSheet<number>
+          visible={monthOpen}
+          onClose={() => setMonthOpen(false)}
+          onSelect={handleMonthChange}
+          options={MONTHS.map((name, i) => ({
+            value: i + 1,
+            label: name,
+          } satisfies SheetOption<number>))}
+          selectedValue={selMonth}
+          title={t('onboarding.physical.month')}
+          cancelLabel={t('common.cancel')}
+        />
+        <VulcanBottomSheet<number>
+          visible={yearOpen}
+          onClose={() => setYearOpen(false)}
+          onSelect={handleYearChange}
+          options={YEARS.map((y) => ({
+            value: y,
+            label: String(y),
+          } satisfies SheetOption<number>))}
+          selectedValue={selYear}
+          title={t('onboarding.physical.year')}
+          cancelLabel={t('common.cancel')}
+        />
       </View>
 
       {/* ── Género ── */}
@@ -367,6 +422,9 @@ export function StepPhysical() {
             );
           })}
         </View>
+        {!draft.gender && (
+          <ThemedText style={styles.fieldRequired}>{t('onboarding.physical.required')}</ThemedText>
+        )}
       </View>
 
       {/* ── Altura ── */}
@@ -426,19 +484,25 @@ const styles = StyleSheet.create({
   dateRow: {
     flexDirection: 'row',
     gap: Spacing.one + 2,
+    alignItems: 'flex-end',
   },
-  datePicker: {
+  dateFieldLabel: {
+    fontSize: 11,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  dateTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     borderRadius: Spacing.two,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: { height: 120 },
-    }),
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 12,
   },
-  picker: {
-    width: '100%',
-    ...Platform.select({
-      ios: { height: 120 },
-    }),
+  dateTriggerText: {
+    fontSize: 15,
+    fontWeight: '500',
   },
   genderRow: { flexDirection: 'row', gap: Spacing.two },
   genderChip: {
@@ -455,6 +519,7 @@ const styles = StyleSheet.create({
     borderColor: GREEN,
   },
   genderText: { fontSize: 13 },
+  fieldRequired: { fontSize: 12, color: AMBER, marginTop: 4 },
 });
 
 const stepperStyles = StyleSheet.create({

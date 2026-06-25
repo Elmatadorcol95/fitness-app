@@ -651,6 +651,58 @@ Bucle ~1.3 s sobre fondo #141A17:
       una nota "Sin equivalente en casa" al ejercicio (visible en la sesión).
     - Para context==='gym' o null: plan sin cambios.
   * Traducciones es/en/fr: clave workout.session.noHomeAlt.
+- Hecho: LOTE UI — Componentes propios Vulcan (JS, recarga) — PASO 1 completado:
+  * src/components/ui/VulcanBottomSheet.tsx: hoja genérica que sube desde abajo.
+    Animación spring con React Native Animated (NO Reanimated), fondo oscurecido
+    con fade, opción activa marcada en verde esmeralda con tick, botón cancelar al pie.
+    Props: visible, onClose, onSelect, options (SheetOption<T>), selectedValue, title, cancelLabel.
+    Genérico T extends string | number — sirve para cualquier lista de opciones.
+  * src/components/ui/VulcanDialog.tsx: diálogo centrado propio.
+    Entrada con scale + opacity con React Native Animated (NO Reanimated). Botón
+    confirmar en esmeralda o ámbar si destructive=true. Props: visible, onClose,
+    title, message, confirmLabel, onConfirm, cancelLabel, destructive.
+  * StepSchedule.tsx: selector de días por semana migrado a VulcanBottomSheet.
+    Selector de minutos sigue en Picker nativo (se migrará en PASO 2 tras validación).
+  * PASO 2 completado: VulcanBottomSheet/VulcanDialog propagados a:
+    - StepSchedule.tsx: minutesPerSession migrado (Picker nativo eliminado).
+    - training.tsx: "¿Dónde entrenas hoy?" → VulcanBottomSheet; "¿Regenerar plan?" → VulcanDialog.
+    - session.tsx: "¿Finalizar?" / "¿Finalizar sin completar?" / "¿Cancelar sesión?" → VulcanDialog.
+    - Corregido bug TypeScript pre-existente: justifyContent duplicado en restBox (session.tsx).
+    - Corregido absoluteFillObject → absoluteFill en AchievementCelebrationOverlay.tsx.
+- Hecho: BUG — crash Reanimated "invalidTransform" al abrir bottom sheet (JS, recarga):
+  * Causa raíz: VulcanSplash.tsx usaba transform como string SVG en useAnimatedProps:
+    `transform: \`rotate(${hammerRot.value}, 121, 60)\`` y `transform: \`scale(...)\``.
+    Reanimated 4 pasa strings de transform por processTransform (worklet), que internamente
+    llama ERROR_MESSAGES.invalidTransform (no-worklet) cuando el formato SVG de 3 args
+    `rotate(ángulo, cx, cy)` no es reconocido como CSS estándar. La animación seguía
+    corriendo en memoria tras desmontar VulcanSplash, disparando el error continuamente.
+  * Fix: VulcanSplash ahora usa props nativas de react-native-svg:
+    - hammerProps: `{ rotation: hammerRot.value }` + `originX={121} originY={60}` directo en JSX.
+    - sparkInnerProps: `{ scale: sparkScale.value }` (sin transform string).
+    Estas props no pasan por processTransform → cero errores de worklet.
+- Hecho: BUG — tira de ejercicios en sesión (JS, recarga):
+  * Ítem activo se estiraba a toda la altura de la FlatList (alignItems:'stretch' por defecto).
+    Fix: height:90 en carouselItem (todos los ítems, no en la FlatList), alignItems:'flex-start'
+    en el contentContainerStyle del carrusel, flexShrink:0 en la FlatList.
+  * Nombres truncados con "...": añadido adjustsFontSizeToFit + minimumFontScale={0.75} en
+    el ThemedText del carrusel.
+  * Hueco grande entre tira y tarjeta del ejercicio: eliminado bodyScroll:{ flex:1 } del
+    ScrollView (causaba reparto elástico de espacio). Añadido paddingTop:8 en body
+    contentContainerStyle para una separación fija y compacta de 8 px.
+- Hecho: BUG E-3 — sustitutos repetidos en sesión de casa (JS, recarga):
+  * Causa raíz: doStartSession usaba alts[0] para CADA ejercicio sin llevar registro de
+    qué sustitutos ya se habían asignado → varios ejercicios de gym (barbell + cable + máquina)
+    mapeaban al mismo sustituto (push_up, pike_push_up), que aparecía hasta 3 veces.
+  * Fix en training.tsx doStartSession (contexto 'home'):
+    1. Map<string,number> usageCount que pre-cuenta los ejercicios que ya pasan canDoAtHome.
+    2. Al sustituir: busca primero alternativa con usageCount < 2 (solapamiento muscular).
+    3. Si todas al límite: búsqueda ampliada — cualquier ejercicio de casa de la misma
+       categoría con usageCount < 2 (evita la 3.ª repetición forzada).
+    4. Último recurso: la menos usada de las alternativas primarias.
+    5. Resultado típico: Flexión ×2, Flexión en pica ×2, Flexión estrecha ×1 — ninguna ×3.
+  * Diagnóstico aceptado y síntoma A descartado como bug (barra en equipamiento casa = correcto).
+  * Síntoma C (historial) era consecuencia de B; al eliminar duplicados, el historial
+    queda consistente sin cambios adicionales.
 - Siguiente: FASE 7 — In-app purchase (OBLIGATORIA antes de publicar).
 - Pendiente obligatorio: FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
@@ -679,9 +731,43 @@ Bucle ~1.3 s sobre fondo #141A17:
 - ~~FASE E-1 — "Mi equipamiento" en Ajustes~~ ✓ Completado (JS, recarga).
 - ~~FASE E-2 — "¿Dónde entrenas hoy?" pregunta de contexto~~ ✓ Completado (JS, recarga).
 - ~~FASE E-3 — Filtro ligero de ejercicios en sesión~~ ✓ Completado (JS, recarga).
+- ~~LOTE UI PASO 2 — Propagar VulcanBottomSheet/VulcanDialog~~ ✓ Completado (JS, recarga).
 - FASE D — Deloads automáticos, gráfica de fuerza (1RM) en pestaña Progreso,
   calentamientos sugeridos basados en el peso objetivo.
 
 ## IMPORTANTE
 Actualiza la sección "Estado actual" al final de cada sesión, anotando qué se 
 completó y cuál es el siguiente paso.
+
+## Funcionalidad futura: Social (amigos y constancia) — DISEÑO, NO IMPLEMENTAR
+
+### Principios (obligatorios cuando se construya)
+- **Offline-first se mantiene.** Lo social requiere conexión y servidor (Supabase). 
+  Si no hay red, la parte social simplemente no carga, pero el entrenamiento propio 
+  sigue funcionando offline como siempre. Una caída de red NUNCA debe romper la app.
+- **Privacidad por diseño.** Amistades mutuas y consentidas (solicitud → aceptación), 
+  siempre revocables. Solo se comparten señales de CONSTANCIA (frecuencia y rachas). 
+  NUNCA se comparten pesos, RIR, progreso ni datos corporales.
+- **Seguridad en servidor.** Políticas RLS (Row Level Security) en Supabase para que 
+  ningún usuario pueda leer datos de quien no es su amigo. No es opcional.
+
+### Fase S-1 — Identidad y amigos
+- Perfil mínimo con nombre de usuario único y localizable.
+- Buscar usuario, enviar solicitud, aceptar o rechazar.
+- Amistad mutua y consentida. Poder eliminar a un amigo.
+
+### Fase S-2 — Muro de constancia (solo lectura)
+- De cada amigo se ve solo: entrenamientos esta semana, entrenamientos este mes, 
+  racha actual.
+- Solo las señales acordadas; nada de rendimiento ni datos corporales.
+- Cada usuario puede activar/desactivar que sus amigos vean su constancia.
+
+### Fase S-3 — Rutina compartida (más adelante, fase aparte)
+- Un amigo propone un entrenamiento; le llega al receptor como PROPUESTA.
+- El receptor la revisa y debe ACEPTARLA antes de que entre en su plan. Nunca 
+  sobrescribe el plan del receptor sin su consentimiento.
+
+### Estado
+Diseño aprobado. Construir solo DESPUÉS de validar el build actual en teléfono físico 
+(coach con RIR real, peso onboarding→seguimiento, filtro gym/casa, sonido, icono). 
+Atacar en orden S-1 → S-2 → S-3, una fase a la vez.

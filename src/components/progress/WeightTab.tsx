@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import {
-  Alert,
   FlatList,
   StyleSheet,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { VulcanDialog } from '@/components/ui/VulcanDialog';
 import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { ThemedText } from '@/components/themed-text';
@@ -38,6 +38,7 @@ export function WeightTab({ units }: Props) {
   const theme = useTheme();
   const { weightEntries, deleteWeight } = useProgressStore();
   const [modalVisible, setModalVisible] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<WeightEntry | null>(null);
 
   const isImperial = units === 'imperial';
   const unitLabel = isImperial ? 'lb' : 'kg';
@@ -64,14 +65,7 @@ export function WeightTab({ units }: Props) {
       : null;
 
   function confirmDelete(entry: WeightEntry) {
-    Alert.alert(t('tabs.progress.deleteEntry'), t('tabs.progress.deleteConfirm'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('tabs.progress.confirm'),
-        style: 'destructive',
-        onPress: () => deleteWeight(entry.id),
-      },
-    ]);
+    setDeleteTarget(entry);
   }
 
   if (weightEntries.length === 0) {
@@ -193,6 +187,20 @@ export function WeightTab({ units }: Props) {
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         units={units}
+      />
+
+      <VulcanDialog
+        visible={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title={t('tabs.progress.deleteEntry')}
+        message={t('tabs.progress.deleteConfirm')}
+        confirmLabel={t('tabs.progress.confirm')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        onConfirm={() => {
+          if (deleteTarget) deleteWeight(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
       />
     </View>
   );

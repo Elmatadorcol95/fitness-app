@@ -276,6 +276,9 @@
     "physical": {
       "title": "Vos données physiques",
       "birthDate": "Date de naissance",
+      "day": "Jour",
+      "month": "Mois",
+      "year": "Année",
       "ageHint": "→ {{age}} ans",
       "yearsOld": "ans",
       "gender": "Genre",
@@ -283,7 +286,8 @@
       "female": "Femme",
       "other": "Autre",
       "height": "Taille",
-      "weight": "Poids actuel"
+      "weight": "Poids actuel",
+      "required": "Champ obligatoire — sélectionne une option pour continuer"
     },
     "goal": {
       "title": "Quel est votre objectif ?",

@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { VulcanDialog }      from '@/components/ui/VulcanDialog';
+import { VulcanBottomSheet, type SheetOption } from '@/components/ui/VulcanBottomSheet';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
@@ -59,6 +61,10 @@ export function PhotosTab() {
 
   const [activePose, setActivePose] = useState<Pose>('front');
   const [sliderVisible, setSliderVisible] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ProgressPhoto | null>(null);
+  const [limitOpen, setLimitOpen] = useState(false);
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const [saveErrorMsg, setSaveErrorMsg] = useState('');
 
   const posePhotos = photos.filter((p) => p.pose === activePose);
   const today = todayStr();
@@ -66,21 +72,10 @@ export function PhotosTab() {
 
   async function handleAddPhoto() {
     if (hasPhotoToday) {
-      Alert.alert('', t('tabs.progress.photos.limitReached'));
+      setLimitOpen(true);
       return;
     }
-
-    Alert.alert(t('tabs.progress.photos.selectSource'), '', [
-      {
-        text: t('tabs.progress.photos.camera'),
-        onPress: () => openPicker('camera'),
-      },
-      {
-        text: t('tabs.progress.photos.gallery'),
-        onPress: () => openPicker('gallery'),
-      },
-      { text: t('common.cancel'), style: 'cancel' },
-    ]);
+    setSourceOpen(true);
   }
 
   async function openPicker(source: 'camera' | 'gallery') {
@@ -114,26 +109,12 @@ export function PhotosTab() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : JSON.stringify(e);
       console.error('[Photo] ERROR al guardar:', e);
-      // Muestra el error REAL para diagnosticar (puedes quitarlo tras corregirlo)
-      Alert.alert('Error al guardar — detalle:', msg);
+      setSaveErrorMsg(msg);
     }
   }
 
   function confirmDelete(photo: ProgressPhoto) {
-    Alert.alert(t('tabs.progress.photos.deleteConfirm'), t('tabs.progress.photos.deleteWarning'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('tabs.progress.photos.confirmDelete'),
-        style: 'destructive',
-        onPress: async () => {
-          // Attempt to remove the file from disk (best effort)
-          try {
-            await FileSystem.deleteAsync(photo.localUri, { idempotent: true });
-          } catch {}
-          await deletePhoto(photo.id);
-        },
-      },
-    ]);
+    setDeleteTarget(photo);
   }
 
   const renderPhoto = ({ item }: { item: ProgressPhoto }) => (
@@ -236,6 +217,53 @@ export function PhotosTab() {
         visible={sliderVisible}
         photos={posePhotos}
         onClose={() => setSliderVisible(false)}
+      />
+
+      <VulcanDialog
+        visible={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title={t('tabs.progress.photos.deleteConfirm')}
+        message={t('tabs.progress.photos.deleteWarning')}
+        confirmLabel={t('tabs.progress.photos.confirmDelete')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          try { await FileSystem.deleteAsync(deleteTarget.localUri, { idempotent: true }); } catch {}
+          await deletePhoto(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+      />
+
+      <VulcanDialog
+        visible={limitOpen}
+        onClose={() => setLimitOpen(false)}
+        title={t('tabs.progress.photos.limitReached')}
+        confirmLabel="OK"
+        onConfirm={() => setLimitOpen(false)}
+        hideCancel
+      />
+
+      <VulcanDialog
+        visible={saveErrorMsg !== ''}
+        onClose={() => setSaveErrorMsg('')}
+        title="Error al guardar"
+        message={saveErrorMsg}
+        confirmLabel="OK"
+        onConfirm={() => setSaveErrorMsg('')}
+        hideCancel
+      />
+
+      <VulcanBottomSheet<'camera' | 'gallery'>
+        visible={sourceOpen}
+        onClose={() => setSourceOpen(false)}
+        onSelect={(src) => { setSourceOpen(false); void openPicker(src); }}
+        options={[
+          { value: 'camera',  label: t('tabs.progress.photos.camera') } satisfies SheetOption<'camera'>,
+          { value: 'gallery', label: t('tabs.progress.photos.gallery') } satisfies SheetOption<'gallery'>,
+        ]}
+        title={t('tabs.progress.photos.selectSource')}
+        cancelLabel={t('common.cancel')}
       />
     </View>
   );

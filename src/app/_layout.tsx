@@ -19,6 +19,7 @@ import { PaywallScreen }  from '@/components/auth/PaywallScreen';
 import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
 import AppTabs            from '@/components/app-tabs';
 import SessionScreen      from '@/app/session';
+import EquipmentScreen    from '@/app/equipment';
 import { useSessionStore } from '@/store/session.store';
 import { AchievementCelebrationOverlay } from '@/components/gamification/AchievementCelebrationOverlay';
 
@@ -151,7 +152,8 @@ export default function RootLayout() {
   // de rutas. Cuando la condición cambia, el overlay desaparece y las tabs
   // quedan visibles sin re-montar nada.
 
-  const isSessionActive = useSessionStore(s => s.isActive);
+  const isSessionActive    = useSessionStore(s => s.isActive);
+  const isEquipmentVisible = useProfileStore(s => s.equipmentVisible);
   const stillLoading   = !migrationsReady || isProfileLoading || isAuthLoading;
   const trialExpired   = hasUserStatus && !!trialStartedAt && !isTrialValid(trialStartedAt, isPaid);
   const needsOnboarding = !stillLoading && isAuthenticated && !trialExpired && !hasProfile;
@@ -188,6 +190,12 @@ export default function RootLayout() {
       {isSessionActive && (
         <View style={StyleSheet.absoluteFill}>
           <SessionScreen />
+        </View>
+      )}
+      {/* Pantalla de equipamiento — overlay sobre las tabs */}
+      {isEquipmentVisible && (
+        <View style={StyleSheet.absoluteFill}>
+          <EquipmentScreen />
         </View>
       )}
       {/* Overlay de logros — encima de todo, incluido la sesión */}

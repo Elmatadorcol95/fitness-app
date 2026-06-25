@@ -1,14 +1,13 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
+import { VulcanDialog } from '@/components/ui/VulcanDialog';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -58,6 +57,8 @@ export default function EquipmentScreen() {
   const [location, setLocation] = useState<Location>(initialLocation);
   const [equipment, setEquipment] = useState<string[]>(initialEquipment);
   const [saving, setSaving] = useState(false);
+  const [regenOpen, setRegenOpen] = useState(false);
+  const pendingProfile = useRef<typeof profile>(null);
 
   const isGym = location === 'gym';
 
@@ -77,35 +78,14 @@ export default function EquipmentScreen() {
     JSON.stringify([...equipment].sort()) !== JSON.stringify([...initialEquipment].sort());
 
   const handleSave = async () => {
-    if (!profile) { router.back(); return; }
-    if (!hasChanged) { router.back(); return; }
+    if (!profile) { useProfileStore.getState().closeEquipment(); return; }
+    if (!hasChanged) { useProfileStore.getState().closeEquipment(); return; }
 
     setSaving(true);
     try {
       await updateEquipmentAndLocation(location, equipment);
-      // Capturamos el perfil actualizado antes de mostrar el Alert
-      const updatedProfile = { ...profile, location, equipment: JSON.stringify(equipment) };
-
-      Alert.alert(
-        t('equipment.regenTitle'),
-        t('equipment.regenMsg'),
-        [
-          {
-            text: t('equipment.regenNo'),
-            onPress: () => router.back(),
-          },
-          {
-            text: t('equipment.regenYes'),
-            onPress: async () => {
-              try {
-                await generateAndSavePlan(updatedProfile);
-              } finally {
-                router.back();
-              }
-            },
-          },
-        ],
-      );
+      pendingProfile.current = { ...profile, location, equipment: JSON.stringify(equipment) };
+      setRegenOpen(true);
     } finally {
       setSaving(false);
     }
@@ -117,7 +97,7 @@ export default function EquipmentScreen() {
 
         {/* Cabecera */}
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+          <Pressable onPress={() => useProfileStore.getState().closeEquipment()} style={styles.backBtn} hitSlop={12}>
             <Ionicons name="chevron-back" size={24} color="#9DA89F" />
           </Pressable>
           <ThemedText type="subtitle" style={styles.title}>
@@ -207,6 +187,22 @@ export default function EquipmentScreen() {
         </View>
 
       </SafeAreaView>
+
+      <VulcanDialog
+        visible={regenOpen}
+        onClose={() => { setRegenOpen(false); useProfileStore.getState().closeEquipment(); }}
+        title={t('equipment.regenTitle')}
+        message={t('equipment.regenMsg')}
+        confirmLabel={t('equipment.regenYes')}
+        cancelLabel={t('equipment.regenNo')}
+        onConfirm={async () => {
+          setRegenOpen(false);
+          if (pendingProfile.current) {
+            try { await generateAndSavePlan(pendingProfile.current); } catch {}
+          }
+          useProfileStore.getState().closeEquipment();
+        }}
+      />
     </ThemedView>
   );
 }
