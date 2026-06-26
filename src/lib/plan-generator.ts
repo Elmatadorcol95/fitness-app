@@ -153,8 +153,32 @@ function selectExercisesForDay(
       dayType === 'upper' ? ['push', 'pull'] :
       dayType === 'lower' ? ['legs', 'core']  :
       [dayType as ExerciseCategory];
-    compounds  = available.filter(e => cats.includes(e.category) && e.isCompound).slice(0, counts.compounds);
-    isolations = available.filter(e => cats.includes(e.category) && !e.isCompound).slice(0, counts.isolations);
+
+    // Round-robin: toma 1 ejercicio de cada categoría por vuelta para garantizar
+    // que días multi-categoría (upper=push+pull, lower=legs+core) cubran todas las
+    // categorías asignadas antes de repetir la primera. Días de una sola categoría
+    // (push/pull/legs) se comportan igual que antes: el único pool agota los slots.
+    const pickRoundRobin = (isCompound: boolean, limit: number): Exercise[] => {
+      const pools = cats.map(cat =>
+        available.filter(e => e.category === cat && e.isCompound === isCompound),
+      );
+      const result: Exercise[] = [];
+      const indices = pools.map(() => 0);
+      while (result.length < limit) {
+        let anyPicked = false;
+        for (let p = 0; p < pools.length && result.length < limit; p++) {
+          if (indices[p] < pools[p].length) {
+            result.push(pools[p][indices[p]++]);
+            anyPicked = true;
+          }
+        }
+        if (!anyPicked) break;
+      }
+      return result;
+    };
+
+    compounds  = pickRoundRobin(true,  counts.compounds);
+    isolations = pickRoundRobin(false, counts.isolations);
   }
 
   return [

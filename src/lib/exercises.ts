@@ -235,6 +235,27 @@ export const EXERCISES: Exercise[] = [
     primaryMuscles: ['biceps'], secondaryMuscles: [],
     equipment: ['resistanceBands'],
   },
+  {
+    id: 'superman',
+    name: { es: 'Superman', en: 'Superman', fr: 'Superman' },
+    category: 'pull', isCompound: false, difficulty: 'beginner',
+    primaryMuscles: ['back', 'glutes'], secondaryMuscles: ['hamstrings', 'core'],
+    equipment: [],
+  },
+  {
+    id: 'ytw_prone',
+    name: { es: 'Y-T-W en prono', en: 'Y-T-W prone', fr: 'Y-T-W en pronation' },
+    category: 'pull', isCompound: false, difficulty: 'beginner',
+    primaryMuscles: ['back', 'shoulders'], secondaryMuscles: ['traps'],
+    equipment: [],
+  },
+  {
+    id: 'snow_angel_prone',
+    name: { es: 'Ángeles de nieve invertidos', en: 'Prone snow angel', fr: 'Ange de neige en pronation' },
+    category: 'pull', isCompound: false, difficulty: 'beginner',
+    primaryMuscles: ['back', 'shoulders'], secondaryMuscles: ['traps', 'core'],
+    equipment: [],
+  },
 
   // ── LEGS — Compound ──────────────────────────────────────────────────────────
   {
@@ -356,6 +377,13 @@ export const EXERCISES: Exercise[] = [
     name: { es: 'Sentadilla sumo', en: 'Sumo squat', fr: 'Squat sumo' },
     category: 'legs', isCompound: false, difficulty: 'beginner',
     primaryMuscles: ['quads', 'glutes'], secondaryMuscles: ['hamstrings'],
+    equipment: [],
+  },
+  {
+    id: 'single_leg_rdl_bw',
+    name: { es: 'Peso muerto rumano a una pierna', en: 'Single-leg Romanian deadlift', fr: 'Soulevé de terre roumain unipodal' },
+    category: 'legs', isCompound: true, difficulty: 'intermediate',
+    primaryMuscles: ['hamstrings', 'glutes'], secondaryMuscles: ['back', 'core'],
     equipment: [],
   },
 
