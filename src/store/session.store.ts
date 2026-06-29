@@ -374,7 +374,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           coachReason: hint?.reason,
           ...(hint
             ? { actualReps: hint.reps, ...(hint.kg > 0 ? { weightKg: hint.kg } : {}) }
-            : {}),
+            : { actualReps: doneSt.actualReps, weightKg: doneSt.weightKg }),
         };
       }
 
