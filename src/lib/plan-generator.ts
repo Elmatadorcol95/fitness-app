@@ -163,14 +163,15 @@ function selectExercisesForDay(
         available.filter(e => e.category === cat && e.isCompound === isCompound),
       );
       const result: Exercise[] = [];
-      const indices = pools.map(() => 0);
+      const starts = pools.map(pool => pool.length > 0 ? offset % pool.length : 0);
+      const taken  = pools.map(() => 0);
       while (result.length < limit) {
         let anyPicked = false;
         for (let p = 0; p < pools.length && result.length < limit; p++) {
-          if (indices[p] < pools[p].length) {
-            result.push(pools[p][indices[p]++]);
-            anyPicked = true;
-          }
+          if (pools[p].length === 0) continue;
+          result.push(pools[p][(starts[p] + taken[p]) % pools[p].length]);
+          taken[p]++;
+          anyPicked = true;
         }
         if (!anyPicked) break;
       }
