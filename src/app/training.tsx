@@ -120,7 +120,6 @@ export default function TrainingScreen() {
   const [targetMap, setTargetMap] = useState<Record<string, { weightKg: number | null; reason: string | null }>>({});
   const [isStarting,   setIsStarting]  = useState(false);
   const [whereOpen,    setWhereOpen]   = useState(false);
-  const [regenOpen,    setRegenOpen]   = useState(false);
   const [startError,   setStartError]  = useState('');
 
   const lang      = normalizeLang(i18n.language);
@@ -235,10 +234,6 @@ export default function TrainingScreen() {
     }
   }
 
-  function handleRegen() {
-    setRegenOpen(true);
-  }
-
   // ── Loading ──────────────────────────────────────────────────────────────────
   if (!isLoaded) {
     return (
@@ -298,9 +293,6 @@ export default function TrainingScreen() {
                 {currentPlan.daysPerWeek} {t('tabs.today.daysWeek').toLowerCase()} · {currentPlan.minutesPerSession} min
               </ThemedText>
             </View>
-            <Pressable onPress={handleRegen} disabled={isGenerating} style={styles.regenBtn}>
-              <ThemedText style={styles.regenBtnText}>{t('tabs.training.regen')}</ThemedText>
-            </Pressable>
           </View>
 
           {/* ── Cabecera del día activo ── */}
@@ -441,18 +433,6 @@ export default function TrainingScreen() {
         cancelLabel={t('common.cancel')}
       />
 
-      {/* ── ¿Regenerar plan? ── */}
-      <VulcanDialog
-        visible={regenOpen}
-        onClose={() => setRegenOpen(false)}
-        title={t('tabs.training.regen')}
-        message={t('tabs.training.regenConfirm')}
-        confirmLabel={t('tabs.training.regenOk')}
-        cancelLabel={t('tabs.training.regenCancel')}
-        destructive
-        onConfirm={() => { if (profile) generateAndSavePlan(profile); }}
-      />
-
       <VulcanDialog
         visible={startError !== ''}
         onClose={() => setStartError('')}
@@ -498,11 +478,6 @@ const styles = StyleSheet.create({
   planHeaderLeft:  { gap: 2 },
   planHeaderTitle: { fontSize: 13, textTransform: 'uppercase', letterSpacing: 1, opacity: 0.7 },
   planHeaderSub:   { fontSize: 13 },
-  regenBtn:        {
-    borderWidth: 1, borderColor: MUTED + '44',
-    borderRadius: Spacing.two, paddingHorizontal: Spacing.two, paddingVertical: 4,
-  },
-  regenBtnText: { fontSize: 12, color: MUTED },
 
   // Day header
   dayHeader: {
