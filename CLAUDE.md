@@ -669,17 +669,19 @@ Bucle ~1.3 s sobre fondo #141A17:
     - session.tsx: "¿Finalizar?" / "¿Finalizar sin completar?" / "¿Cancelar sesión?" → VulcanDialog.
     - Corregido bug TypeScript pre-existente: justifyContent duplicado en restBox (session.tsx).
     - Corregido absoluteFillObject → absoluteFill en AchievementCelebrationOverlay.tsx.
-- Hecho: BUG — crash Reanimated "invalidTransform" al abrir bottom sheet (JS, recarga):
-  * Causa raíz: VulcanSplash.tsx usaba transform como string SVG en useAnimatedProps:
-    `transform: \`rotate(${hammerRot.value}, 121, 60)\`` y `transform: \`scale(...)\``.
-    Reanimated 4 pasa strings de transform por processTransform (worklet), que internamente
-    llama ERROR_MESSAGES.invalidTransform (no-worklet) cuando el formato SVG de 3 args
-    `rotate(ángulo, cx, cy)` no es reconocido como CSS estándar. La animación seguía
-    corriendo en memoria tras desmontar VulcanSplash, disparando el error continuamente.
-  * Fix: VulcanSplash ahora usa props nativas de react-native-svg:
-    - hammerProps: `{ rotation: hammerRot.value }` + `originX={121} originY={60}` directo en JSX.
-    - sparkInnerProps: `{ scale: sparkScale.value }` (sin transform string).
-    Estas props no pasan por processTransform → cero errores de worklet.
+- Hecho: BUG — crash Reanimated "invalidTransform" + martillo estático (JS, recarga):
+  * Causa raíz del crash: VulcanSplash.tsx usaba strings SVG en useAnimatedProps
+    (`rotate(angle, cx, cy)`, `scale(...)`). Reanimated 4 los pasaba por processTransform
+    en worklet → ERROR_MESSAGES.invalidTransform. Fix intermedio (commit 72bf868):
+    cambió a `{ rotation: hammerRot.value }` + originX/originY como JSX props.
+  * Causa raíz del martillo estático (diagnosticada con HAMMER_ANIM_AUDIT.md):
+    La prop shorthand `rotation` de react-native-svg requiere procesamiento en el hilo JS
+    para convertirse en transform matrix; Reanimated la actualiza en la UI thread, saltándose
+    ese procesamiento → nodo nativo nunca recibe el transform → martillo siempre en -42°.
+  * Fix definitivo (sesión 2026-06-30): hammerProps usa transform array RN/CSS con
+    patrón translate→rotate→translate para codificar el pivote (121,60):
+    `transform: [{ translateX:121 },{ translateY:60 },{ rotate:\`${hammerRot.value}deg\` },{ translateX:-121 },{ translateY:-60 }]`
+    Eliminadas originX/originY del JSX (ya no se usan). Sin recompilación.
 - Hecho: BUG — tira de ejercicios en sesión (JS, recarga):
   * Ítem activo se estiraba a toda la altura de la FlatList (alignItems:'stretch' por defecto).
     Fix: height:90 en carouselItem (todos los ítems, no en la FlatList), alignItems:'flex-start'
@@ -703,6 +705,31 @@ Bucle ~1.3 s sobre fondo #141A17:
   * Diagnóstico aceptado y síntoma A descartado como bug (barra en equipamiento casa = correcto).
   * Síntoma C (historial) era consecuencia de B; al eliminar duplicados, el historial
     queda consistente sin cambios adicionales.
+- Hecho: sesión 2026-06-30 — Splash screen polish + animación martillo (JS, recarga):
+  * letterSpacing ajustado:
+    - VulcanSplash "Vulcan": 1.5 → 0.75 (menos extendido).
+    - 4 pantallas de auth "VULCAN" (LoginForm, RegisterForm, PaywallScreen,
+      VerifyEmailScreen): 10 → 3 en cada una (independientes, sin componente compartido).
+  * Auditoría de la animación en HAMMER_ANIM_AUDIT.md (solo lectura):
+    diagnóstico completo del historial git, causa raíz del martillo estático y
+    las chispas pequeñas.
+  * Fix rotación martillo: transform array RN/CSS con pivote (121,60) codificado
+    mediante translate→rotate→translate-back. Ver entrada BUG arriba.
+  * Modo debug temporal en VulcanSplash.tsx (un solo flag para revertir):
+    - `export const DEBUG_SPLASH = true` → splash siempre visible + SPLASH_SLOWMO=3
+      (×3 duraciones del martillo; chispas y barra sin cambio).
+    - _layout.tsx: `stillLoading = DEBUG_SPLASH || ...` para bloquear el descarte.
+    - `const DEBUG_SPARK_POS = true` → Circle rojo r=4 en (180,111) como marcador fijo.
+  * Chispas mejoradas:
+    - Posición del grupo: translate(165,107) → translate(180,111), alineado con golpe.
+    - Marcador rojo actualizado a (180,111).
+    - SPARK_SIZE: 1.6 → 2.0 (escala estática envolviendo líneas/círculos).
+    - Sincronización con el golpe (455ms): sparkOp espera 420ms, flash en 35ms,
+      apagado en 240ms, silencio 605ms (total 1300ms). sparkScale expande en el impacto.
+    - 12 elementos nuevos (8 Line + 4 Circle) con rojos cálidos: #E8743B, #D9542B,
+      #F2934A, distribuidos en el mismo rango ±24 unidades. Total: 40 elementos.
+  ⚠️ DEBUG_SPLASH=true y DEBUG_SPARK_POS=true están ACTIVOS. Cambiar ambos a false
+     antes de cualquier build de producción o release.
 - Siguiente: FASE 7 — In-app purchase (OBLIGATORIA antes de publicar).
 - Pendiente obligatorio: FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.

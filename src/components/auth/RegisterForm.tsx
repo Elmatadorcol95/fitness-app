@@ -95,7 +95,7 @@ export function RegisterForm({ onBack, onSuccess }: Props) {
 
 const styles = StyleSheet.create({
   root:       { flex: 1, justifyContent: 'center', paddingHorizontal: Spacing.five },
-  logo:       { fontSize: 28, fontWeight: '900', letterSpacing: 10, color: '#3FBF7F', textAlign: 'center', marginBottom: Spacing.four },
+  logo:       { fontSize: 28, fontWeight: '900', letterSpacing: 3, color: '#3FBF7F', textAlign: 'center', marginBottom: Spacing.four },
   title:      { textAlign: 'center' },
   sub:        { textAlign: 'center', fontSize: 14, marginTop: Spacing.one, marginBottom: Spacing.four },
   form:       { gap: Spacing.two },

@@ -1,11 +1,17 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, TextInput, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Pressable, StyleSheet, TextInput, View, useColorScheme } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { ThemedText } from '@/components/themed-text';
+import { VulcanVolcano } from '@/components/VulcanVolcano';
+import { VulcanHammerIcon } from '@/components/icons/VulcanHammerIcon';
+import { BarbellIcon, DumbbellIcon, KettlebellIcon } from '@/components/icons/VulcanGymIcons';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+
+const VOLCANO_W = Dimensions.get('window').width * 0.54;
+const VOLCANO_H = VOLCANO_W * (300 / 440);
 
 interface Props { onRegister: () => void }
 
@@ -40,6 +46,27 @@ export function LoginForm({ onRegister }: Props) {
 
   return (
     <ThemedView style={styles.root}>
+      <View style={styles.volcanoWrap}>
+        <View style={{ position: 'relative', width: VOLCANO_W, height: VOLCANO_H }}>
+          <VulcanVolcano width={VOLCANO_W} />
+
+          <View style={{ position: 'absolute', left: VOLCANO_W * 0.012, top: -VOLCANO_H * 0.283 }}>
+            <VulcanHammerIcon width={VOLCANO_W * 0.167} />
+          </View>
+
+          <View style={{ position: 'absolute', left: VOLCANO_W * 0.841, top: -VOLCANO_H * 0.198, transform: [{ rotate: '-6deg' }] }}>
+            <BarbellIcon width={VOLCANO_W * 0.193} />
+          </View>
+
+          <View style={{ position: 'absolute', left: VOLCANO_W * 0.937, top: -VOLCANO_H * 0.047, transform: [{ rotate: '10deg' }] }}>
+            <DumbbellIcon width={VOLCANO_W * 0.122} />
+          </View>
+
+          <View style={{ position: 'absolute', left: VOLCANO_W * 0.802, top: VOLCANO_H * 0.085, transform: [{ rotate: '-4deg' }] }}>
+            <KettlebellIcon width={VOLCANO_W * 0.109} />
+          </View>
+        </View>
+      </View>
       <ThemedText style={styles.logo}>VULCAN</ThemedText>
       <ThemedText type="subtitle" style={styles.title}>{t('auth.login.title')}</ThemedText>
       <ThemedText themeColor="textSecondary" style={styles.sub}>{t('auth.login.subtitle')}</ThemedText>
@@ -80,8 +107,9 @@ export function LoginForm({ onRegister }: Props) {
 }
 
 const styles = StyleSheet.create({
-  root:       { flex: 1, justifyContent: 'center', paddingHorizontal: Spacing.five },
-  logo:       { fontSize: 28, fontWeight: '900', letterSpacing: 10, color: '#3FBF7F', textAlign: 'center', marginBottom: Spacing.four },
+  root:        { flex: 1, justifyContent: 'center', paddingHorizontal: Spacing.five },
+  volcanoWrap: { alignItems: 'center', marginTop: 40, marginBottom: 20 },
+  logo:        { fontSize: 28, fontWeight: '900', letterSpacing: 3, color: '#3FBF7F', textAlign: 'center', marginBottom: Spacing.four },
   title:      { textAlign: 'center' },
   sub:        { textAlign: 'center', fontSize: 14, marginTop: Spacing.one, marginBottom: Spacing.four },
   form:       { gap: Spacing.two },

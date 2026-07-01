@@ -45,7 +45,7 @@ export function VerifyEmailScreen({ email, onBack }: Props) {
 
 const styles = StyleSheet.create({
   root:            { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.five, gap: Spacing.three },
-  logo:            { fontSize: 28, fontWeight: '900', letterSpacing: 10, color: '#3FBF7F' },
+  logo:            { fontSize: 28, fontWeight: '900', letterSpacing: 3, color: '#3FBF7F' },
   title:           { textAlign: 'center' },
   msg:             { textAlign: 'center', fontSize: 15, lineHeight: 22 },
   actions:         { gap: Spacing.two, width: '100%', alignItems: 'center', marginTop: Spacing.two },

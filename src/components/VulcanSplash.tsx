@@ -28,6 +28,8 @@ const SVG_VH = 250;
 const SVG_W  = SW;
 const SVG_H  = SW * SVG_VH / SVG_VW;
 
+const SPARK_SIZE = 2.0;
+
 export function VulcanSplash() {
   const hammerRot  = useSharedValue(-42);
   const sparkOp    = useSharedValue(0);
@@ -49,25 +51,25 @@ export function VulcanSplash() {
       false,
     );
 
-    // Chispas — opacity: keyTimes 0;0.33;0.40;0.64;1  →  0|429|520|832|1300 ms
+    // Chispas — opacity: 420 + 35 + 240 + 605 = 1300 ms por ciclo
     sparkOp.value = withRepeat(
       withSequence(
-        withTiming(0, { duration: 429 }),
-        withTiming(1, { duration:  91 }),
-        withTiming(0, { duration: 312 }),
-        withTiming(0, { duration: 468 }),
+        withTiming(0, { duration: 420 }),
+        withTiming(1, { duration:  35, easing: Easing.out(Easing.quad) }),
+        withTiming(0, { duration: 240, easing: Easing.in(Easing.quad) }),
+        withTiming(0, { duration: 605 }),
       ),
       -1,
       false,
     );
 
-    // Chispas — scale: keyTimes 0;0.33;0.42;0.64;1  →  0|429|546|832|1300 ms
+    // Chispas — scale: 420 + 60 + 240 + 580 = 1300 ms por ciclo
     sparkScale.value = withRepeat(
       withSequence(
-        withTiming(0.40, { duration: 429 }),
-        withTiming(1.15, { duration: 117 }),
-        withTiming(1.28, { duration: 286 }),
-        withTiming(0.40, { duration: 468 }),
+        withTiming(0.4, { duration: 420 }),
+        withTiming(1.3, { duration:  60, easing: Easing.out(Easing.quad) }),
+        withTiming(1.5, { duration: 240 }),
+        withTiming(0.4, { duration: 580 }),
       ),
       -1,
       false,
@@ -85,7 +87,13 @@ export function VulcanSplash() {
   }, []);
 
   const hammerProps = useAnimatedProps(() => ({
-    rotation: hammerRot.value,
+    transform: [
+      { translateX: 121 },
+      { translateY: 60 },
+      { rotate: `${hammerRot.value}deg` },
+      { translateX: -121 },
+      { translateY: -60 },
+    ],
   }));
 
   const sparkGroupProps = useAnimatedProps(() => ({
@@ -123,7 +131,7 @@ export function VulcanSplash() {
           </G>
 
           {/* Martillo — rota alrededor del pivote (121, 60) */}
-          <AnimatedG animatedProps={hammerProps} originX={121} originY={60}>
+          <AnimatedG animatedProps={hammerProps}>
             <G transform="translate(170,112) rotate(108) scale(0.58) translate(-220,-104)">
               <G transform="rotate(-6 160 130)">
                 <Path d="M150 114 C148 152 147 184 147 200 Q147 216 160 216 Q173 216 173 200 C173 184 172 152 170 114 Z" fill="#5BD897"/>
@@ -140,41 +148,57 @@ export function VulcanSplash() {
 
           {/* Chispas — estallan en el impacto */}
           <AnimatedG animatedProps={sparkGroupProps}>
-            <G transform="translate(165, 107)">
+            <G transform="translate(180, 111)">
               <AnimatedG animatedProps={sparkInnerProps}>
-                <Line x1={-3.7}  y1={2.1}  x2={-14.9} y2={8.6}  stroke="#F2B450" strokeWidth={2.5} strokeLinecap="round"/>
-                <Line x1={-6.0}  y1={1.9}  x2={-15.6} y2={5.1}  stroke="#FFD98A" strokeWidth={2.4} strokeLinecap="round"/>
-                <Line x1={-3.8}  y1={0.3}  x2={-16.2} y2={1.1}  stroke="#F2B450" strokeWidth={2.2} strokeLinecap="round"/>
-                <Line x1={-3.3}  y1={-0.6} x2={-21.0} y2={-3.7} stroke="#F2B450" strokeWidth={2.8} strokeLinecap="round"/>
-                <Line x1={-6.2}  y1={-2.9} x2={-22.2} y2={-10.3} stroke="#F2B450" strokeWidth={2.4} strokeLinecap="round"/>
-                <Line x1={-4.2}  y1={-3.3} x2={-16.5} y2={-12.9} stroke="#F2B450" strokeWidth={3.0} strokeLinecap="round"/>
-                <Line x1={-3.2}  y1={-4.1} x2={-10.5} y2={-13.4} stroke="#FFD98A" strokeWidth={2.2} strokeLinecap="round"/>
-                <Line x1={-1.3}  y1={-3.2} x2={-7.4}  y2={-18.2} stroke="#F2B450" strokeWidth={2.7} strokeLinecap="round"/>
-                <Line x1={-0.5}  y1={-3.4} x2={-3.3}  y2={-23.3} stroke="#F2B450" strokeWidth={1.9} strokeLinecap="round"/>
-                <Line x1={0.7}   y1={-5.1} x2={2.2}   y2={-15.8} stroke="#F2B450" strokeWidth={1.7} strokeLinecap="round"/>
-                <Line x1={1.9}   y1={-4.6} x2={8.6}   y2={-21.3} stroke="#F7C97A" strokeWidth={2.7} strokeLinecap="round"/>
-                <Line x1={3.3}   y1={-4.2} x2={13.4}  y2={-17.2} stroke="#F2B450" strokeWidth={2.0} strokeLinecap="round"/>
-                <Line x1={4.7}   y1={-3.4} x2={15.1}  y2={-11.0} stroke="#FFD98A" strokeWidth={2.4} strokeLinecap="round"/>
-                <Line x1={4.7}   y1={-1.7} x2={18.9}  y2={-6.9}  stroke="#FFD98A" strokeWidth={2.2} strokeLinecap="round"/>
-                <Line x1={6.9}   y1={-0.5} x2={16.7}  y2={-1.2}  stroke="#F7C97A" strokeWidth={2.2} strokeLinecap="round"/>
-                <Line x1={3.5}   y1={0.8}  x2={21.8}  y2={4.6}   stroke="#FFD98A" strokeWidth={1.7} strokeLinecap="round"/>
-                <Line x1={2.9}   y1={1.6}  x2={20.6}  y2={11.0}  stroke="#F7C97A" strokeWidth={2.7} strokeLinecap="round"/>
-                <Circle cx={-11.2} cy={-13.7} r={1.8} fill="#F7C97A"/>
-                <Circle cx={-11.7} cy={2.8}   r={1.5} fill="#FFD98A"/>
-                <Circle cx={7.0}   cy={-8.9}  r={2.2} fill="#FFD98A"/>
-                <Circle cx={7.5}   cy={-23.8} r={1.8} fill="#FFD98A"/>
-                <Circle cx={-11.7} cy={-21.8} r={1.1} fill="#F7C97A"/>
-                <Circle cx={-13.6} cy={-19.1} r={1.8} fill="#F2B450"/>
-                <Circle cx={11.4}  cy={-5.9}  r={1.5} fill="#F7C97A"/>
-                <Circle cx={20.7}  cy={3.0}   r={1.3} fill="#F7C97A"/>
-                <Circle cx={5.5}   cy={-28.9} r={2.3} fill="#FFD98A"/>
-                <Circle cx={-15.4} cy={-11.3} r={1.6} fill="#F7C97A"/>
-                <Circle cx={12.7}  cy={4.1}   r={1.4} fill="#F2B450"/>
-                <Circle cx={-8.5}  cy={-5.4}  r={1.7} fill="#F7C97A"/>
-                <Circle cx={7.2}   cy={-15.4} r={1.3} fill="#FFD98A"/>
+                <G transform={`scale(${SPARK_SIZE})`}>
+                  <Line x1={-3.7}  y1={2.1}  x2={-14.9} y2={8.6}  stroke="#F2B450" strokeWidth={2.5} strokeLinecap="round"/>
+                  <Line x1={-6.0}  y1={1.9}  x2={-15.6} y2={5.1}  stroke="#FFD98A" strokeWidth={2.4} strokeLinecap="round"/>
+                  <Line x1={-3.8}  y1={0.3}  x2={-16.2} y2={1.1}  stroke="#F2B450" strokeWidth={2.2} strokeLinecap="round"/>
+                  <Line x1={-3.3}  y1={-0.6} x2={-21.0} y2={-3.7} stroke="#F2B450" strokeWidth={2.8} strokeLinecap="round"/>
+                  <Line x1={-6.2}  y1={-2.9} x2={-22.2} y2={-10.3} stroke="#F2B450" strokeWidth={2.4} strokeLinecap="round"/>
+                  <Line x1={-4.2}  y1={-3.3} x2={-16.5} y2={-12.9} stroke="#F2B450" strokeWidth={3.0} strokeLinecap="round"/>
+                  <Line x1={-3.2}  y1={-4.1} x2={-10.5} y2={-13.4} stroke="#FFD98A" strokeWidth={2.2} strokeLinecap="round"/>
+                  <Line x1={-1.3}  y1={-3.2} x2={-7.4}  y2={-18.2} stroke="#F2B450" strokeWidth={2.7} strokeLinecap="round"/>
+                  <Line x1={-0.5}  y1={-3.4} x2={-3.3}  y2={-23.3} stroke="#F2B450" strokeWidth={1.9} strokeLinecap="round"/>
+                  <Line x1={0.7}   y1={-5.1} x2={2.2}   y2={-15.8} stroke="#F2B450" strokeWidth={1.7} strokeLinecap="round"/>
+                  <Line x1={1.9}   y1={-4.6} x2={8.6}   y2={-21.3} stroke="#F7C97A" strokeWidth={2.7} strokeLinecap="round"/>
+                  <Line x1={3.3}   y1={-4.2} x2={13.4}  y2={-17.2} stroke="#F2B450" strokeWidth={2.0} strokeLinecap="round"/>
+                  <Line x1={4.7}   y1={-3.4} x2={15.1}  y2={-11.0} stroke="#FFD98A" strokeWidth={2.4} strokeLinecap="round"/>
+                  <Line x1={4.7}   y1={-1.7} x2={18.9}  y2={-6.9}  stroke="#FFD98A" strokeWidth={2.2} strokeLinecap="round"/>
+                  <Line x1={6.9}   y1={-0.5} x2={16.7}  y2={-1.2}  stroke="#F7C97A" strokeWidth={2.2} strokeLinecap="round"/>
+                  <Line x1={3.5}   y1={0.8}  x2={21.8}  y2={4.6}   stroke="#FFD98A" strokeWidth={1.7} strokeLinecap="round"/>
+                  <Line x1={2.9}   y1={1.6}  x2={20.6}  y2={11.0}  stroke="#F7C97A" strokeWidth={2.7} strokeLinecap="round"/>
+                  <Circle cx={-11.2} cy={-13.7} r={1.8} fill="#F7C97A"/>
+                  <Circle cx={-11.7} cy={2.8}   r={1.5} fill="#FFD98A"/>
+                  <Circle cx={7.0}   cy={-8.9}  r={2.2} fill="#FFD98A"/>
+                  <Circle cx={7.5}   cy={-23.8} r={1.8} fill="#FFD98A"/>
+                  <Circle cx={-11.7} cy={-21.8} r={1.1} fill="#F7C97A"/>
+                  <Circle cx={-13.6} cy={-19.1} r={1.8} fill="#F2B450"/>
+                  <Circle cx={11.4}  cy={-5.9}  r={1.5} fill="#F7C97A"/>
+                  <Circle cx={20.7}  cy={3.0}   r={1.3} fill="#F7C97A"/>
+                  <Circle cx={5.5}   cy={-28.9} r={2.3} fill="#FFD98A"/>
+                  <Circle cx={-15.4} cy={-11.3} r={1.6} fill="#F7C97A"/>
+                  <Circle cx={12.7}  cy={4.1}   r={1.4} fill="#F2B450"/>
+                  <Circle cx={-8.5}  cy={-5.4}  r={1.7} fill="#F7C97A"/>
+                  <Circle cx={7.2}   cy={-15.4} r={1.3} fill="#FFD98A"/>
+                  {/* Chispas adicionales — rojos cálidos anaranjados */}
+                  <Line x1={-2.1}  y1={3.4}  x2={-18.5} y2={14.2}  stroke="#E8743B" strokeWidth={2.6} strokeLinecap="round"/>
+                  <Line x1={5.8}   y1={2.3}  x2={24.1}  y2={9.7}   stroke="#F2934A" strokeWidth={2.1} strokeLinecap="round"/>
+                  <Line x1={-7.3}  y1={-1.4} x2={-23.8} y2={-5.9}  stroke="#D9542B" strokeWidth={2.3} strokeLinecap="round"/>
+                  <Line x1={2.4}   y1={-6.2} x2={9.8}   y2={-24.1} stroke="#E8743B" strokeWidth={2.0} strokeLinecap="round"/>
+                  <Line x1={-1.8}  y1={-5.5} x2={-12.3} y2={-22.6} stroke="#F2B450" strokeWidth={1.8} strokeLinecap="round"/>
+                  <Line x1={6.3}   y1={-3.8} x2={19.4}  y2={-14.7} stroke="#F2934A" strokeWidth={2.5} strokeLinecap="round"/>
+                  <Line x1={-5.1}  y1={3.9}  x2={-9.7}  y2={16.8}  stroke="#D9542B" strokeWidth={1.9} strokeLinecap="round"/>
+                  <Line x1={4.1}   y1={3.2}  x2={14.9}  y2={13.5}  stroke="#FFD98A" strokeWidth={2.3} strokeLinecap="round"/>
+                  <Circle cx={-18.3} cy={6.2}   r={1.7} fill="#E8743B"/>
+                  <Circle cx={14.8}  cy={-18.9} r={2.0} fill="#F2934A"/>
+                  <Circle cx={-6.4}  cy={-27.1} r={1.4} fill="#D9542B"/>
+                  <Circle cx={22.1}  cy={-8.4}  r={1.6} fill="#E8743B"/>
+                </G>
               </AnimatedG>
             </G>
           </AnimatedG>
+
 
         </G>
       </Svg>
@@ -210,7 +234,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 30,
     fontWeight: '600',
-    letterSpacing: 1.5,
+    letterSpacing: 0.75,
     color: TEXT,
   },
   msg: {

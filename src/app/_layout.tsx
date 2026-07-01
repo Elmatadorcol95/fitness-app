@@ -13,7 +13,7 @@ import { useProfileStore } from '@/store/profile.store';
 import { useWorkoutStore } from '@/store/workout.store';
 import { useGamificationStore } from '@/store/gamification.store';
 
-import { VulcanSplash }   from '@/components/VulcanSplash';
+import { VulcanSplash } from '@/components/VulcanSplash';
 import { AuthFlow }       from '@/components/auth/AuthFlow';
 import { PaywallScreen }  from '@/components/auth/PaywallScreen';
 import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
