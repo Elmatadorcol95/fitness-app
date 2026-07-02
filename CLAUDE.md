@@ -730,6 +730,50 @@ Bucle ~1.3 s sobre fondo #141A17:
       #F2934A, distribuidos en el mismo rango ±24 unidades. Total: 40 elementos.
   ⚠️ DEBUG_SPLASH=true y DEBUG_SPARK_POS=true están ACTIVOS. Cambiar ambos a false
      antes de cualquier build de producción o release.
+- Hecho: sesión 2026-07-02 — Historial + gating de logros/racha (JS, recarga):
+  * FIX historial — ejercicios "Sin completar": `history.tsx` `loadDetails()`
+    ahora filtra `.filter(d => d.sets.some(s => s.completed))` al construir
+    `details`, así un ejercicio solo aparece en el desplegable si tuvo al
+    menos una serie marcada como completada. No cambia cómo se insertan las
+    series en SQLite (eso sigue guardando todas, completadas o no).
+  * REFACTOR — separación logros (100%) vs. racha/contador visible (≥50%):
+    - `session.store.ts` `finishSession()`: además de `hasPR`, ahora devuelve
+      `completedSets` (series reales marcadas completed en toda la sesión) y
+      `plannedSets` (suma de `ex.planSets` del plan original — NO de las
+      series en vivo, para no penalizar sets añadidos con el botón "+ Serie").
+    - `session.tsx` `doFinish()`: calcula `ratio = completedSets/plannedSets`.
+      Solo llama a `recordWorkout(today, { perfect })` si `ratio >= 0.5`
+      (antes era incondicional). `perfect = completedSets >= plannedSets`
+      (>=, no ===, para cubrir series extra completadas por encima del plan).
+      `advanceDayIndex()` sigue siendo incondicional, sin cambios.
+    - `gamification.store.ts`: nuevo campo `perfectWorkouts` (persistido en
+      `gamification_meta` con clave `perfect_workouts`, cargado en
+      `loadGamification()`, reseteado en `resetAll()`). `recordWorkout(date,
+      { perfect })` sigue subiendo `totalWorkouts` con cualquier llamada
+      (contador de esfuerzo visible, StreakWidget/RecapModal) y `streak` con
+      la misma lógica de siempre; `perfectWorkouts` solo sube si
+      `perfect === true`. Los 4 logros por contador (`first_spark`,
+      `apprentice`, `journeyman`, `master`) ahora usan `newPerfectTotal` en
+      vez de `newTotal`. `incandescent` (racha≥7) y `tempered_steel`
+      (racha≥30) sin cambios, siguen usando `newStreak`.
+    - Verificado: `recordWorkout(` solo se llama desde `doFinish()` en todo
+      el proyecto — sin otros call sites que romper.
+  * FIX raíz — historial no se refrescaba tras sesión <50%: causa era que
+    `history.tsx` recargaba `workout_sessions` en un `useEffect` cuya única
+    dependencia real era `totalWorkouts` (de `useGamificationStore`), un
+    acoplamiento accidental que solo funcionaba porque antes de este refactor
+    `recordWorkout()` era incondicional. Reemplazado por
+    `useFocusEffect(useCallback(() => {...}, [isDbReady]))` importado de
+    `expo-router` (NO `@react-navigation/native`, que no está instalado en
+    el proyecto — `expo-router` lo re-exporta y es el patrón que ya usan
+    `useRouter`/`Link`/`Redirect` en el resto del código). El historial ahora
+    se recarga cada vez que la pestaña Historial recibe el foco, sin depender
+    de ningún store externo. `isDbReady` sigue como guard interno.
+  * Auditoría completa del diagnóstico previo (incl. el hallazgo de que
+    `advanceDayIndex()` — incondicional — habría sido una señal de refresco
+    más fiable que nunca se conectó) documentada en
+    `ACHIEVEMENTS_EQUIPMENT_AUDIT.md`, SECCIÓN 6.
+  * Todo el lote es JS puro, sin módulos nativos — solo recarga.
 - Siguiente: FASE 7 — In-app purchase (OBLIGATORIA antes de publicar).
 - Pendiente obligatorio: FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
