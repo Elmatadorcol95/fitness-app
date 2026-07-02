@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { desc, eq, inArray } from 'drizzle-orm';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useFocusEffect } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -11,7 +12,6 @@ import { db } from '@/db';
 import { workoutSessions, sessionSets } from '@/db/schema';
 import { getExerciseName, EXERCISES } from '@/lib/exercises';
 import { muscleLabel } from '@/components/workout/ExerciseCard';
-import { useGamificationStore } from '@/store/gamification.store';
 import { useProfileStore } from '@/store/profile.store';
 import { kgToLb } from '@/lib/units';
 import { BottomTabInset, Spacing } from '@/constants/theme';
@@ -177,7 +177,7 @@ function SessionCard({ session, lang, isImperial }: {
           return acc + kg * reps;
         }, 0);
         return { exerciseId: id, sets, volume };
-      }));
+      }).filter(d => d.sets.some(s => s.completed)));
     } catch {}
     setDetailsLoaded(true);
   }, [session.id, detailsLoaded]);
@@ -244,7 +244,6 @@ export default function HistoryScreen() {
   const { t, i18n } = useTranslation();
   const lang = normLang(i18n.language);
 
-  const totalWorkouts = useGamificationStore(s => s.totalWorkouts);
   const { profile }   = useProfileStore();
   const isImperial    = profile?.units === 'imperial';
   const isDbReady     = useProfileStore(s => s.isDbReady);
@@ -252,60 +251,62 @@ export default function HistoryScreen() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loading, setLoading]   = useState(true);
 
-  useEffect(() => {
-    if (!isDbReady) return;
-    (async () => {
-      setLoading(true);
-      try {
-        const rows = await db
-          .select()
-          .from(workoutSessions)
-          .orderBy(desc(workoutSessions.id))
-          .limit(50);
+  useFocusEffect(
+    useCallback(() => {
+      if (!isDbReady) return;
+      (async () => {
+        setLoading(true);
+        try {
+          const rows = await db
+            .select()
+            .from(workoutSessions)
+            .orderBy(desc(workoutSessions.id))
+            .limit(50);
 
-        if (rows.length === 0) { setSessions([]); return; }
+          if (rows.length === 0) { setSessions([]); return; }
 
-        const ids = rows.map(r => r.id);
-        const setRows = await db
-          .select({
-            sessionId: sessionSets.sessionId,
-            exerciseId: sessionSets.exerciseId,
-            actualReps: sessionSets.actualReps,
-            weightKg:   sessionSets.weightKg,
-            completed:  sessionSets.completed,
-          })
-          .from(sessionSets)
-          .where(inArray(sessionSets.sessionId, ids));
+          const ids = rows.map(r => r.id);
+          const setRows = await db
+            .select({
+              sessionId: sessionSets.sessionId,
+              exerciseId: sessionSets.exerciseId,
+              actualReps: sessionSets.actualReps,
+              weightKg:   sessionSets.weightKg,
+              completed:  sessionSets.completed,
+            })
+            .from(sessionSets)
+            .where(inArray(sessionSets.sessionId, ids));
 
-        const exBySession:  Record<number, Set<string>> = {};
-        const setsBySession:Record<number, number> = {};
-        const volBySession: Record<number, number> = {};
-        for (const r of setRows) {
-          if (!exBySession[r.sessionId]) exBySession[r.sessionId] = new Set();
-          exBySession[r.sessionId].add(r.exerciseId);
-          if (r.completed) {
-            setsBySession[r.sessionId] = (setsBySession[r.sessionId] ?? 0) + 1;
-            const vol = (r.weightKg ?? 0) * (r.actualReps ?? 0);
-            volBySession[r.sessionId] = (volBySession[r.sessionId] ?? 0) + vol;
+          const exBySession:  Record<number, Set<string>> = {};
+          const setsBySession:Record<number, number> = {};
+          const volBySession: Record<number, number> = {};
+          for (const r of setRows) {
+            if (!exBySession[r.sessionId]) exBySession[r.sessionId] = new Set();
+            exBySession[r.sessionId].add(r.exerciseId);
+            if (r.completed) {
+              setsBySession[r.sessionId] = (setsBySession[r.sessionId] ?? 0) + 1;
+              const vol = (r.weightKg ?? 0) * (r.actualReps ?? 0);
+              volBySession[r.sessionId] = (volBySession[r.sessionId] ?? 0) + vol;
+            }
           }
-        }
 
-        setSessions(rows.map(r => ({
-          id:              r.id,
-          date:            r.date,
-          durationSeconds: r.durationSeconds ?? null,
-          exerciseIds:     Array.from(exBySession[r.id] ?? new Set()),
-          setsCompleted:   setsBySession[r.id] ?? 0,
-          totalVolume:     volBySession[r.id] ?? 0,
-        })));
-      } catch (err) {
-        console.error('[History] error:', err);
-        setSessions([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [totalWorkouts, isDbReady]);
+          setSessions(rows.map(r => ({
+            id:              r.id,
+            date:            r.date,
+            durationSeconds: r.durationSeconds ?? null,
+            exerciseIds:     Array.from(exBySession[r.id] ?? new Set()),
+            setsCompleted:   setsBySession[r.id] ?? 0,
+            totalVolume:     volBySession[r.id] ?? 0,
+          })));
+        } catch (err) {
+          console.error('[History] error:', err);
+          setSessions([]);
+        } finally {
+          setLoading(false);
+        }
+      })();
+    }, [isDbReady]),
+  );
 
   return (
     <ThemedView style={styles.root}>

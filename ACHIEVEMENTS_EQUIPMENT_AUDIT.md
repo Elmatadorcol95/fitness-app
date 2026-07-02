@@ -552,3 +552,196 @@ Ambas estrategias son viables dentro de una transacción. La única diferencia
 semántica sería el breve momento entre operaciones donde `isActive = 1` podría
 tener más de una fila (en la estrategia alternativa), pero sin UNIQUE eso es
 inofensivo.
+
+---
+
+## SECCIÓN 6 — Historial no se refresca tras sesión <50%
+
+**Contexto:** tras el refactor de hoy que separó el gating de logros (100%)
+del contador de racha/esfuerzo visible (≥50%), `recordWorkout()` ya no se
+llama para sesiones con menos del 50% de series completadas. Se observó que
+esas sesiones se guardan correctamente en `workout_sessions` pero no aparecen
+de inmediato en la pantalla de Historial; solo aparecen (todas de golpe) en
+cuanto se termina una sesión posterior con ≥50%.
+
+### 6.1 Mecanismo exacto de recarga del historial
+
+Es un `useEffect` estándar de React (no `useFocusEffect`, no listener de
+navegación). El grep de `useFocusEffect` en `history.tsx` y en **todo el
+proyecto** no devuelve resultados — este patrón no se usa en ningún archivo
+de Vulcan.
+
+Verbatim de `history.tsx`, componente `HistoryScreen`, líneas 243-308:
+
+```typescript
+// history.tsx, líneas 243-308 — VERBATIM
+export default function HistoryScreen() {
+  const { t, i18n } = useTranslation();
+  const lang = normLang(i18n.language);
+
+  const totalWorkouts = useGamificationStore(s => s.totalWorkouts);
+  const { profile }   = useProfileStore();
+  const isImperial    = profile?.units === 'imperial';
+  const isDbReady     = useProfileStore(s => s.isDbReady);
+
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [loading, setLoading]   = useState(true);
+
+  useEffect(() => {
+    if (!isDbReady) return;
+    (async () => {
+      setLoading(true);
+      try {
+        const rows = await db
+          .select()
+          .from(workoutSessions)
+          .orderBy(desc(workoutSessions.id))
+          .limit(50);
+
+        if (rows.length === 0) { setSessions([]); return; }
+
+        const ids = rows.map(r => r.id);
+        const setRows = await db
+          .select({
+            sessionId: sessionSets.sessionId,
+            exerciseId: sessionSets.exerciseId,
+            actualReps: sessionSets.actualReps,
+            weightKg:   sessionSets.weightKg,
+            completed:  sessionSets.completed,
+          })
+          .from(sessionSets)
+          .where(inArray(sessionSets.sessionId, ids));
+
+        const exBySession:  Record<number, Set<string>> = {};
+        const setsBySession:Record<number, number> = {};
+        const volBySession: Record<number, number> = {};
+        for (const r of setRows) {
+          if (!exBySession[r.sessionId]) exBySession[r.sessionId] = new Set();
+          exBySession[r.sessionId].add(r.exerciseId);
+          if (r.completed) {
+            setsBySession[r.sessionId] = (setsBySession[r.sessionId] ?? 0) + 1;
+            const vol = (r.weightKg ?? 0) * (r.actualReps ?? 0);
+            volBySession[r.sessionId] = (volBySession[r.sessionId] ?? 0) + vol;
+          }
+        }
+
+        setSessions(rows.map(r => ({
+          id:              r.id,
+          date:            r.date,
+          durationSeconds: r.durationSeconds ?? null,
+          exerciseIds:     Array.from(exBySession[r.id] ?? new Set()),
+          setsCompleted:   setsBySession[r.id] ?? 0,
+          totalVolume:     volBySession[r.id] ?? 0,
+        })));
+      } catch (err) {
+        console.error('[History] error:', err);
+        setSessions([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [totalWorkouts, isDbReady]);
+```
+
+### 6.2 ¿Las dependencias incluyen algo del store de gamificación?
+
+**Sí.** El array de dependencias es `[totalWorkouts, isDbReady]`
+(`history.tsx:308`). `totalWorkouts` es un selector directo de
+`useGamificationStore` (`history.tsx:247`):
+
+```typescript
+const totalWorkouts = useGamificationStore(s => s.totalWorkouts);
+```
+
+`isDbReady` viene de `useProfileStore` y se fija una sola vez al arrancar la
+app (`profile.store.ts:59,64` — `isDbReady: false` inicial, `setDbReady`
+lo pone en `true` tras las migraciones); no cambia por sesión. En la práctica,
+la única dependencia que vuelve a disparar el efecto **después del arranque**
+es `totalWorkouts`.
+
+No hay ninguna suscripción directa a la tabla `workout_sessions` ni a ningún
+store de sesión/entreno (`session.store.ts`, `workout.store.ts`). El array de
+`sessions` en pantalla se recalcula únicamente cuando `totalWorkouts` cambia
+de valor.
+
+### 6.3 ¿`recordWorkout()` se llamaba siempre antes del refactor de hoy?
+
+**Sí, confirmado.** Antes del refactor de hoy, `doFinish()` en `session.tsx`
+llamaba `recordWorkout(today)` de forma incondicional al terminar cualquier
+sesión, sin importar cuántas series se hubieran completado (ver SECCIÓN 1.2
+de este mismo documento, y confirmado también en la conversación de hoy antes
+del cambio). Y dentro de `recordWorkout()`, `newTotal = totalWorkouts + 1`
+también era incondicional (SECCIÓN 1.3) — cualquier sesión finalizada, tuviera
+o no series reales, incrementaba `totalWorkouts` en 1.
+
+**Es más que plausible, es la causa confirmada:** el refresco del historial
+nunca dependió de "¿hay una sesión nueva en la tabla `workout_sessions`?"
+sino de "¿cambió `totalWorkouts`?". Antes de hoy ambas condiciones coincidían
+siempre (toda sesión terminada disparaba las dos), por lo que el acoplamiento
+indebido era invisible. Tras el refactor de hoy, `recordWorkout()` —y por
+tanto el cambio de `totalWorkouts`— solo ocurre si `completedSets / plannedSets
+>= 0.5`. Una sesión <50% queda guardada en SQLite pero no incrementa
+`totalWorkouts`, así que el `useEffect` de `history.tsx` nunca se re-dispara
+para ella. La sesión existe en la base de datos desde el primer momento; el
+problema es puramente de re-renderizado en pantalla, no de persistencia.
+
+Cuando llega una sesión posterior que sí alcanza ≥50%, `totalWorkouts` cambia,
+el efecto se dispara, y como la query siempre trae **las últimas 50 sesiones
+completas** (`orderBy(desc(workoutSessions.id)).limit(50)`, sin filtro
+incremental), aparecen de golpe tanto la sesión nueva como todas las <50%
+pendientes que quedaron "invisibles" mientras tanto.
+
+### 6.4 ¿Existe otro punto que debería disparar el refresco y nunca se conectó?
+
+**Sí.** `doFinish()` llama a `advanceDayIndex()` (`workout.store.ts:196-202`)
+de forma **incondicional**, sin importar el porcentaje de series completadas
+— a diferencia de `recordWorkout()`, esta llamada no tiene ningún guard de
+`ratio >= 0.5`:
+
+```typescript
+// session.tsx — doFinish() actual
+const doFinish = useCallback(async () => {
+  const today = new Date().toISOString().split('T')[0];
+  const { hasPR, completedSets, plannedSets } = await finishSession();
+  if (hasPR) unlockAchievement('personal_record');
+
+  const ratio = plannedSets > 0 ? completedSets / plannedSets : 0;
+  if (ratio >= 0.5) {
+    const perfect = plannedSets > 0 && completedSets === plannedSets;
+    recordWorkout(today, { perfect });
+  }
+
+  await advanceDayIndex();   // ← SIEMPRE se ejecuta, sin guard de ratio
+}, [finishSession, unlockAchievement, recordWorkout, advanceDayIndex]);
+```
+
+```typescript
+// workout.store.ts, líneas 196-202 — VERBATIM
+advanceDayIndex: async () => {
+  const { currentPlan } = get();
+  if (!currentPlan) return;
+  const next = currentPlan.activeDayIndex + 1;
+  await saveActiveDayIndex(next);
+  set({ currentPlan: { ...currentPlan, activeDayIndex: next } });
+},
+```
+
+`currentPlan.activeDayIndex` (en `useWorkoutStore`) cambia en **toda** sesión
+finalizada, sin excepción — es decir, sería una señal más fiable que
+`totalWorkouts` para disparar el refresco del historial, ya que no depende
+del umbral de gamificación.
+
+**Sin embargo, `history.tsx` no importa ni se suscribe a `useWorkoutStore`
+en ningún punto** (grep de `useWorkoutStore` en `history.tsx` → cero
+resultados). Esta señal, aunque existe y es incondicional, nunca se conectó
+al historial.
+
+**Conclusión:** el acoplamiento del refresco del historial a `totalWorkouts`
+no es una regresión introducida hoy — es un acoplamiento indebido preexistente
+que **siempre existió** desde que se implementó `history.tsx` (Lote A+B, ver
+"Estado actual" en `CLAUDE.md`). El refactor de hoy no rompió nada que
+funcionara por diseño; simplemente **dejó de enmascarar** un bug estructural
+que ya estaba ahí: el historial nunca tuvo un mecanismo de refresco propio
+(ni `useFocusEffect`, ni suscripción a `workoutSessions`/`useWorkoutStore`,
+ni polling) — tomó prestado, de forma no intencional, el cambio de estado de
+otro store cuyo propósito es completamente distinto (gamificación).

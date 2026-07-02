@@ -35,13 +35,14 @@ interface GamificationState {
   streak: number;
   longestStreak: number;
   totalWorkouts: number;
+  perfectWorkouts: number;
   lastWorkoutDate: string | null;
   unlockedAchievements: AchievementId[];
   isLoaded: boolean;
   // Cola de logros por celebrar (mostrar uno a uno en el overlay)
   celebrationQueue: AchievementId[];
   loadGamification: () => Promise<void>;
-  recordWorkout: (date: string) => Promise<void>;
+  recordWorkout: (date: string, opts: { perfect: boolean }) => Promise<void>;
   unlockAchievement: (id: AchievementId) => Promise<void>;
   popCelebration: () => void;
   resetAll: () => Promise<void>;
@@ -72,6 +73,7 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
   streak: 0,
   longestStreak: 0,
   totalWorkouts: 0,
+  perfectWorkouts: 0,
   lastWorkoutDate: null,
   unlockedAchievements: [],
   celebrationQueue: [],
@@ -79,10 +81,11 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
 
   loadGamification: async () => {
     if (get().isLoaded) return;
-    const [streak, longest, total, lastDate] = await Promise.all([
+    const [streak, longest, total, perfectTotal, lastDate] = await Promise.all([
       getMeta('streak'),
       getMeta('longest_streak'),
       getMeta('total_workouts'),
+      getMeta('perfect_workouts'),
       getMeta('last_workout_date'),
     ]);
     const rows = await db.select().from(achievementsTable);
@@ -90,15 +93,17 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
       streak: Number(streak ?? 0),
       longestStreak: Number(longest ?? 0),
       totalWorkouts: Number(total ?? 0),
+      perfectWorkouts: Number(perfectTotal ?? 0),
       lastWorkoutDate: lastDate,
       unlockedAchievements: rows.map(r => r.id as AchievementId),
       isLoaded: true,
     });
   },
 
-  recordWorkout: async (date: string) => {
-    const { streak, longestStreak, totalWorkouts, lastWorkoutDate, unlockAchievement } = get();
+  recordWorkout: async (date: string, opts: { perfect: boolean }) => {
+    const { streak, longestStreak, totalWorkouts, perfectWorkouts, lastWorkoutDate, unlockAchievement } = get();
     const newTotal = totalWorkouts + 1;
+    const newPerfectTotal = opts.perfect ? perfectWorkouts + 1 : perfectWorkouts;
 
     let newStreak: number;
     if (!lastWorkoutDate) {
@@ -117,15 +122,16 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
       setMeta('streak', String(newStreak)),
       setMeta('longest_streak', String(newLongest)),
       setMeta('total_workouts', String(newTotal)),
+      setMeta('perfect_workouts', String(newPerfectTotal)),
       setMeta('last_workout_date', date),
     ]);
-    set({ streak: newStreak, longestStreak: newLongest, totalWorkouts: newTotal, lastWorkoutDate: date });
+    set({ streak: newStreak, longestStreak: newLongest, totalWorkouts: newTotal, perfectWorkouts: newPerfectTotal, lastWorkoutDate: date });
 
     const unlocked = new Set(get().unlockedAchievements);
-    if (newTotal >= 1)  await autoUnlock('first_spark',    unlocked, unlockAchievement);
-    if (newTotal >= 10) await autoUnlock('apprentice',     unlocked, unlockAchievement);
-    if (newTotal >= 25) await autoUnlock('journeyman',     unlocked, unlockAchievement);
-    if (newTotal >= 50) await autoUnlock('master',         unlocked, unlockAchievement);
+    if (newPerfectTotal >= 1)  await autoUnlock('first_spark',  unlocked, unlockAchievement);
+    if (newPerfectTotal >= 10) await autoUnlock('apprentice',   unlocked, unlockAchievement);
+    if (newPerfectTotal >= 25) await autoUnlock('journeyman',   unlocked, unlockAchievement);
+    if (newPerfectTotal >= 50) await autoUnlock('master',       unlocked, unlockAchievement);
     if (newStreak >= 7)  await autoUnlock('incandescent',  unlocked, unlockAchievement);
     if (newStreak >= 30) await autoUnlock('tempered_steel', unlocked, unlockAchievement);
   },
@@ -156,6 +162,6 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
   resetAll: async () => {
     await db.delete(achievementsTable);
     await db.delete(gamificationMeta);
-    set({ streak: 0, longestStreak: 0, totalWorkouts: 0, lastWorkoutDate: null, unlockedAchievements: [], celebrationQueue: [], isLoaded: false });
+    set({ streak: 0, longestStreak: 0, totalWorkouts: 0, perfectWorkouts: 0, lastWorkoutDate: null, unlockedAchievements: [], celebrationQueue: [], isLoaded: false });
   },
 }));

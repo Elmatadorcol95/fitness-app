@@ -56,7 +56,7 @@ interface SessionStore {
   startRestTimer: (seconds: number) => void;
   stopRestTimer: () => void;
   tickRestTimer: () => void;
-  finishSession: () => Promise<{ hasPR: boolean }>;
+  finishSession: () => Promise<{ hasPR: boolean; completedSets: number; plannedSets: number }>;
   cancelSession: () => void;
   replaceExercise: (exIdx: number, newExerciseId: string) => void;
 }
@@ -475,11 +475,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     } catch (err) {
       console.error('[Session] finishSession — ERROR al guardar sesión:', err);
       set({ ...EMPTY_STATE });
-      return { hasPR: false };
+      return { hasPR: false, completedSets: 0, plannedSets: 0 };
     }
 
     const [session] = await db.select().from(workoutSessions).orderBy(desc(workoutSessions.id)).limit(1);
-    if (!session) { set({ ...EMPTY_STATE }); return { hasPR: false }; }
+    if (!session) { set({ ...EMPTY_STATE }); return { hasPR: false, completedSets: 0, plannedSets: 0 }; }
 
     console.log('[Session] finishSession — sesión guardada, id:', session.id);
 
@@ -517,8 +517,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       } catch {}
     }
 
+    const plannedSets = exercises.reduce((acc, ex) => acc + ex.planSets, 0);
+    const completedSets = exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.completed).length, 0);
+
     set({ ...EMPTY_STATE });
-    return { hasPR };
+    return { hasPR, completedSets, plannedSets };
   },
 
   setTrainingContext: (ctx) => set({ trainingContext: ctx }),

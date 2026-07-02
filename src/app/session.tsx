@@ -270,9 +270,15 @@ export default function SessionScreen() {
 
   const doFinish = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0];
-    const { hasPR } = await finishSession();
+    const { hasPR, completedSets, plannedSets } = await finishSession();
     if (hasPR) unlockAchievement('personal_record');
-    recordWorkout(today);
+
+    const ratio = plannedSets > 0 ? completedSets / plannedSets : 0;
+    if (ratio >= 0.5) {
+      const perfect = plannedSets > 0 && completedSets >= plannedSets;
+      recordWorkout(today, { perfect });
+    }
+
     await advanceDayIndex();
   }, [finishSession, unlockAchievement, recordWorkout, advanceDayIndex]);
 
