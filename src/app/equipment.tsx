@@ -16,6 +16,10 @@ import { ThemedView } from '@/components/themed-view';
 import { useProfileStore, type Location } from '@/store/profile.store';
 import { useWorkoutStore } from '@/store/workout.store';
 import { Spacing } from '@/constants/theme';
+import { type EquipmentKey } from '@/lib/exercises';
+import { getPullCoverage } from '@/lib/pullBicepCoverage';
+
+const AMBER = '#F2B450';
 
 const LOCATIONS: Location[] = ['home', 'gym', 'both'];
 
@@ -61,6 +65,12 @@ export default function EquipmentScreen() {
   const pendingProfile = useRef<typeof profile>(null);
 
   const isGym = location === 'gym';
+  const { hasBackVariety, hasBicepWork } = getPullCoverage(equipment as EquipmentKey[]);
+  const pullWarningKey: string | null =
+    isGym || (hasBackVariety && hasBicepWork)   ? null :
+    !hasBackVariety && !hasBicepWork            ? 'onboarding.location.noBackVarietyOrBicepNote' :
+    !hasBackVariety                             ? 'onboarding.location.noBackVarietyNote' :
+    'onboarding.location.noBicepWorkNote';
 
   const handleLocationChange = (loc: Location) => {
     setLocation(loc);
@@ -165,6 +175,17 @@ export default function EquipmentScreen() {
                   );
                 })}
               </View>
+
+              {/* Aviso: poca variedad de espalda o sin trabajo de bíceps con el equipamiento actual */}
+              {pullWarningKey && (
+                <View style={styles.noPullBanner}>
+                  <Ionicons name="information-circle-outline" size={15} color={AMBER} />
+                  <ThemedText style={styles.noPullBannerText}>
+                    {t(pullWarningKey)}
+                    {location === 'both' ? ' ' + t('onboarding.location.homeDaysQualifier') : ''}
+                  </ThemedText>
+                </View>
+              )}
             </>
           )}
         </ScrollView>
@@ -257,6 +278,14 @@ const styles = StyleSheet.create({
   },
   equipChipActive: { borderColor: '#3FBF7F44' },
   equipText: { fontSize: 13 },
+  noPullBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
+    backgroundColor: AMBER + '14', borderRadius: Spacing.two,
+    borderLeftWidth: 3, borderLeftColor: AMBER,
+    paddingHorizontal: Spacing.three, paddingVertical: Spacing.two,
+    marginTop: Spacing.one,
+  },
+  noPullBannerText: { flex: 1, fontSize: 12, color: AMBER, lineHeight: 18 },
   footer: {
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.three,

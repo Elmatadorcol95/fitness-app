@@ -15,7 +15,7 @@ import { useSessionStore }     from '@/store/session.store';
 import { useWorkoutStore }     from '@/store/workout.store';
 import { useGamificationStore } from '@/store/gamification.store';
 import { useProfileStore }     from '@/store/profile.store';
-import { getExerciseName, EXERCISES, type ExerciseCategory } from '@/lib/exercises';
+import { getExerciseName, EXERCISES, type ExerciseCategory, type Exercise } from '@/lib/exercises';
 import { muscleLabel, equipmentLabel } from '@/components/workout/ExerciseCard';
 import { Spacing } from '@/constants/theme';
 
@@ -177,13 +177,13 @@ export default function SessionScreen() {
 
   const {
     isActive, startTime, currentExerciseIdx, exercises,
-    restTimerSeconds, restTimerRunning, trainingContext,
+    restTimerSeconds, restTimerRunning, trainingContext, planDayId,
     setCurrentExercise, updateSetField, completeSet,
     addSet, removeSet, updateNote, adjustRest, startRestTimer, stopRestTimer,
     tickRestTimer, finishSession, cancelSession, replaceExercise,
   } = useSessionStore();
 
-  const { advanceDayIndex }           = useWorkoutStore();
+  const { currentPlan, advanceDayIndex } = useWorkoutStore();
   const { recordWorkout, unlockAchievement } = useGamificationStore();
   const { profile }           = useProfileStore();
   const equipment = parseEquipment(profile?.equipment);
@@ -221,6 +221,22 @@ export default function SessionScreen() {
   const musclesText = exercise
     ? exercise.primaryMuscles.slice(0, 3).map(m => muscleLabel(m, lang)).join(' · ')
     : '';
+
+  // ── Aviso: sesión "en casa" con poca variedad de espalda o sin bíceps ──────────
+  const isHomeContext  = trainingContext === 'home';
+  const sessionDayType = currentPlan?.days.find(d => d.dbId === planDayId)?.dayType ?? null;
+  const isPullRelevant = sessionDayType === 'pull' || sessionDayType === 'upper';
+  const dayExercises = exercises
+    .map(ex => EXERCISES.find(e => e.id === ex.exerciseId))
+    .filter((e): e is Exercise => e !== undefined);
+
+  const hasBackVariety = !isHomeContext || !isPullRelevant || dayExercises.some(e => e.category === 'pull' && e.isCompound);
+  const hasBicepWork   = !isHomeContext || !isPullRelevant || dayExercises.some(e => e.primaryMuscles.includes('biceps'));
+  const pullWarningKey: string | null =
+    hasBackVariety && hasBicepWork    ? null :
+    !hasBackVariety && !hasBicepWork  ? 'workout.today.noBackVarietyOrBicep' :
+    !hasBackVariety                   ? 'workout.today.noBackVariety' :
+    'workout.today.noBicepWork';
 
   // Log de diagnóstico al montar
   useEffect(() => {
@@ -354,6 +370,16 @@ export default function SessionScreen() {
                   {t(`workout.session.where${trainingContext === 'home' ? 'Home' : 'Gym'}`)}
                 </ThemedText>
               </View>
+            </View>
+          )}
+
+          {/* ── Aviso: poca variedad de espalda o sin bíceps con el equipamiento de casa ── */}
+          {pullWarningKey && (
+            <View style={styles.pullWarningBanner}>
+              <Ionicons name="information-circle-outline" size={15} color={AMBER} />
+              <ThemedText style={styles.pullWarningText}>
+                {t(pullWarningKey)}
+              </ThemedText>
             </View>
           )}
 
@@ -826,6 +852,16 @@ const styles = StyleSheet.create({
     borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3,
   },
   contextBadgeText: { fontSize: 11, color: MUTED, letterSpacing: 0.3 },
+
+  // Pull/bicep coverage warning
+  pullWarningBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
+    backgroundColor: AMBER + '14', borderRadius: Spacing.two,
+    borderLeftWidth: 3, borderLeftColor: AMBER,
+    paddingHorizontal: Spacing.three, paddingVertical: Spacing.two,
+    marginHorizontal: Spacing.three, marginBottom: Spacing.two,
+  },
+  pullWarningText: { flex: 1, fontSize: 12, color: AMBER, lineHeight: 18 },
 
   // Carousel
   carouselList: { flexShrink: 0 },

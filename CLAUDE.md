@@ -774,6 +774,61 @@ Bucle ~1.3 s sobre fondo #141A17:
     más fiable que nunca se conectó) documentada en
     `ACHIEVEMENTS_EQUIPMENT_AUDIT.md`, SECCIÓN 6.
   * Todo el lote es JS puro, sin módulos nativos — solo recarga.
+- Hecho: sesión 2026-07-03 — Robustez plan + gating de logros/racha (JS, recarga):
+  * `generateAndSavePlan()` (`workout.store.ts`) reordenado para no dejar nunca
+    al usuario sin plan activo: genera el plan en memoria antes de tocar la
+    DB; inserta el plan nuevo SIN desactivar los viejos; si falla cualquier
+    parte de la inserción, limpia solo lo que el propio intento nuevo llegó a
+    crear (con `generatedAt` como respaldo si el `select` posterior al insert
+    fallara y `savedPlan` quedara `null`) y relanza el error; solo desactiva
+    los planes anteriores (`ne(workoutPlans.id, savedPlan.id)`) tras verificar
+    éxito completo. `equipment.tsx` ya no traga el error de regeneración en
+    silencio — lo loguea con `console.error`.
+- Hecho: sesión 2026-07-03 — Aviso de cobertura espalda/bíceps por equipamiento
+  (JS, recarga):
+  * Bug de cobertura E-3 corregido: `handleStart()` (`training.tsx`) ahora
+    pasa `context='home'` también para `profile.location==='home'` puro (antes
+    solo lo hacía para `'both'`), activando el filtro en vivo para todos los
+    usuarios que entrenan en casa.
+  * Nuevo `src/lib/pullBicepCoverage.ts`: `getBackEnablingKeys()` /
+    `getBicepEnablingKeys()` / `getPullCoverage()` — derivan dinámicamente del
+    catálogo (`EXERCISES`) qué `EquipmentKey` destraban ejercicios compuestos
+    de categoría `pull` o ejercicios que trabajan bíceps. Sin listas
+    hardcodeadas.
+  * Banners ámbar (icono `information-circle-outline`, fondo `AMBER+'14'`,
+    borde izquierdo ámbar) con 3 variantes de mensaje según falte espalda,
+    bíceps o ambos, en 4 puntos:
+    - `StepLocation.tsx` (onboarding, paso equipamiento) y `equipment.tsx`
+      (Ajustes): heurística estática sobre `profile.equipment`, con cláusula
+      extra "esto solo afecta tus días en casa" cuando `location==='both'`.
+    - `training.tsx` (día activo del ciclo): heurística exacta cruzando
+      `today.exercises` contra el catálogo (`category==='pull' && isCompound`,
+      `primaryMuscles.includes('biceps')`), solo para `dayType` `pull`/`upper`.
+    - `session.tsx` (sesión en vivo): misma heurística que `training.tsx`
+      pero sobre los ejercicios YA sustituidos por el filtro E-3, y solo
+      cuando `trainingContext==='home'` (cruza `planDayId` contra
+      `useWorkoutStore().currentPlan.days` para obtener el `dayType`, ya que
+      `ExerciseState` no lo guarda).
+    - Claves i18n nuevas es/en/fr: `onboarding.location.noBackVarietyNote` /
+      `noBicepWorkNote` / `noBackVarietyOrBicepNote` / `homeDaysQualifier`,
+      y `workout.today.noBackVariety` / `noBicepWork` / `noBackVarietyOrBicep`
+      / `homeEmptyDay`.
+  * FIX de fuga real (no solo aviso): en `doStartSession()` (`training.tsx`),
+    cuando un ejercicio no es realizable en casa y `getAlternatives()` no
+    encuentra ningún sustituto (ej. "Curl de bíceps" con `equipment:
+    ['bodyweight']` — no existe ejercicio de bíceps sin equipo en el
+    catálogo), el ejercicio ahora se **excluye** del día (antes se dejaba
+    pasar sin cambios con solo una nota de texto — ver
+    `EQUIPMENT_LEAK_AUDIT.md`). Eliminados el mecanismo `noAltIndices` +
+    `updateNote(...)` y la clave i18n `workout.session.noHomeAlt` (sin otros
+    usos en el proyecto). Salvaguarda añadida: si tras filtrar un día queda
+    con 0 ejercicios, no se arranca la sesión — se muestra
+    `workout.today.homeEmptyDay` en el diálogo de error ya existente de
+    `training.tsx` y el usuario se queda en esa pantalla en vez de entrar a
+    una sesión en blanco (antes se habría quedado atascado en un
+    "Cargando…" sin salida, `session.tsx:330-338`).
+  * Documentado en `E3_HOME_FILTER_AUDIT.md`, `PULL_EQUIPMENT_WARNING_AUDIT.md`
+    y `EQUIPMENT_LEAK_AUDIT.md` (auditorías de solo lectura, en la raíz).
 - Siguiente: FASE 7 — In-app purchase (OBLIGATORIA antes de publicar).
 - Pendiente obligatorio: FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.

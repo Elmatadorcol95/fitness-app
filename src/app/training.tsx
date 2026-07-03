@@ -16,7 +16,7 @@ import { useWorkoutStore, type StoredPlanDay } from '@/store/workout.store';
 import { useSessionStore } from '@/store/session.store';
 import { useProfileStore } from '@/store/profile.store';
 import { BottomTabInset, Spacing } from '@/constants/theme';
-import { getExerciseName, getAlternatives, canDoAtHome, EXERCISES } from '@/lib/exercises';
+import { getExerciseName, getAlternatives, canDoAtHome, EXERCISES, type Exercise } from '@/lib/exercises';
 import { getExerciseTargetsForPlan } from '@/lib/progression';
 import type { PlannedExercise } from '@/lib/plan-generator';
 
@@ -110,7 +110,6 @@ export default function TrainingScreen() {
   } = useWorkoutStore();
   const startSession       = useSessionStore(s => s.startSession);
   const setTrainingContext = useSessionStore(s => s.setTrainingContext);
-  const updateNote         = useSessionStore(s => s.updateNote);
 
   const [expandedOtherDay, setExpandedOtherDay] = useState<number | null>(null);
   const [changeModal, setChangeModal] = useState({
@@ -154,7 +153,6 @@ export default function TrainingScreen() {
     // ── E-3: Filtro ligero para contexto de casa ─────────────────────────────
     // Solo si el usuario eligió "En casa" en el Alert de E-2.
     // Para gym o sin contexto, el plan queda intacto.
-    const noAltIndices: number[] = [];
     if (context === 'home') {
       const homeEquipment = parseEquipment(profile?.equipment);
 
@@ -167,41 +165,53 @@ export default function TrainingScreen() {
         }
       }
 
-      const filteredExercises = sessionDay.exercises.map((ex, i) => {
-        if (canDoAtHome(ex.exerciseId, homeEquipment)) return ex;
+      const filteredExercises = sessionDay.exercises
+        .map(ex => {
+          if (canDoAtHome(ex.exerciseId, homeEquipment)) return ex;
 
-        const alts = getAlternatives(ex.exerciseId, homeEquipment, false);
-        if (alts.length === 0) {
-          noAltIndices.push(i);
-          return ex;
-        }
-
-        // 1. Mejor alternativa con menos de 2 usos (por solapamiento muscular)
-        let chosen = alts.find(a => (usageCount.get(a.id) ?? 0) < 2);
-
-        // 2. Búsqueda ampliada: cualquier ejercicio de casa de la misma categoría
-        //    con menos de 2 usos (evita una 3.ª repetición forzada)
-        if (!chosen) {
-          const srcEx = EXERCISES.find(e => e.id === ex.exerciseId);
-          if (srcEx) {
-            const broader = EXERCISES.filter(e =>
-              e.id !== ex.exerciseId &&
-              e.category === srcEx.category &&
-              (e.equipment.length === 0 || e.equipment.every(eq => homeEquipment.includes(eq))),
-            );
-            chosen = broader.find(a => (usageCount.get(a.id) ?? 0) < 2);
+          const alts = getAlternatives(ex.exerciseId, homeEquipment, false);
+          if (alts.length === 0) {
+            // Sin ninguna alternativa bodyweight/casa válida — se excluye del
+            // día en vez de dejar pasar un ejercicio que requiere equipo que
+            // el usuario no tiene (ver EQUIPMENT_LEAK_AUDIT.md).
+            return null;
           }
-        }
 
-        // 3. Último recurso: la menos usada entre las alternativas primarias
-        const winner = chosen ?? alts.reduce((min, a) =>
-          (usageCount.get(a.id) ?? 0) < (usageCount.get(min.id) ?? 0) ? a : min,
-        );
+          // 1. Mejor alternativa con menos de 2 usos (por solapamiento muscular)
+          let chosen = alts.find(a => (usageCount.get(a.id) ?? 0) < 2);
 
-        usageCount.set(winner.id, (usageCount.get(winner.id) ?? 0) + 1);
-        return { ...ex, exerciseId: winner.id, isCompound: winner.isCompound };
-      });
+          // 2. Búsqueda ampliada: cualquier ejercicio de casa de la misma categoría
+          //    con menos de 2 usos (evita una 3.ª repetición forzada)
+          if (!chosen) {
+            const srcEx = EXERCISES.find(e => e.id === ex.exerciseId);
+            if (srcEx) {
+              const broader = EXERCISES.filter(e =>
+                e.id !== ex.exerciseId &&
+                e.category === srcEx.category &&
+                (e.equipment.length === 0 || e.equipment.every(eq => homeEquipment.includes(eq))),
+              );
+              chosen = broader.find(a => (usageCount.get(a.id) ?? 0) < 2);
+            }
+          }
+
+          // 3. Último recurso: la menos usada entre las alternativas primarias
+          const winner = chosen ?? alts.reduce((min, a) =>
+            (usageCount.get(a.id) ?? 0) < (usageCount.get(min.id) ?? 0) ? a : min,
+          );
+
+          usageCount.set(winner.id, (usageCount.get(winner.id) ?? 0) + 1);
+          return { ...ex, exerciseId: winner.id, isCompound: winner.isCompound };
+        })
+        .filter((ex): ex is PlannedExercise => ex !== null);
       sessionDay = { ...sessionDay, exercises: filteredExercises };
+    }
+
+    // Salvaguarda: si tras filtrar no queda ningún ejercicio realizable en casa,
+    // no arrancamos la sesión (se vería como una pantalla de "Cargando…" sin
+    // salida) — avisamos y el usuario se queda en esta pantalla.
+    if (sessionDay.exercises.length === 0) {
+      setStartError(t('workout.today.homeEmptyDay'));
+      return;
     }
 
     console.log('[Training] doStartSession — context:', context, 'day:', sessionDay.dayType);
@@ -209,14 +219,7 @@ export default function TrainingScreen() {
     setIsStarting(true);
     try {
       await startSession(currentPlan.id, sessionDay);
-      // Marcar los ejercicios sin alternativa en casa con una nota visible
-      if (noAltIndices.length > 0) {
-        const noteText = t('workout.session.noHomeAlt');
-        for (const idx of noAltIndices) {
-          updateNote(idx, noteText);
-        }
-      }
-      console.log('[Training] startSession OK — swaps:', sessionDay.exercises.length - noAltIndices.length, 'no-alt:', noAltIndices.length);
+      console.log('[Training] startSession OK — exercises:', sessionDay.exercises.length);
     } catch (err) {
       console.error('[Training] startSession ERROR:', err);
       setStartError(String(err instanceof Error ? err.message : err));
@@ -229,6 +232,8 @@ export default function TrainingScreen() {
     if (!currentPlan) return;
     if (profile?.location === 'both') {
       setWhereOpen(true);
+    } else if (profile?.location === 'home') {
+      void doStartSession('home');
     } else {
       void doStartSession(null);
     }
@@ -274,6 +279,20 @@ export default function TrainingScreen() {
   const otherDays  = currentPlan.days.filter((_, i) => i !== activeIdx);
   const estMin     = estimateDuration(today.exercises);
   const totalSets_ = countSets(today.exercises);
+  const isPullRelevantDay = today.dayType === 'pull' || today.dayType === 'upper';
+  const dayExercises = today.exercises
+    .map(ex => EXERCISES.find(e => e.id === ex.exerciseId))
+    .filter((e): e is Exercise => e !== undefined);
+
+  // Fuera de días pull/upper ninguna de las dos condiciones aplica (siempre "true" = sin aviso).
+  const hasBackVariety = !isPullRelevantDay || dayExercises.some(e => e.category === 'pull' && e.isCompound);
+  const hasBicepWork   = !isPullRelevantDay || dayExercises.some(e => e.primaryMuscles.includes('biceps'));
+
+  const pullWarningKey: string | null =
+    hasBackVariety && hasBicepWork    ? null :
+    !hasBackVariety && !hasBicepWork  ? 'workout.today.noBackVarietyOrBicep' :
+    !hasBackVariety                   ? 'workout.today.noBackVariety' :
+    'workout.today.noBicepWork';
 
   return (
     <ThemedView style={styles.root}>
@@ -320,6 +339,16 @@ export default function TrainingScreen() {
               </View>
             </View>
           </ThemedView>
+
+          {/* ── Aviso: día pull/upper con poca variedad de espalda o sin bíceps ── */}
+          {pullWarningKey && (
+            <View style={styles.noPullBanner}>
+              <Ionicons name="information-circle-outline" size={15} color={AMBER} />
+              <ThemedText style={styles.noPullBannerText}>
+                {t(pullWarningKey)}
+              </ThemedText>
+            </View>
+          )}
 
           {/* ── Tarjetas de ejercicios ── */}
           {today.exercises.map((ex, i) => (
@@ -496,6 +525,16 @@ const styles = StyleSheet.create({
   dayStats:   { flexDirection: 'row', gap: Spacing.two },
   statChip:   { flexDirection: 'row', alignItems: 'center', gap: 4 },
   statChipText: { fontSize: 13, color: AMBER },
+
+  // Aviso: día sin ejercicios compuestos de pull
+  noPullBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
+    backgroundColor: AMBER + '14', borderRadius: Spacing.two,
+    borderLeftWidth: 3, borderLeftColor: AMBER,
+    paddingHorizontal: Spacing.three, paddingVertical: Spacing.two,
+    marginTop: Spacing.two,
+  },
+  noPullBannerText: { flex: 1, fontSize: 12, color: AMBER, lineHeight: 18 },
 
   // Iniciar
   startBtn: {

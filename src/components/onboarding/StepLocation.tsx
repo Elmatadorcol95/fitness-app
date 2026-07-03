@@ -1,9 +1,14 @@
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useProfileStore, type Location } from '@/store/profile.store';
+import { type EquipmentKey } from '@/lib/exercises';
+import { getPullCoverage } from '@/lib/pullBicepCoverage';
+
+const AMBER = '#F2B450';
 
 const LOCATIONS: Location[] = ['home', 'gym', 'both'];
 
@@ -35,6 +40,12 @@ export function StepLocation() {
   const { t } = useTranslation();
   const { draft, updateDraft } = useProfileStore();
   const isGym = draft.location === 'gym';
+  const { hasBackVariety, hasBicepWork } = getPullCoverage(draft.equipment as EquipmentKey[]);
+  const pullWarningKey: string | null =
+    isGym || (hasBackVariety && hasBicepWork)   ? null :
+    !hasBackVariety && !hasBicepWork            ? 'onboarding.location.noBackVarietyOrBicepNote' :
+    !hasBackVariety                             ? 'onboarding.location.noBackVarietyNote' :
+    'onboarding.location.noBicepWorkNote';
 
   const handleLocationChange = (loc: Location) => {
     // Al cambiar a gym, borramos el equipamiento (no aplica)
@@ -50,7 +61,7 @@ export function StepLocation() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.container}>
       <ThemedText type="title" style={styles.title}>
         {t('onboarding.location.title')}
       </ThemedText>
@@ -109,14 +120,25 @@ export function StepLocation() {
               );
             })}
           </View>
+
+          {/* Aviso: poca variedad de espalda o sin trabajo de bíceps con el equipamiento actual */}
+          {pullWarningKey && (
+            <View style={styles.noPullBanner}>
+              <Ionicons name="information-circle-outline" size={15} color={AMBER} />
+              <ThemedText style={styles.noPullBannerText}>
+                {t(pullWarningKey)}
+                {draft.location === 'both' ? ' ' + t('onboarding.location.homeDaysQualifier') : ''}
+              </ThemedText>
+            </View>
+          )}
         </>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { gap: Spacing.two },
+  container: { gap: Spacing.two, paddingBottom: Spacing.four },
   title: { textAlign: 'center', marginBottom: Spacing.two },
   locationRow: { flexDirection: 'row', gap: Spacing.two },
   locationChip: {
@@ -146,4 +168,12 @@ const styles = StyleSheet.create({
   },
   equipChipActive: { borderColor: '#3FBF7F44' },
   equipText: { fontSize: 13 },
+  noPullBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
+    backgroundColor: AMBER + '14', borderRadius: Spacing.two,
+    borderLeftWidth: 3, borderLeftColor: AMBER,
+    paddingHorizontal: Spacing.three, paddingVertical: Spacing.two,
+    marginTop: Spacing.one,
+  },
+  noPullBannerText: { flex: 1, fontSize: 12, color: AMBER, lineHeight: 18 },
 });

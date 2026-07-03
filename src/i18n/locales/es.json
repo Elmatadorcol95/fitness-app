@@ -311,6 +311,10 @@
       "gym": "Gimnasio",
       "both": "Ambos",
       "gymNote": "✓ Equipamiento completo del gimnasio disponible. ¡Perfecto!",
+      "noBackVarietyNote": "Sin barra de dominadas, TRX o bandas de resistencia, tu plan tendrá menos variedad de ejercicios de espalda.",
+      "noBicepWorkNote": "Sin mancuernas, barra con discos o bandas de resistencia, tu plan no incluirá ejercicios de bíceps.",
+      "noBackVarietyOrBicepNote": "Sin barra de dominadas, TRX, mancuernas, barra con discos o bandas de resistencia, tu plan tendrá menos variedad de espalda y sin ejercicios de bíceps.",
+      "homeDaysQualifier": "Esto solo afecta a tus días de entreno en casa.",
       "equipment": "¿Con qué equipamiento cuentas?",
       "equipmentItems": {
         "bodyweight": "Peso corporal",
@@ -371,6 +375,12 @@
       "prefix": "Hoy te toca:",
       "view": "Ver →"
     },
+    "today": {
+      "noBackVariety": "Este día tiene poca variedad de ejercicios de espalda por falta de equipamiento (barra de dominadas, TRX o bandas de resistencia).",
+      "noBicepWork": "Este día no incluye ejercicios de bíceps por falta de equipamiento (mancuernas, barra con discos o bandas de resistencia).",
+      "noBackVarietyOrBicep": "Este día tiene poca variedad de espalda y no incluye ejercicios de bíceps por falta de equipamiento.",
+      "homeEmptyDay": "Ninguno de los ejercicios de este día tiene equivalente con tu equipamiento en casa. Añade equipamiento o entrena en el gimnasio para completar este día."
+    },
     "session": {
       "guide": "Guía",
       "swap": "Intercambiar",
@@ -403,8 +413,7 @@
       "whereTitle": "¿Dónde entrenas hoy?",
       "whereMsg": "El plan se adaptará al equipamiento disponible.",
       "whereGym": "Gimnasio",
-      "whereHome": "En casa",
-      "noHomeAlt": "Sin equivalente en casa con tu equipamiento"
+      "whereHome": "En casa"
     }
   },
   "equipment": {

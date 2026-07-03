@@ -311,6 +311,10 @@
       "gym": "Gym",
       "both": "Both",
       "gymNote": "✓ Full gym equipment available. Perfect!",
+      "noBackVarietyNote": "Without a pull-up bar, TRX, or resistance bands, your plan will have less variety in back exercises.",
+      "noBicepWorkNote": "Without dumbbells, barbell plates, or resistance bands, your plan won't include biceps exercises.",
+      "noBackVarietyOrBicepNote": "Without a pull-up bar, TRX, dumbbells, barbell plates, or resistance bands, your plan will have less back variety and no biceps exercises.",
+      "homeDaysQualifier": "This only affects your home training days.",
       "equipment": "What equipment do you have?",
       "equipmentItems": {
         "bodyweight": "Bodyweight",
@@ -371,6 +375,12 @@
       "prefix": "Today's workout:",
       "view": "View →"
     },
+    "today": {
+      "noBackVariety": "This day has limited back exercise variety due to missing equipment (pull-up bar, TRX, or resistance bands).",
+      "noBicepWork": "This day doesn't include biceps exercises due to missing equipment (dumbbells, barbell plates, or resistance bands).",
+      "noBackVarietyOrBicep": "This day has limited back variety and no biceps exercises due to missing equipment.",
+      "homeEmptyDay": "None of this day's exercises have a home equivalent with your equipment. Add equipment or train at the gym to complete this day."
+    },
     "session": {
       "guide": "Guide",
       "swap": "Swap",
@@ -403,8 +413,7 @@
       "whereTitle": "Where are you training today?",
       "whereMsg": "The plan will adapt to your available equipment.",
       "whereGym": "Gym",
-      "whereHome": "Home",
-      "noHomeAlt": "No home alternative for your equipment"
+      "whereHome": "Home"
     }
   },
   "equipment": {
