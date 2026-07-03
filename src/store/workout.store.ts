@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, ne } from 'drizzle-orm';
 import { db } from '@/db';
 import { gamificationMeta, planDays, workoutPlans } from '@/db/schema';
 import { generatePlan, type PlannedExercise, type DayType } from '@/lib/plan-generator';
@@ -107,40 +107,68 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   generateAndSavePlan: async (profile: Profile) => {
     set({ isGenerating: true });
     try {
-      await db.update(workoutPlans).set({ isActive: 0 });
-
+      // Genera el plan en memoria ANTES de tocar la DB. Si falla aquí, no
+      // hay nada que limpiar: los planes existentes siguen intactos.
       const plan = generatePlan(profile);
 
-      await db.insert(workoutPlans).values({
-        goalPrimary:       plan.goalPrimary,
-        goalSecondary:     plan.goalSecondary,
-        daysPerWeek:       plan.daysPerWeek,
-        minutesPerSession: plan.minutesPerSession,
-        isActive:          1,
-        generatedAt:       plan.generatedAt,
-      });
+      let savedPlan: typeof workoutPlans.$inferSelect | null = null;
+      let savedDayRows: (typeof planDays.$inferSelect)[] = [];
 
-      const [savedPlan] = await db
-        .select()
-        .from(workoutPlans)
-        .where(eq(workoutPlans.isActive, 1))
-        .orderBy(desc(workoutPlans.id))
-        .limit(1);
-
-      for (const day of plan.days) {
-        await db.insert(planDays).values({
-          planId:    savedPlan.id,
-          dayIndex:  day.dayIndex,
-          dayType:   day.dayType,
-          exercises: JSON.stringify(day.exercises),
+      try {
+        await db.insert(workoutPlans).values({
+          goalPrimary:       plan.goalPrimary,
+          goalSecondary:     plan.goalSecondary,
+          daysPerWeek:       plan.daysPerWeek,
+          minutesPerSession: plan.minutesPerSession,
+          isActive:          1,
+          generatedAt:       plan.generatedAt,
         });
+
+        [savedPlan] = await db
+          .select()
+          .from(workoutPlans)
+          .where(eq(workoutPlans.isActive, 1))
+          .orderBy(desc(workoutPlans.id))
+          .limit(1);
+
+        for (const day of plan.days) {
+          await db.insert(planDays).values({
+            planId:    savedPlan.id,
+            dayIndex:  day.dayIndex,
+            dayType:   day.dayType,
+            exercises: JSON.stringify(day.exercises),
+          });
+        }
+
+        // Releer las filas insertadas para obtener sus IDs de BD
+        savedDayRows = await db
+          .select()
+          .from(planDays)
+          .where(eq(planDays.planId, savedPlan.id));
+      } catch (err) {
+        // Limpieza: el plan viejo NUNCA se tocó, así que basta con borrar
+        // los restos huérfanos del plan nuevo que falló a medias.
+        if (savedPlan) {
+          await db.delete(planDays).where(eq(planDays.planId, savedPlan.id));
+          await db.delete(workoutPlans).where(eq(workoutPlans.id, savedPlan.id));
+        } else {
+          // El insert pudo haber tenido éxito aunque el select posterior fallara.
+          // Usamos generatedAt (disponible desde antes del insert) como respaldo
+          // para no dejar un plan huérfano sin referencia.
+          const orphans = await db.select().from(workoutPlans).where(eq(workoutPlans.generatedAt, plan.generatedAt));
+          for (const orphan of orphans) {
+            await db.delete(planDays).where(eq(planDays.planId, orphan.id));
+            await db.delete(workoutPlans).where(eq(workoutPlans.id, orphan.id));
+          }
+        }
+        throw err;
       }
 
-      // Releer las filas insertadas para obtener sus IDs de BD
-      const savedDayRows = await db
-        .select()
-        .from(planDays)
-        .where(eq(planDays.planId, savedPlan.id));
+      if (!savedPlan) throw new Error('generateAndSavePlan: savedPlan no se asignó tras la inserción');
+
+      // El plan nuevo + todos sus días quedaron insertados y verificados:
+      // ahora sí es seguro desactivar los planes anteriores.
+      await db.update(workoutPlans).set({ isActive: 0 }).where(ne(workoutPlans.id, savedPlan.id));
 
       await saveActiveDayIndex(0);
 

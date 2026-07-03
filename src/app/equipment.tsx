@@ -198,7 +198,11 @@ export default function EquipmentScreen() {
         onConfirm={async () => {
           setRegenOpen(false);
           if (pendingProfile.current) {
-            try { await generateAndSavePlan(pendingProfile.current); } catch {}
+            try {
+              await generateAndSavePlan(pendingProfile.current);
+            } catch (err) {
+              console.error('[Equipment] Error al regenerar plan:', err);
+            }
           }
           useProfileStore.getState().closeEquipment();
         }}

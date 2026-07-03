@@ -745,3 +745,91 @@ que ya estaba ahí: el historial nunca tuvo un mecanismo de refresco propio
 (ni `useFocusEffect`, ni suscripción a `workoutSessions`/`useWorkoutStore`,
 ni polling) — tomó prestado, de forma no intencional, el cambio de estado de
 otro store cuyo propósito es completamente distinto (gamificación).
+
+---
+
+## SECCIÓN 7 — Cliente Drizzle: inicialización y atomicidad de `.transaction()`
+
+**Solo diagnóstico — ningún archivo de código fue modificado. Esta sección se añadió únicamente a este audit.**
+
+### 7.1 Ubicación e inicialización verbatim
+
+Único punto de inicialización en todo el proyecto: `src/db/index.ts` (archivo completo, 9 líneas):
+
+```typescript
+import * as SQLite from 'expo-sqlite';
+import { drizzle } from 'drizzle-orm/expo-sqlite';
+import * as schema from './schema';
+
+export const sqlite = SQLite.openDatabaseSync('fitness.db');
+export const db = drizzle(sqlite, { schema });
+
+export { schema };
+```
+
+- Driver: `expo-sqlite` v56.0.4 (confirmado en `node_modules/expo-sqlite/package.json`).
+- ORM: `drizzle-orm` v0.45.2 (confirmado en `node_modules/drizzle-orm/package.json`).
+- Conexión **síncrona** (`openDatabaseSync`), no `openDatabaseAsync`. No hay ningún otro archivo en el proyecto que llame a `drizzle(...)` (`grep -r "drizzle("` → único hit en `src/db/index.ts`).
+
+### 7.2 ¿El objeto `db` expone `.transaction()` directamente?
+
+**Sí.** Cadena de tipos verificada en `node_modules/drizzle-orm`:
+
+- `drizzle()` (`expo-sqlite/driver.d.ts:8`) devuelve `ExpoSQLiteDatabase<TSchema> & { $client: SQLiteDatabase }`.
+- `ExpoSQLiteDatabase` (`expo-sqlite/driver.d.ts:5`) extiende `BaseSQLiteDatabase<'sync', SQLiteRunResult, TSchema>`.
+- `BaseSQLiteDatabase.transaction()` (`sqlite-core/db.d.ts:251`) existe como método de instancia:
+  ```typescript
+  transaction<T>(transaction: (tx: SQLiteTransaction<TResultKind, TRunResult, TFullSchema, TSchema>) => Result<TResultKind, T>, config?: SQLiteTransactionConfig): Result<TResultKind, T>;
+  ```
+- Implementación (`sqlite-core/db.cjs:318-320`) — delega tal cual a la sesión:
+  ```javascript
+  transaction(transaction, config) {
+    return this.session.transaction(transaction, config);
+  }
+  ```
+
+Por tanto `db.transaction((tx) => { ... })` es una llamada válida y disponible sin ningún wrapper adicional. Con `TResultKind = 'sync'`, `Result<'sync', T>` se resuelve a `T` (no `Promise<T>`) — es decir, el callback del cliente debe ser **síncrono**, y `db.transaction()` devuelve el valor directamente, no una promesa.
+
+### 7.3 Implementación real de `.transaction()` para este driver
+
+`node_modules/drizzle-orm/expo-sqlite/session.cjs` (`ExpoSQLiteSession.transaction`, líneas 53-64), verbatim:
+
+```javascript
+transaction(transaction, config = {}) {
+  const tx = new ExpoSQLiteTransaction("sync", this.dialect, this, this.schema);
+  this.run(import_sql.sql.raw(`begin${config?.behavior ? " " + config.behavior : ""}`));
+  try {
+    const result = transaction(tx);
+    this.run(import_sql.sql`commit`);
+    return result;
+  } catch (err) {
+    this.run(import_sql.sql`rollback`);
+    throw err;
+  }
+}
+```
+
+Y para transacciones anidadas, `ExpoSQLiteTransaction.transaction()` (líneas 66-81) usa `savepoint` / `release savepoint` / `rollback to savepoint` reales en vez de `begin`/`commit`/`rollback`.
+
+`this.run(...)` no es una simulación: pasa por `prepareQuery()` (línea 41-52), que llama a `this.client.prepareSync(query.sql)` — es decir, ejecuta SQL real (`begin`, `commit`, `rollback`) contra la conexión SQLite síncrona de `expo-sqlite` vía `stmt.executeSync(...)`.
+
+**Conclusión sobre atomicidad:** el mecanismo es sólido para este setup.
+- Es SQL real (`BEGIN`/`COMMIT`/`ROLLBACK`/`SAVEPOINT`), no un contador o bandera en memoria.
+- Si el callback `transaction(tx)` lanza una excepción síncrona, el `catch` ejecuta `rollback` real antes de relanzar el error — sí hay ROLLBACK genuino.
+- Como `openDatabaseSync` es una conexión síncrona de un solo hilo JS y todas las llamadas dentro de `run()`/`prepareSync()`/`executeSync()` son bloqueantes, no puede haber otra escritura intercalada entre el `begin` y el `commit`/`rollback` de esa misma transacción — no existe una ventana de interleaving que rompa la atomicidad.
+
+**Única advertencia real encontrada (no documentada en ningún README/CHANGELOG de `drizzle-orm` ni de `expo-sqlite`; es una inferencia directa de la firma de tipos, no un hallazgo citado en la documentación oficial):**
+El callback de `db.transaction()` debe ser estrictamente **síncrono** para este driver (`TResultKind = 'sync'`). Si en el futuro se escribiera `db.transaction(async (tx) => { await algo(); tx.insert(...) })`, `transaction(tx)` devolvería una `Promise` inmediatamente, esa promesa se ignora como valor de retorno síncrono, y la línea `this.run(sql\`commit\`)` se ejecutaría **antes** de que el `await` interno se resolviera — el commit ocurriría sin esperar el trabajo asíncrono, rompiendo la atomicidad esperada. Esto **no es una limitación documentada por drizzle-orm/expo-sqlite**, sino un riesgo estructural inherente a mezclar un callback async con una API tipada como síncrona en JavaScript/TypeScript (TypeScript no lo bloquearía en tiempo de compilación en todos los casos, dependiendo de cómo se infiera `T`).
+
+**Verificación de exposición actual al riesgo:** `grep -rn "\.transaction(" --include="*.ts" --include="*.tsx"` en `src/` → **cero resultados**. El proyecto **no usa `db.transaction()` en ningún punto actual del código** (todas las inserciones/actualizaciones observadas en sesiones anteriores del audit — `finishSession`, `runProgressionAfterSession`, etc. — se hacen con llamadas `db.insert()`/`db.update()` sueltas, sin envolver en una transacción). Por tanto el riesgo del punto anterior es **teórico/preventivo** para este proyecto en su estado actual, no un bug activo.
+
+### 7.4 Resumen
+
+| Pregunta | Respuesta |
+|---|---|
+| ¿Dónde se inicializa `drizzle(...)`? | `src/db/index.ts:6`, único punto en el repo |
+| ¿`db.transaction()` existe directamente? | Sí, heredado de `BaseSQLiteDatabase` |
+| ¿Es atómico (BEGIN/COMMIT/ROLLBACK reales)? | Sí — SQL real vía `prepareSync`/`executeSync`, con `ROLLBACK` genuino en el `catch` |
+| ¿Alguna limitación conocida documentada oficialmente? | Ninguna encontrada en README/CHANGELOG de `drizzle-orm` o `expo-sqlite` |
+| ¿Algún riesgo estructural no documentado? | Sí: el callback debe ser síncrono; un callback `async` rompería la atomicidad (commit antes de que termine el await) |
+| ¿Se usa `db.transaction()` hoy en el proyecto? | No — cero usos en `src/`, riesgo puramente preventivo |
