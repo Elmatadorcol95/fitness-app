@@ -22,14 +22,15 @@ const GREEN = '#3FBF7F';
 const AMBER = '#F2B450';
 const LIGHT = '#5BD897';
 const MUTED = '#9DA89F';
+const BLUE  = '#3C87F7';
 
 const CATEGORY_COLORS: Record<ExerciseCategory, string> = {
-  push: GREEN, pull: AMBER, legs: LIGHT, core: GREEN, cardio: AMBER, full_body: GREEN,
+  push: GREEN, pull: AMBER, legs: LIGHT, core: GREEN, cardio: AMBER, full_body: GREEN, mobility: BLUE,
 };
 const CATEGORY_ICONS: Record<ExerciseCategory, string> = {
   push: 'arrow-up-circle-outline', pull: 'arrow-down-circle-outline',
   legs: 'walk-outline', core: 'fitness-outline',
-  cardio: 'bicycle-outline', full_body: 'infinite-outline',
+  cardio: 'bicycle-outline', full_body: 'infinite-outline', mobility: 'accessibility-outline',
 };
 
 const DIFF_COLOR: Record<string, string> = {
@@ -149,10 +150,10 @@ export default function ExerciseDetailScreen() {
     : { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' };
 
   const CAT_LABELS: Record<ExerciseCategory, string> = lang === 'es'
-    ? { push: 'Empuje', pull: 'Jalón', legs: 'Piernas', core: 'Core', cardio: 'Cardio', full_body: 'Cuerpo completo' }
+    ? { push: 'Empuje', pull: 'Jalón', legs: 'Piernas', core: 'Core', cardio: 'Cardio', full_body: 'Cuerpo completo', mobility: 'Movilidad' }
     : lang === 'fr'
-    ? { push: 'Poussée', pull: 'Tirage', legs: 'Jambes', core: 'Gainage', cardio: 'Cardio', full_body: 'Corps entier' }
-    : { push: 'Push', pull: 'Pull', legs: 'Legs', core: 'Core', cardio: 'Cardio', full_body: 'Full body' };
+    ? { push: 'Poussée', pull: 'Tirage', legs: 'Jambes', core: 'Gainage', cardio: 'Cardio', full_body: 'Corps entier', mobility: 'Mobilité' }
+    : { push: 'Push', pull: 'Pull', legs: 'Legs', core: 'Core', cardio: 'Cardio', full_body: 'Full body', mobility: 'Mobility' };
 
   const EQUIP_SHORT: Record<string, string> = lang === 'es'
     ? { dumbbells: 'Mancuernas', barbellPlates: 'Barra y discos', kettlebells: 'Kettlebells', pullupBar: 'Barra dominadas', parallettes: 'Paralelas', rings: 'Anillas', trx: 'TRX', adjustableBench: 'Banco', resistanceBands: 'Bandas', miniGluteBands: 'Mini-bands', plioBox: 'Cajón pliométrico', medicineBall: 'Balón medicinal', fitball: 'Fitball', abRoller: 'Rueda abdominal', jumpRope: 'Comba', mat: 'Esterilla', foamRoller: 'Rodillo', sliders: 'Sliders', weightedVest: 'Chaleco lastrado', cableMachine: 'Polea', legPressMachine: 'Prensa' }

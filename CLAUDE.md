@@ -829,6 +829,77 @@ Bucle ~1.3 s sobre fondo #141A17:
     "Cargando…" sin salida, `session.tsx:330-338`).
   * Documentado en `E3_HOME_FILTER_AUDIT.md`, `PULL_EQUIPMENT_WARNING_AUDIT.md`
     y `EQUIPMENT_LEAK_AUDIT.md` (auditorías de solo lectura, en la raíz).
+- Hecho: sesión 2026-07-06 — Auditorías de catálogo + mini-proyecto de expansión
+  del catálogo de ejercicios (Lotes 2-11), JS puro, sin recompilación:
+  * Auditorías de solo lectura (raíz del proyecto, sin modificar código):
+    `CATALOG_COMPLETENESS_AUDIT.md` (inventario completo por equipo/músculo;
+    huecos sin equipo confirmados: bíceps/dorsal ya conocidos + trapecio,
+    antebrazo, isquios y pantorrilla como hallazgos nuevos; "aductores" no
+    existía ni como `MuscleGroup`) y `MUSCLEGROUP_IMPACT_AUDIT.md` (sin ningún
+    `Record<MuscleGroup,...>` exhaustivo en el proyecto, a diferencia de
+    `ExerciseCategory`; `muscleLabel()` es la única función de traducción de
+    músculos, `ExerciseCard.tsx`, y vive fuera del sistema i18next).
+  * `src/lib/exercises.ts` creció de 81 a **279 ejercicios** en 10 lotes
+    temáticos: cardio (gym+casa), movilidad-calentamiento, movilidad-
+    enfriamiento, core con equipo, TRX/anillas/paralelas de fuerza,
+    kettlebells de empuje, isquios/pantorrilla/prensa/antebrazo/trapecio,
+    aductores, chaleco lastrado, y máquinas de gimnasio faltantes + 1
+    corrección estructural.
+  * Tipos ampliados:
+    - `ExerciseCategory`: + `'mobility'` (`'cardio'` ya existía, solo
+      infrautilizado — 1 ejercicio).
+    - `Exercise`: + `isTimeBased?`, `defaultDurationSeconds?`,
+      `movementPhase?: 'warmup'|'cooldown'|'both'`,
+      `relevantDayTypes?: DayType[]` (import `type` de `plan-generator.ts`;
+      sin ciclo real en runtime al ser type-only).
+    - `MuscleGroup`: + `'adductors'`, con su entrada añadida en
+      `MUSCLE_LABELS` (`ExerciseCard.tsx`) en el mismo lote que la introdujo
+      (cierra el hueco silencioso que había detectado el audit).
+    - `EquipmentKey`: 21 → **34** (+ cardioMachine, calfMachine,
+      hipAdductorMachine, smithMachine, assistedMachine, abMachine,
+      hipAbductorMachine, pecDeckMachine, tBarRowMachine, hipThrustMachine,
+      chestPressMachine, shoulderPressMachine, seatedRowMachine). Ninguna
+      añadida a `HOME_EQUIPMENT` — todas implícitas de gimnasio, igual que
+      `cableMachine`/`legPressMachine`.
+  * Verificado y reconfirmado en cada lote (no una sola vez): `'cardio'` y
+    `'mobility'` quedan excluidos de la generación de días de fuerza en
+    `plan-generator.ts` por las whitelists ya existentes (`allIso` en días
+    `full_body`; `cats` derivado de `DayType`, que nunca vale `'cardio'` ni
+    `'mobility'`, en el resto). **`plan-generator.ts` no fue tocado en ningún
+    lote (2 al 11)** — confirmado con `git diff --quiet` al cierre de cada uno.
+  * Hallazgos relevantes detectados durante el proceso (preexistentes o
+    corregidos sobre la marcha, no bugs introducidos por estos lotes):
+    - `mountain_climber` (catálogo original, Fase 9a) es el único
+      `category:'core'` con `isCompound:true` — alcanzable hoy solo en días
+      `lower` (splits de 4-5 días/semana) como "compuesto" de pierna, con el
+      esquema de sets/reps pesado. Señalado, no corregido (fuera de alcance
+      de este mini-proyecto).
+    - `leg_press` ya existía en el catálogo original bajo `legPressMachine`
+      — el Lote 8 lo detectó antes de duplicarlo y solo añadió el accesorio
+      nuevo (`leg_press_calf_press`).
+    - Corrección estructural (Lote 11): `machine_chest_press`,
+      `machine_overhead_press` y `machine_row` estaban mal etiquetados con
+      `equipment:['cableMachine']` (son máquinas selectorizadas dedicadas,
+      no polea) → recategorizados a `chestPressMachine`/
+      `shoulderPressMachine`/`seatedRowMachine` respectivamente.
+    - Huecos silenciosos de `EQUIPMENT_SHORT` (`ExerciseCard.tsx`) detectados
+      y cerrados: `cardioMachine`, `calfMachine`, `hipAdductorMachine`, y las
+      10 máquinas del Lote 11.
+    - `heel_dig_isometric_hold` (Lote 8): ajuste posterior para añadirle
+      `isTimeBased:true, defaultDurationSeconds:20`, que faltaba en la
+      especificación original del lote.
+  * Verificado en cada lote: `sort | uniq -d` sobre todos los IDs del
+    catálogo (sin duplicados en ningún punto) y `npx tsc --noEmit` limpio.
+  * Pendiente sin resolver, anotado para retomar:
+    - `EQUIPMENT_SHORT.weightedVest` sigue diciendo "Chaleco" (no "Chaleco
+      lastrado" como se sugirió en el Lote 10) — a la espera de confirmación.
+    - Los ~198 ejercicios nuevos (cardio, movilidad, core con equipo, TRX/
+      anillas/paralelas de fuerza, kettlebells de empuje, aductores, chaleco
+      lastrado, máquinas de gimnasio) **no son alcanzables todavía desde
+      ningún flujo de la app** (generación de plan, sustitución de
+      ejercicios) — el catálogo de datos está completo pero no conectado a
+      la UI/generador. Conectarlo es trabajo futuro, fuera de este
+      mini-proyecto (que era solo de catálogo de datos).
 - Siguiente: FASE 7 — In-app purchase (OBLIGATORIA antes de publicar).
 - Pendiente obligatorio: FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.

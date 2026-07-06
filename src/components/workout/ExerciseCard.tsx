@@ -13,6 +13,7 @@ const GREEN = '#3FBF7F';
 const AMBER = '#F2B450';
 const LIGHT = '#5BD897';
 const MUTED = '#9DA89F';
+const BLUE  = '#3C87F7';
 
 const CATEGORY_COLORS: Record<ExerciseCategory, string> = {
   push:      GREEN,
@@ -21,6 +22,7 @@ const CATEGORY_COLORS: Record<ExerciseCategory, string> = {
   core:      GREEN,
   cardio:    AMBER,
   full_body: GREEN,
+  mobility:  BLUE,
 };
 
 const CATEGORY_ICONS: Record<ExerciseCategory, string> = {
@@ -30,6 +32,7 @@ const CATEGORY_ICONS: Record<ExerciseCategory, string> = {
   core:      'fitness-outline',
   cardio:    'bicycle-outline',
   full_body: 'infinite-outline',
+  mobility:  'accessibility-outline',
 };
 
 // Equipamiento que añade carga externa; el resto = peso corporal → muestra 'PC'
@@ -57,6 +60,19 @@ const EQUIPMENT_SHORT: Record<string, { es: string; en: string; fr: string }> = 
   miniGluteBands:   { es: 'Mini-bands',    en: 'Mini bands',   fr: 'Mini-bandes' },
   cableMachine:     { es: 'Polea',         en: 'Cable',        fr: 'Poulie' },
   legPressMachine:  { es: 'Máquina',       en: 'Machine',      fr: 'Machine' },
+  cardioMachine:    { es: 'Máquina cardio',en: 'Cardio machine',fr: 'Machine cardio' },
+  calfMachine:      { es: 'Máquina gemelos',en: 'Calf machine', fr: 'Machine mollets' },
+  hipAdductorMachine:{ es: 'Máquina aductores', en: 'Hip adductor machine', fr: 'Machine adducteurs' },
+  smithMachine:      { es: 'Máquina Smith', en: 'Smith machine', fr: 'Machine Smith' },
+  assistedMachine:   { es: 'Asistida',       en: 'Assisted machine', fr: 'Machine assistée' },
+  abMachine:         { es: 'Máquina abs',    en: 'Ab machine',   fr: 'Machine abdos' },
+  hipAbductorMachine:{ es: 'Abductor',       en: 'Hip abductor machine', fr: 'Machine abducteurs' },
+  pecDeckMachine:    { es: 'Pec deck',       en: 'Pec deck',     fr: 'Pec deck' },
+  tBarRowMachine:    { es: 'Remo en T',      en: 'T-bar row machine', fr: 'Machine rowing T-bar' },
+  hipThrustMachine:  { es: 'Empuje cadera',  en: 'Hip thrust machine', fr: 'Machine hip thrust' },
+  chestPressMachine: { es: 'Press pecho',    en: 'Chest press machine', fr: 'Machine développé' },
+  shoulderPressMachine:{ es: 'Press hombro', en: 'Shoulder press machine', fr: 'Machine épaules' },
+  seatedRowMachine:  { es: 'Remo sentado',   en: 'Seated row machine', fr: 'Machine rowing assis' },
 };
 
 interface Props {
@@ -162,6 +178,7 @@ const MUSCLE_LABELS: Record<string, { es: string; en: string; fr: string }> = {
   traps:      { es: 'Trapecio',    en: 'Traps',       fr: 'Trapèzes' },
   forearms:   { es: 'Antebrazos',  en: 'Forearms',    fr: 'Avant-bras' },
   abs:        { es: 'Abdominales', en: 'Abs',         fr: 'Abdominaux' },
+  adductors:  { es: 'Aductores',   en: 'Adductors',   fr: 'Adducteurs' },
 };
 
 export function muscleLabel(muscleKey: string, lang: 'es' | 'en' | 'fr'): string {

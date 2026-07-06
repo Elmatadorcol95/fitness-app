@@ -23,14 +23,15 @@ const GREEN = '#3FBF7F';
 const AMBER = '#F2B450';
 const MUTED = '#9DA89F';
 const BG2   = '#1C231F';
+const BLUE  = '#3C87F7';
 
 const CAT_ICONS: Record<ExerciseCategory, string> = {
   push: 'arrow-up-circle-outline', pull: 'arrow-down-circle-outline',
   legs: 'walk-outline', core: 'fitness-outline',
-  cardio: 'bicycle-outline', full_body: 'infinite-outline',
+  cardio: 'bicycle-outline', full_body: 'infinite-outline', mobility: 'accessibility-outline',
 };
 const CAT_COLORS: Record<ExerciseCategory, string> = {
-  push: GREEN, pull: AMBER, legs: '#5BD897', core: GREEN, cardio: AMBER, full_body: GREEN,
+  push: GREEN, pull: AMBER, legs: '#5BD897', core: GREEN, cardio: AMBER, full_body: GREEN, mobility: BLUE,
 };
 
 function pad(n: number) { return String(n).padStart(2, '0'); }
@@ -694,12 +695,12 @@ export default function SessionScreen() {
 // ── ExerciseGuideModal (A6) ───────────────────────────────────────────────────
 
 const GUIDE_CAT_COLORS: Record<ExerciseCategory, string> = {
-  push: GREEN, pull: AMBER, legs: '#5BD897', core: GREEN, cardio: AMBER, full_body: GREEN,
+  push: GREEN, pull: AMBER, legs: '#5BD897', core: GREEN, cardio: AMBER, full_body: GREEN, mobility: BLUE,
 };
 const GUIDE_CAT_ICONS: Record<ExerciseCategory, string> = {
   push: 'arrow-up-circle-outline', pull: 'arrow-down-circle-outline',
   legs: 'walk-outline', core: 'fitness-outline',
-  cardio: 'bicycle-outline', full_body: 'infinite-outline',
+  cardio: 'bicycle-outline', full_body: 'infinite-outline', mobility: 'accessibility-outline',
 };
 const GUIDE_EQUIP_BW: Record<string, string> = {
   es: 'Peso corporal', en: 'Bodyweight', fr: 'Poids du corps',

@@ -11,9 +11,10 @@ import { Spacing } from '@/constants/theme';
 const GREEN = '#3FBF7F';
 const MUTED = '#9DA89F';
 const AMBER = '#F2B450';
+const BLUE  = '#3C87F7';
 
 const CATEGORY_COLORS: Record<string, string> = {
-  push: GREEN, pull: AMBER, legs: '#5BD897', core: GREEN, cardio: AMBER, full_body: GREEN,
+  push: GREEN, pull: AMBER, legs: '#5BD897', core: GREEN, cardio: AMBER, full_body: GREEN, mobility: BLUE,
 };
 
 
