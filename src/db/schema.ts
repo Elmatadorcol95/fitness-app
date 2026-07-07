@@ -1,4 +1,4 @@
-import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 export const profile = sqliteTable('profile', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -156,3 +156,15 @@ export const exerciseRestPrefs = sqliteTable('exercise_rest_prefs', {
   restSeconds: integer('rest_seconds').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });
+
+// ── Objetivos musculares — rotación de ejercicios ya usados por músculo ──────
+
+export const muscleExerciseUsage = sqliteTable('muscle_exercise_usage', {
+  muscle: text('muscle').notNull(),
+  exerciseId: text('exercise_id').notNull(),
+  usedAt: integer('used_at').notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.muscle, table.exerciseId] }),
+]);
+
+export type MuscleExerciseUsage = typeof muscleExerciseUsage.$inferSelect;

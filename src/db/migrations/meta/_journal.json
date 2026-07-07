@@ -64,6 +64,13 @@
       "when": 1750464000000,
       "tag": "0008_rest_prefs",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1783420441053,
+      "tag": "0009_muscle_exercise_usage",
+      "breakpoints": true
     }
   ]
 }

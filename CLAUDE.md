@@ -220,6 +220,19 @@ Bucle ~1.3 s sobre fondo #141A17:
 - Al final de cada sesión, actualizar "Estado actual".
 - Marcar siempre si un cambio es solo JS (recarga) o requiere recompilar el build.
 - Agrupar TODOS los módulos nativos en una sola recompilación al final.
+- **Migraciones Drizzle — `when` es funcional, no decorativo**: el campo `when`
+  de cada entrada en `src/db/migrations/meta/_journal.json` lo usa el migrador
+  (`drizzle-orm/expo-sqlite`) como `created_at` en la tabla de control
+  `__drizzle_migrations`, y decide si una migración se aplica comparándolo
+  contra el `when` MÁS ALTO ya registrado en el dispositivo — no es solo un
+  registro informativo. Las entradas 0002-0008 tienen timestamps sintéticos de
+  2025 (no son fechas reales de creación; las 7 se commitearon el mismo día en
+  2026 — ver commit `9dd6e49`). Toda migración nueva debe generar su `when`
+  con un `Date.now()` real ejecutado en el momento de crearla y verificar
+  explícitamente que supere el máximo de TODAS las entradas existentes, no
+  solo la de índice más alto (hoy ese máximo lo tiene la entrada 1, no la 8).
+  Si no se cumple, la migración nueva nunca se aplicará en ningún dispositivo
+  que ya tenga migraciones previas instaladas.
 
 ## Estado actual
 - Hecho: estructura base de Expo.

@@ -46,7 +46,13 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
 
-  const { success: migrationsReady } = useMigrations(db, migrations);
+  const { success: migrationsReady, error: migrationsError } = useMigrations(db, migrations);
+
+  useEffect(() => {
+    if (migrationsError) {
+      console.error('[Migrations] Error aplicando migraciones:', migrationsError);
+    }
+  }, [migrationsError]);
 
   // Selectores SOLO primitivos — nunca objetos
   const isAuthenticated  = useAuthStore((s) => !!s.session);

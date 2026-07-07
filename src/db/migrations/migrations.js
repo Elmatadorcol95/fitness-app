@@ -10,6 +10,7 @@ import m0005 from './0005_training_module.sql';
 import m0006 from './0006_rpe.sql';
 import m0007 from './0007_progression.sql';
 import m0008 from './0008_rest_prefs.sql';
+import m0009 from './0009_muscle_exercise_usage.sql';
 
   export default {
     journal,
@@ -22,6 +23,7 @@ import m0008 from './0008_rest_prefs.sql';
       m0005,
       m0006,
       m0007,
-      m0008
+      m0008,
+      m0009
     }
   }
