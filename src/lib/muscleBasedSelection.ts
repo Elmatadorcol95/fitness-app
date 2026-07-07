@@ -29,6 +29,12 @@ const SECOND_COMPOUND_ORDER = ['pecho', 'espalda', 'cuadriceps', 'isquiotibiales
 // maxSlots (p. ej. antebrazo sigue capado en 1 vía su propio maxSlots).
 const MAX_EXERCISES_PER_TARGET = 3;
 
+// Categorías admitidas para generación de fuerza — el mismo conjunto que el
+// sistema viejo permitía efectivamente en plan-generator.ts (cats/allIso solo
+// usan 'push'|'pull'|'legs'|'core'; 'cardio' y 'mobility' quedan fuera, tal
+// como estuvo garantizado siempre por el sistema anterior).
+const ALLOWED_CATEGORIES = new Set(['push', 'pull', 'legs', 'core']);
+
 export async function selectExercisesForDayByMuscle(
   dayType: DayType,
   equipment: string[],
@@ -36,7 +42,7 @@ export async function selectExercisesForDayByMuscle(
   counts: { compounds: number; isolations: number },
 ): Promise<MuscleSelectedExercise[]> {
   const targets = [...getTargetsForDayType(dayType)].sort((a, b) => a.bonusPriority - b.bonusPriority);
-  const available = EXERCISES.filter(e => canDoExercise(e, equipment, isGym));
+  const available = EXERCISES.filter(e => ALLOWED_CATEGORIES.has(e.category) && canDoExercise(e, equipment, isGym));
 
   // Orden de declaración real en EXERCISES — desempate final determinista.
   const declOrder = new Map<string, number>(EXERCISES.map((e, i) => [e.id, i]));
