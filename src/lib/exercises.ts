@@ -1869,21 +1869,21 @@ export const EXERCISES: Exercise[] = [
   {
     id: 'wrist_curl_db',
     name: { es: 'Curl de muñeca con mancuerna', en: 'Dumbbell wrist curl', fr: 'Curl de poignet avec haltère' },
-    category: 'core', isCompound: false, difficulty: 'beginner',
+    category: 'pull', isCompound: false, difficulty: 'beginner',
     primaryMuscles: ['forearms'], secondaryMuscles: [],
     equipment: ['dumbbells'],
   },
   {
     id: 'reverse_wrist_curl_db',
     name: { es: 'Curl de muñeca inverso con mancuerna', en: 'Dumbbell reverse wrist curl', fr: 'Curl de poignet inversé avec haltère' },
-    category: 'core', isCompound: false, difficulty: 'beginner',
+    category: 'pull', isCompound: false, difficulty: 'beginner',
     primaryMuscles: ['forearms'], secondaryMuscles: [],
     equipment: ['dumbbells'],
   },
   {
     id: 'plate_pinch_hold',
     name: { es: 'Pinza de discos', en: 'Plate pinch hold', fr: 'Maintien en pince de disques' },
-    category: 'core', isCompound: false, difficulty: 'intermediate',
+    category: 'pull', isCompound: false, difficulty: 'intermediate',
     primaryMuscles: ['forearms'], secondaryMuscles: [],
     equipment: ['barbellPlates'],
     isTimeBased: true, defaultDurationSeconds: 20,
@@ -1891,7 +1891,7 @@ export const EXERCISES: Exercise[] = [
   {
     id: 'zottman_curl',
     name: { es: 'Curl Zottman', en: 'Zottman curl', fr: 'Curl Zottman' },
-    category: 'core', isCompound: false, difficulty: 'intermediate',
+    category: 'pull', isCompound: false, difficulty: 'intermediate',
     primaryMuscles: ['biceps', 'forearms'], secondaryMuscles: [],
     equipment: ['dumbbells'],
   },
@@ -1930,7 +1930,7 @@ export const EXERCISES: Exercise[] = [
   {
     id: 'copenhagen_plank',
     name: { es: 'Plancha copenhague', en: 'Copenhagen plank', fr: 'Planche de Copenhague' },
-    category: 'core', isCompound: false, difficulty: 'advanced',
+    category: 'legs', isCompound: false, difficulty: 'advanced',
     primaryMuscles: ['adductors'], secondaryMuscles: ['core', 'abs'],
     equipment: [],
     isTimeBased: true, defaultDurationSeconds: 20,

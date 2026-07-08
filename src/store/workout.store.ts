@@ -109,7 +109,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     try {
       // Genera el plan en memoria ANTES de tocar la DB. Si falla aquí, no
       // hay nada que limpiar: los planes existentes siguen intactos.
-      const plan = generatePlan(profile);
+      const plan = await generatePlan(profile);
 
       let savedPlan: typeof workoutPlans.$inferSelect | null = null;
       let savedDayRows: (typeof planDays.$inferSelect)[] = [];

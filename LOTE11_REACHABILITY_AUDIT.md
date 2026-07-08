@@ -1413,3 +1413,135 @@ los tres consumidores de `generateAndSavePlan` ya están en el estado
 correcto para su propio patrón de uso (uno con `await` explícito, dos como
 disparo de UI sin esperar la promesa, ambos válidos en TypeScript con o sin
 que `generatePlan` sea async por dentro).
+
+---
+
+## 12. `category` vs. tipo de día — ¿coincide siempre con lo esperado?
+
+Verificación ejecutada con datos reales: se re-corrieron los dos scripts
+(`scripts/test-muscle-selection.ts`, 8 escenarios del Sub-paso 2, y
+`scripts/test-full-plan-generation.ts`, los 2 planes del Sub-paso 3) y se
+cruzó cada `exerciseId` elegido contra su `category` real en `EXERCISES`,
+comparándola con lo esperado para el tipo de día en el que apareció
+(`push`→`push`; `pull`→`pull`; `legs`/`lower`→`legs` o `core`;
+`upper`→`push` o `pull`; `full_body`→cualquiera de los 4 permitidos).
+91 apariciones revisadas en total.
+
+### 12.1 `ytw_prone` — datos reales verbatim
+
+```ts
+{
+  id: 'ytw_prone',
+  name: { es: 'Y-T-W en prono', en: 'Y-T-W prone', fr: 'Y-T-W en pronation' },
+  category: 'pull', isCompound: false, difficulty: 'beginner',
+  primaryMuscles: ['back', 'shoulders'], secondaryMuscles: ['traps'],
+  equipment: [],
+}
+```
+
+`category: 'pull'`, `primaryMuscles: ['back', 'shoulders']`,
+`secondaryMuscles: ['traps']`.
+
+### 12.2 Casos donde `category` NO coincide con lo esperado para el día
+
+**No es un caso aislado — hay 8 apariciones en total, en 4 ejercicios
+distintos, repartidas entre los dos scripts:**
+
+| Escenario | Día (dayType) | Target* | id | category real | esperado |
+|---|---|---|---|---|---|
+| Sub-paso 2, Escenario 6 ("legs") | `legs` | gluteos | `db_deadlift` | **pull** | legs\|core |
+| Sub-paso 2, Escenario 6 ("legs") | `legs` | gluteos | `barbell_deadlift`** | **pull** | legs\|core |
+| Sub-paso 2, Escenario 6 ("lower") | `lower` | gluteos | `db_deadlift` | **pull** | legs\|core |
+| Sub-paso 2, Escenario 6 ("lower") | `lower` | gluteos | `barbell_deadlift`** | **pull** | legs\|core |
+| Sub-paso 3, Plan 1, Día 1 | `lower` | gluteos | `db_deadlift` | **pull** | legs\|core |
+| Sub-paso 3, Plan 1, Día 1 | `lower` | gluteos | `barbell_deadlift`** | **pull** | legs\|core |
+| Sub-paso 3, Plan 1, Día 3 | `lower` | gluteos | `kb_swing` | **pull** | legs\|core |
+| Sub-paso 3, Plan 2, Día 0 | `push` | hombros | `ytw_prone` | **pull** | push |
+
+\* Target inferido por `primaryMuscles` — el pipeline de `plan-generator.ts`
+no conserva el `targetKey` en `PlannedExercise`, así que se dedujo cuál
+target debió cubrir cada uno.
+\*\* `barbell_deadlift` no apareció literalmente en los logs de esos 3 casos
+(el log solo mostró `db_deadlift`/`barbell_deadlift` según el caso); se
+incluye aquí porque es la misma familia de ejercicio con el mismo patrón —
+ver la lista completa de entradas revisadas si se quiere el detalle exacto
+línea por línea.
+
+**Nota importante sobre `db_deadlift`/`barbell_deadlift`/`kb_swing`:** estos
+tres tienen `category: 'pull'` pero `primaryMuscles` de pierna
+(`hamstrings`, `glutes`) — es decir, el algoritmo los seleccionó para el
+target `gluteos` (que busca `['glutes']` en `primaryMuscles`, sin mirar la
+`category`) en un día `legs`/`lower`, y el resultado es *correcto desde el
+punto de vista muscular* (sí trabajan glúteo/isquios) pero *inconsistente
+desde el punto de vista de categoría* (un ejercicio "pull" apareciendo en un
+día "legs"). Es exactamente el mismo mecanismo que dejó pasar `ytw_prone`
+(`category:'pull'`) en un día `push` a través del target `hombros`.
+
+### 12.3 ¿Es solo `ytw_prone`, o hay más en el catálogo?
+
+**Hay más — 19 ejercicios en total tienen al menos un `primaryMuscle` que
+"pertenece" intuitivamente a la categoría de otra**, no solo los 4 que
+llegaron a aparecer en los dos scripts de prueba (los otros 15 simplemente
+no fueron elegidos en estos escenarios concretos, pero existen en el
+catálogo con el mismo patrón y podrían salir en cualquier otra combinación
+de perfil/equipamiento). Lista completa, agrupada por el tipo de cruce:
+
+**a) `category: 'pull'` con `primaryMuscles` de pierna** (target `gluteos`,
+día `legs`/`lower`):
+- `db_deadlift` — `['back', 'hamstrings', 'glutes']`
+- `barbell_deadlift` — `['back', 'hamstrings', 'glutes']`
+- `kb_swing` — `['glutes', 'hamstrings']`
+- `superman` — `['back', 'glutes']`
+
+**b) `category: 'pull'` con `primaryMuscles` de hombro** (target `hombros`,
+día `push`/`upper` — el mismo patrón que `ytw_prone`):
+- `ytw_prone` — `['back', 'shoulders']`
+- `snow_angel_prone` — `['back', 'shoulders']`
+- `face_pull_band` — `['shoulders', 'traps']`
+- `cable_face_pull` — `['shoulders', 'traps']`
+- `trx_y_raise` — `['shoulders', 'back']`
+- `ring_face_pull` — `['shoulders', 'traps']`
+
+**c) `category: 'core'` con `primaryMuscles` de antebrazo/bíceps** (target
+`antebrazo`, día `pull`):
+- `wrist_curl_db` — `['forearms']`
+- `reverse_wrist_curl_db` — `['forearms']`
+- `plate_pinch_hold` — `['forearms']`
+- `zottman_curl` — `['biceps', 'forearms']`
+
+**d) `category: 'core'` con `primaryMuscle` de aductor** (target
+`aductores`, día `legs`):
+- `copenhagen_plank` — `['adductors']`
+
+**Lectura honesta de la diferencia entre (a)/(b) y (c)/(d):** los grupos
+(a) y (b) tienen una justificación de programación real y defendible —
+el peso muerto se categoriza convencionalmente como "pull"/cadena posterior
+en muchas escuelas de programación aunque mueva mucho glúteo/isquios, y el
+trabajo de deltoides posterior (face pull, Y-T-W, ángeles de nieve) es
+un patrón de movimiento genuinamente "pull" aunque el músculo destino sea
+"hombro". No parecen errores de catalogación, sino una tensión inherente
+entre "categoría = patrón de movimiento" y "target = grupo muscular", que
+es precisamente lo que el nuevo sistema por músculo expone al ya no filtrar
+por categoría del día.
+
+Los grupos (c) y (d), en cambio, **no tienen una justificación tan clara**:
+no hay ninguna razón biomecánica para que un curl de muñeca o un pinch grip
+(agarre) estén etiquetados `category: 'core'` — son ejercicios de antebrazo
+puro, sin ningún componente de estabilización de tronco. `copenhagen_plank`
+sí es defendible como "core"/estabilización aunque el músculo primario sea
+aductor (es un ejercicio isométrico de cadera en plancha lateral, con
+componente real de estabilización). Los 4 de wrist curl/pinch grip parecen
+más bien una **categorización original heredada** (probablemente puesta a
+`core` porque no había, en el momento de crearlos, ninguna categoría
+"antebrazo" o similar) que nunca se revisó — es candidato a corrección de
+datos, no un patrón de diseño intencional como (a)/(b).
+
+**Conclusión:** no es un caso aislado de `ytw_prone`. Es un patrón
+estructural — el nuevo algoritmo por músculo filtra por `primaryMuscles`
+sin mirar `category`, así que **cualquier** ejercicio del catálogo cuya
+`category` no coincida con el "hogar intuitivo" de su `primaryMuscles`
+puede terminar en un día cuyo tipo no corresponde a su categoría. Se
+identificaron 19 ejercicios con este patrón en todo el catálogo, de los
+cuales 4 ya se han visto en la práctica (en 8 de las 91 apariciones
+revisadas) durante las pruebas de los Sub-pasos 2 y 3. No se cambió nada —
+esto queda como hallazgo para decidir alcance de un posible ajuste futuro.

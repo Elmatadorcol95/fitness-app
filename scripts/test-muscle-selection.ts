@@ -68,6 +68,33 @@ function checkNoCardioOrMobility(results: MuscleSelectedExercise[], label: strin
   return ok;
 }
 
+// Verifica (reimplementado de forma independiente, sin llamar a la lógica
+// interna de muscleBasedSelection.ts) que la category real de cada ejercicio
+// elegido corresponde al componente de día del dayType en el que se generó:
+// push->'push'; pull->'pull'; legs/lower->'legs'|'core'; upper->la
+// sourceCategory del target concreto (no ambas); full_body->cualquiera de
+// las 4. Falla explícitamente si encuentra un desajuste.
+function checkCategoryAlignment(results: MuscleSelectedExercise[], dayType: string, label: string): boolean {
+  const targets = getTargetsForDayType(dayType as any);
+  let ok = true;
+  for (const r of results) {
+    const target = targets.find(t => t.key === r.targetKey);
+    let expected: string[];
+    if (dayType === 'push') expected = ['push'];
+    else if (dayType === 'pull') expected = ['pull'];
+    else if (dayType === 'legs' || dayType === 'lower') expected = ['legs', 'core'];
+    else if (dayType === 'full_body') expected = ['push', 'pull', 'legs', 'core'];
+    else if (dayType === 'upper') expected = target ? [target.sourceCategory] : [];
+    else expected = [];
+    if (!expected.includes(r.exercise.category)) {
+      console.log(`  [check] alineación de categoría FALLO en "${label}": target=${r.targetKey} id=${r.exercise.id} category=${r.exercise.category} esperado=${expected.join('|')}`);
+      ok = false;
+    }
+  }
+  if (ok) console.log(`  [check] alineación de categoría en "${label}": OK`);
+  return ok;
+}
+
 function coverageReport(results: MuscleSelectedExercise[], dayType: string) {
   const targets = getTargetsForDayType(dayType as any);
   console.log('  Cobertura por target:');
@@ -82,12 +109,13 @@ async function main() {
 
   // ── Escenario 1: upper, gimnasio completo, 45 min y 90 min ────────────────
   line('ESCENARIO 1a — upper / gimnasio completo / 45 min (compounds=3, isolations=2)');
-  const upper45 = await selectExercisesForDayByMuscle('upper', [], true, { compounds: 3, isolations: 2 });
+  const upper45 = await selectExercisesForDayByMuscle('upper', [], true, { compounds: 3, isolations: 2 }, new Set());
   summarize(upper45);
   coverageReport(upper45, 'upper');
   allOk = checkNoDuplicateIds(upper45, 'upper 45min') && allOk;
   allOk = checkMaxSlots(upper45, 'antebrazo', 1, 'upper 45min') && allOk;
   allOk = checkNoCardioOrMobility(upper45, 'upper 45min') && allOk;
+  allOk = checkCategoryAlignment(upper45, 'upper', 'upper 45min') && allOk;
   const priority1Upper = getTargetsForDayType('upper').filter(t => t.bonusPriority === 1);
   for (const t of priority1Upper) {
     const covered = upper45.some(r => r.targetKey === t.key);
@@ -96,12 +124,13 @@ async function main() {
   }
 
   line('ESCENARIO 1b — upper / gimnasio completo / 90 min (compounds=4, isolations=4)');
-  const upper90 = await selectExercisesForDayByMuscle('upper', [], true, { compounds: 4, isolations: 4 });
+  const upper90 = await selectExercisesForDayByMuscle('upper', [], true, { compounds: 4, isolations: 4 }, new Set());
   summarize(upper90);
   coverageReport(upper90, 'upper');
   allOk = checkNoDuplicateIds(upper90, 'upper 90min') && allOk;
   allOk = checkMaxSlots(upper90, 'antebrazo', 1, 'upper 90min') && allOk;
   allOk = checkNoCardioOrMobility(upper90, 'upper 90min') && allOk;
+  allOk = checkCategoryAlignment(upper90, 'upper', 'upper 90min') && allOk;
   for (const t of priority1Upper) {
     const covered = upper90.some(r => r.targetKey === t.key);
     console.log(`  [check] prioridad 1 "${t.key}" cubierto a 90min: ${covered ? 'OK' : 'FALLO'}`);
@@ -113,12 +142,13 @@ async function main() {
 
   // ── Escenario 2: legs, equipamiento de casa mínimo (solo sliders) ─────────
   line('ESCENARIO 2 — legs / equipment=["sliders"] / isGym=false / 60 min (compounds=3, isolations=3)');
-  const legsSliders = await selectExercisesForDayByMuscle('legs', ['sliders'], false, { compounds: 3, isolations: 3 });
+  const legsSliders = await selectExercisesForDayByMuscle('legs', ['sliders'], false, { compounds: 3, isolations: 3 }, new Set());
   summarize(legsSliders);
   coverageReport(legsSliders, 'legs');
   allOk = checkNoDuplicateIds(legsSliders, 'legs sliders') && allOk;
   allOk = checkMaxSlots(legsSliders, 'antebrazo', 1, 'legs sliders') && allOk; // legs no tiene antebrazo; check trivial de control
   allOk = checkNoCardioOrMobility(legsSliders, 'legs sliders') && allOk;
+  allOk = checkCategoryAlignment(legsSliders, 'legs', 'legs sliders') && allOk;
 
   // ── Escenario 3: simular uso previo agotando "antebrazo" a mano ───────────
   line('ESCENARIO 3 — simular ciclo agotado de antebrazo (forearms) y verificar reset');
@@ -132,7 +162,7 @@ async function main() {
   const usedBefore = await getUsedExerciseIds('forearms');
   console.log(`  [antes] getUsedExerciseIds('forearms') tras marcar todos manualmente: ${usedBefore.size} de ${forearmExercises.length}`);
 
-  const pullAfterExhaustion = await selectExercisesForDayByMuscle('pull', [], true, { compounds: 4, isolations: 4 });
+  const pullAfterExhaustion = await selectExercisesForDayByMuscle('pull', [], true, { compounds: 4, isolations: 4 }, new Set());
   summarize(pullAfterExhaustion);
   const antebrazoPick = pullAfterExhaustion.find(r => r.targetKey === 'antebrazo');
   console.log(`  [check] "antebrazo" recibió un pick pese al ciclo agotado: ${antebrazoPick ? 'OK -> ' + antebrazoPick.exercise.id : 'FALLO'}`);
@@ -145,10 +175,11 @@ async function main() {
   allOk = checkNoDuplicateIds(pullAfterExhaustion, 'pull tras agotar antebrazo') && allOk;
   allOk = checkMaxSlots(pullAfterExhaustion, 'antebrazo', 1, 'pull tras agotar antebrazo') && allOk;
   allOk = checkNoCardioOrMobility(pullAfterExhaustion, 'pull tras agotar antebrazo') && allOk;
+  allOk = checkCategoryAlignment(pullAfterExhaustion, 'pull', 'pull tras agotar antebrazo') && allOk;
 
   // ── Escenario 5: forzar la conversión explícita de compuesto sobrante ─────
   line('ESCENARIO 5 — push / gimnasio completo / counts a mano {compounds:5, isolations:1} (forzar desbalance)');
-  const push5c1i = await selectExercisesForDayByMuscle('push', [], true, { compounds: 5, isolations: 1 });
+  const push5c1i = await selectExercisesForDayByMuscle('push', [], true, { compounds: 5, isolations: 1 }, new Set());
   summarize(push5c1i);
   coverageReport(push5c1i, 'push');
   const pechoCount = push5c1i.filter(r => r.targetKey === 'pecho').length;
@@ -159,11 +190,12 @@ async function main() {
   allOk = checkNoDuplicateIds(push5c1i, 'push counts a mano') && allOk;
   allOk = checkMaxSlots(push5c1i, 'antebrazo', 1, 'push counts a mano') && allOk; // push no tiene antebrazo; check trivial de control
   allOk = checkNoCardioOrMobility(push5c1i, 'push counts a mano') && allOk;
+  allOk = checkCategoryAlignment(push5c1i, 'push', 'push counts a mano') && allOk;
 
   // ── Escenario 5b: mismo desbalance pero con margen suficiente para superar
   // el tope de pecho y forzar compoundLeft > 0 real hacia la conversión ──────
   line('ESCENARIO 5b — push / gimnasio completo / counts a mano {compounds:6, isolations:1} (forzar evidencia positiva)');
-  const push6c1i = await selectExercisesForDayByMuscle('push', [], true, { compounds: 6, isolations: 1 });
+  const push6c1i = await selectExercisesForDayByMuscle('push', [], true, { compounds: 6, isolations: 1 }, new Set());
   summarize(push6c1i);
   coverageReport(push6c1i, 'push');
   const pechoCount6 = push6c1i.filter(r => r.targetKey === 'pecho').length;
@@ -176,6 +208,7 @@ async function main() {
   allOk = checkNoDuplicateIds(push6c1i, 'push counts a mano 6c1i') && allOk;
   allOk = checkMaxSlots(push6c1i, 'antebrazo', 1, 'push counts a mano 6c1i') && allOk; // push no tiene antebrazo; check trivial de control
   allOk = checkNoCardioOrMobility(push6c1i, 'push counts a mano 6c1i') && allOk;
+  allOk = checkCategoryAlignment(push6c1i, 'push', 'push counts a mano 6c1i') && allOk;
 
   // ── Escenario 6: lower debe comportarse igual que legs ────────────────────
   line('ESCENARIO 6 — lower vs legs / gimnasio completo / 60 min (compounds=3, isolations=3)');
@@ -186,8 +219,8 @@ async function main() {
   console.log(`  [check] mismos 7 targets (cuadriceps, isquiotibiales, gluteos, pantorrilla, aductores, core_estabilidad, abs_flexion): ${sameKeys ? 'OK' : 'FALLO'} -> ${JSON.stringify(legsTargetsList.map(t => t.key))}`);
   allOk = sameKeys && allOk;
 
-  const legsGym  = await selectExercisesForDayByMuscle('legs',  [], true, { compounds: 3, isolations: 3 });
-  const lowerGym = await selectExercisesForDayByMuscle('lower', [], true, { compounds: 3, isolations: 3 });
+  const legsGym  = await selectExercisesForDayByMuscle('legs',  [], true, { compounds: 3, isolations: 3 }, new Set());
+  const lowerGym = await selectExercisesForDayByMuscle('lower', [], true, { compounds: 3, isolations: 3 }, new Set());
   console.log('  Resultado "legs":');
   summarize(legsGym);
   console.log('  Resultado "lower":');
@@ -204,10 +237,12 @@ async function main() {
   allOk = checkAllCaps(lowerGym, 3, 'lower gym 60min') && allOk;
   allOk = checkNoCardioOrMobility(legsGym, 'legs gym 60min') && allOk;
   allOk = checkNoCardioOrMobility(lowerGym, 'lower gym 60min') && allOk;
+  allOk = checkCategoryAlignment(legsGym, 'legs', 'legs gym 60min') && allOk;
+  allOk = checkCategoryAlignment(lowerGym, 'lower', 'lower gym 60min') && allOk;
 
   // ── Escenario 7: full_body con equipamiento de casa mixto ─────────────────
   line('ESCENARIO 7 — full_body / equipment=["dumbbells","mat"] / isGym=false / 45 min (compounds=3, isolations=2)');
-  const fullBody = await selectExercisesForDayByMuscle('full_body', ['dumbbells', 'mat'], false, { compounds: 3, isolations: 2 });
+  const fullBody = await selectExercisesForDayByMuscle('full_body', ['dumbbells', 'mat'], false, { compounds: 3, isolations: 2 }, new Set());
   summarize(fullBody);
   coverageReport(fullBody, 'full_body');
   const fbTargets = getTargetsForDayType('full_body');
@@ -218,6 +253,7 @@ async function main() {
   allOk = checkNoDuplicateIds(fullBody, 'full_body casa mixta') && allOk;
   allOk = checkAllCaps(fullBody, 3, 'full_body casa mixta') && allOk;
   allOk = checkNoCardioOrMobility(fullBody, 'full_body casa mixta') && allOk;
+  allOk = checkCategoryAlignment(fullBody, 'full_body', 'full_body casa mixta') && allOk;
 
   line(allOk ? 'RESULTADO GLOBAL: TODOS LOS CHECKS OK' : 'RESULTADO GLOBAL: HAY CHECKS QUE FALLARON — ver arriba');
   process.exitCode = allOk ? 0 : 1;

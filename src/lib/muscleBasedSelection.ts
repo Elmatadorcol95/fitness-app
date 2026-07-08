@@ -1,23 +1,12 @@
 import { EXERCISES, type Exercise } from './exercises';
 import { getTargetsForDayType, type MuscleTarget } from './muscleTargets';
 import { getUsedExerciseIds, resetMuscleCycle } from './muscleUsage';
-import type { DayType } from './plan-generator';
+import { canDoExercise, type DayType } from './plan-generator';
 
 export interface MuscleSelectedExercise {
   exercise: Exercise;
   isCompound: boolean;
   targetKey: string;
-}
-
-// Espejo exacto de canDoExercise() en plan-generator.ts. No se importa desde
-// allí porque no está exportada y este sub-paso no debe tocar ese archivo
-// (ver Sección 11 del audit — plan-generator.ts queda intacto hasta el
-// Sub-paso 3, cuando esto se conecte de verdad). Si esa función cambia allí,
-// hay que replicar el cambio aquí a mano.
-function canDoExercise(ex: Exercise, equipment: string[], isGym: boolean): boolean {
-  if (isGym) return true;
-  if (ex.equipment.length === 0) return true;
-  return ex.equipment.every(eq => equipment.includes(eq));
 }
 
 // Orden fijo para el "segundo compuesto" de targets de prioridad 1 (paso 5 del
@@ -35,11 +24,38 @@ const MAX_EXERCISES_PER_TARGET = 3;
 // como estuvo garantizado siempre por el sistema anterior).
 const ALLOWED_CATEGORIES = new Set(['push', 'pull', 'legs', 'core']);
 
+// Alineación por categoría — mismo criterio que `cats` en el sistema viejo
+// de plan-generator.ts: un target solo puede elegir ejercicios cuya
+// `category` real corresponda al componente de día que se está generando.
+// En días 'upper' (que mezclan PUSH_TARGETS + PULL_TARGETS) la categoría
+// admitida depende de `target.sourceCategory` — de qué lista viene el
+// target — nunca se adivina por el nombre/key del target.
+const PUSH_ONLY = new Set(['push']);
+const PULL_ONLY = new Set(['pull']);
+const LEGS_OR_CORE = new Set(['legs', 'core']);
+
+function allowedCategoriesFor(dayType: DayType, target: MuscleTarget): Set<string> {
+  switch (dayType) {
+    case 'push':
+      return PUSH_ONLY;
+    case 'pull':
+      return PULL_ONLY;
+    case 'legs':
+    case 'lower':
+      return LEGS_OR_CORE;
+    case 'upper':
+      return new Set([target.sourceCategory]);
+    case 'full_body':
+      return ALLOWED_CATEGORIES;
+  }
+}
+
 export async function selectExercisesForDayByMuscle(
   dayType: DayType,
   equipment: string[],
   isGym: boolean,
   counts: { compounds: number; isolations: number },
+  excludeIds: Set<string>,
 ): Promise<MuscleSelectedExercise[]> {
   const targets = [...getTargetsForDayType(dayType)].sort((a, b) => a.bonusPriority - b.bonusPriority);
   const available = EXERCISES.filter(e => ALLOWED_CATEGORIES.has(e.category) && canDoExercise(e, equipment, isGym));
@@ -57,13 +73,19 @@ export async function selectExercisesForDayByMuscle(
     return cap - (slotsGiven[target.key] ?? 0);
   }
 
-  // Candidatos elegibles para un target, ya sin los usados en este día;
-  // si el uso previo (BD) vacía el pool, resetea el ciclo de esos músculos
-  // y reintenta sobre el pool completo (paso 4 del algoritmo).
+  // Candidatos elegibles para un target, ya sin los usados en este día ni los
+  // ya elegidos en días previos de ESTA MISMA generación de plan (excludeIds);
+  // si el uso previo (BD, persistente entre semanas) vacía el pool, resetea
+  // el ciclo de esos músculos y reintenta sobre el pool completo (paso 4 del
+  // algoritmo). excludeIds NO se resetea nunca — es del plan actual, no del
+  // ciclo de rotación persistente.
   async function getEligiblePool(target: MuscleTarget, isCompound: boolean): Promise<Exercise[]> {
+    const allowedCats = allowedCategoriesFor(dayType, target);
     const pool = available.filter(e =>
       e.isCompound === isCompound &&
       !chosenIds.has(e.id) &&
+      !excludeIds.has(e.id) &&
+      allowedCats.has(e.category) &&
       target.muscleGroups.some(m => e.primaryMuscles.includes(m)),
     );
     if (pool.length === 0) return [];

@@ -1,4 +1,5 @@
-import { EXERCISES, type Exercise, type ExerciseCategory } from './exercises';
+import type { Exercise } from './exercises';
+import { selectExercisesForDayByMuscle } from './muscleBasedSelection';
 
 export type DayType = 'full_body' | 'push' | 'pull' | 'legs' | 'upper' | 'lower';
 export type GoalKey  = 'strength' | 'hypertrophy' | 'fat_loss';
@@ -75,26 +76,10 @@ function getSplit(daysPerWeek: number): DayType[] {
   }
 }
 
-function canDoExercise(ex: Exercise, equipment: string[], isGym: boolean): boolean {
+export function canDoExercise(ex: Exercise, equipment: string[], isGym: boolean): boolean {
   if (isGym) return true;
   if (ex.equipment.length === 0) return true;
   return ex.equipment.every(eq => equipment.includes(eq));
-}
-
-const GYM_EQUIP_PRIORITY = new Set(['barbellPlates', 'cableMachine', 'legPressMachine', 'dumbbells', 'kettlebells']);
-
-// Para usuarios de gimnasio: coloca ejercicios con carga antes de los de peso corporal
-function sortGymFirst(exercises: Exercise[]): Exercise[] {
-  return [...exercises].sort((a, b) => {
-    const aScore = a.equipment.some(e => GYM_EQUIP_PRIORITY.has(e)) ? 1 : 0;
-    const bScore = b.equipment.some(e => GYM_EQUIP_PRIORITY.has(e)) ? 1 : 0;
-    return bScore - aScore;
-  });
-}
-
-function safePick<T>(arr: T[], index: number): T | undefined {
-  if (!arr.length) return undefined;
-  return arr[index % arr.length];
 }
 
 // Solo la barra con discos acepta rangos de fuerza bajos (3-5, 4-6 reps)
@@ -115,72 +100,17 @@ function buildPlanned(exs: Exercise[], sets: number, reps: string, rest: number,
   return exs.map(e => ({ exerciseId: e.id, sets, reps: getEffectiveReps(e, reps), restSeconds: rest, isCompound }));
 }
 
-function selectExercisesForDay(
+async function selectExercisesForDay(
   dayType: DayType,
   equipment: string[],
   isGym: boolean,
   counts: { compounds: number; isolations: number },
   scheme: RepScheme,
-  offset: number,
-): PlannedExercise[] {
-  const rawAvailable = EXERCISES.filter(e => canDoExercise(e, equipment, isGym));
-  const available = isGym ? sortGymFirst(rawAvailable) : rawAvailable;
-  let compounds: Exercise[];
-  let isolations: Exercise[];
-
-  if (dayType === 'full_body') {
-    const pushC = available.filter(e => e.category === 'push' && e.isCompound);
-    const pullC = available.filter(e => e.category === 'pull' && e.isCompound);
-    const legsC = available.filter(e => e.category === 'legs' && e.isCompound);
-    const chosen: Exercise[] = [];
-    const p = safePick(pushC, offset); if (p) chosen.push(p);
-    const q = safePick(pullC, offset); if (q) chosen.push(q);
-    const l = safePick(legsC, offset); if (l) chosen.push(l);
-    if (counts.compounds > 3) {
-      const extras = [...pushC, ...pullC, ...legsC].filter(e => !chosen.includes(e));
-      chosen.push(...extras.slice(0, counts.compounds - 3));
-    }
-    compounds = chosen.slice(0, counts.compounds);
-    const allIso = available.filter(e =>
-      (['push', 'pull', 'legs', 'core'] as ExerciseCategory[]).includes(e.category) && !e.isCompound,
-    );
-    isolations = allIso.slice(offset % Math.max(allIso.length, 1), offset % Math.max(allIso.length, 1) + counts.isolations);
-    if (isolations.length < counts.isolations) {
-      isolations = allIso.slice(0, counts.isolations);
-    }
-  } else {
-    const cats: ExerciseCategory[] =
-      dayType === 'upper' ? ['push', 'pull'] :
-      dayType === 'lower' ? ['legs', 'core']  :
-      [dayType as ExerciseCategory];
-
-    // Round-robin: toma 1 ejercicio de cada categoría por vuelta para garantizar
-    // que días multi-categoría (upper=push+pull, lower=legs+core) cubran todas las
-    // categorías asignadas antes de repetir la primera. Días de una sola categoría
-    // (push/pull/legs) se comportan igual que antes: el único pool agota los slots.
-    const pickRoundRobin = (isCompound: boolean, limit: number): Exercise[] => {
-      const pools = cats.map(cat =>
-        available.filter(e => e.category === cat && e.isCompound === isCompound),
-      );
-      const result: Exercise[] = [];
-      const starts = pools.map(pool => pool.length > 0 ? offset % pool.length : 0);
-      const taken  = pools.map(() => 0);
-      while (result.length < limit) {
-        let anyPicked = false;
-        for (let p = 0; p < pools.length && result.length < limit; p++) {
-          if (pools[p].length === 0) continue;
-          result.push(pools[p][(starts[p] + taken[p]) % pools[p].length]);
-          taken[p]++;
-          anyPicked = true;
-        }
-        if (!anyPicked) break;
-      }
-      return result;
-    };
-
-    compounds  = pickRoundRobin(true,  counts.compounds);
-    isolations = pickRoundRobin(false, counts.isolations);
-  }
+  excludeIds: Set<string>,
+): Promise<PlannedExercise[]> {
+  const selected = await selectExercisesForDayByMuscle(dayType, equipment, isGym, counts, excludeIds);
+  const compounds  = selected.filter(s => s.isCompound).map(s => s.exercise);
+  const isolations = selected.filter(s => !s.isCompound).map(s => s.exercise);
 
   return [
     ...buildPlanned(compounds,  scheme.compoundSets,  scheme.compoundReps,  scheme.compoundRest,  true),
@@ -188,14 +118,14 @@ function selectExercisesForDay(
   ];
 }
 
-export function generatePlan(profile: {
+export async function generatePlan(profile: {
   goalPrimary: string;
   goalSecondary?: string | null;
   daysPerWeek: number;
   minutesPerSession: number;
   location: string;
   equipment: string;
-}): GeneratedPlan {
+}): Promise<GeneratedPlan> {
   const equipment: string[] = (() => {
     try { return JSON.parse(profile.equipment) as string[]; } catch { return []; }
   })();
@@ -204,11 +134,15 @@ export function generatePlan(profile: {
   const counts = getExerciseCounts(profile.minutesPerSession);
   const split  = getSplit(profile.daysPerWeek);
 
-  const days: PlanDayData[] = split.map((dayType, i) => ({
-    dayIndex: i,
-    dayType,
-    exercises: selectExercisesForDay(dayType, equipment, isGym, counts, scheme, i),
-  }));
+  // Secuencial (no en paralelo): cada día necesita conocer los ejercicios ya
+  // elegidos por los días anteriores de ESTA generación, vía excludeIds.
+  const usedThisWeek = new Set<string>();
+  const days: PlanDayData[] = [];
+  for (const [i, dayType] of split.entries()) {
+    const exercises = await selectExercisesForDay(dayType, equipment, isGym, counts, scheme, usedThisWeek);
+    for (const ex of exercises) usedThisWeek.add(ex.exerciseId);
+    days.push({ dayIndex: i, dayType, exercises });
+  }
 
   return {
     goalPrimary:       profile.goalPrimary,

@@ -913,6 +913,85 @@ Bucle ~1.3 s sobre fondo #141A17:
       ejercicios) — el catálogo de datos está completo pero no conectado a
       la UI/generador. Conectarlo es trabajo futuro, fuera de este
       mini-proyecto (que era solo de catálogo de datos).
+- Hecho: sesión 2026-07-07 — FASE 0-A completa: generador de planes reescrito
+  para elegir ejercicios por músculo objetivo en vez de por categoría+ronda
+  fija, ya conectado de verdad a `generatePlan()`. Trabajo por sub-pasos,
+  cada uno auditado y verificado antes de seguir (ver `LOTE11_REACHABILITY_AUDIT.md`,
+  secciones 1-12, para el rastro completo de diagnóstico que motivó esta fase
+  y toda la evidencia de verificación).
+  * **Sub-paso 1 — esquema y objetivos musculares**:
+    - Migración manual `0009_muscle_exercise_usage.sql` (tabla
+      `muscle_exercise_usage`: `muscle`+`exercise_id` como clave primaria
+      compuesta, `used_at`) siguiendo el mismo patrón manual que 0001-0008
+      (`drizzle-kit generate` no es viable hoy — falla en modo no interactivo
+      por el drift de snapshots desde la migración 0000; confirmado
+      intentándolo). Bug real encontrado y corregido en el propio proceso:
+      el `when` de cada entrada de `_journal.json` es funcional (decide si
+      una migración se aplica, comparándose contra el máximo ya registrado
+      en el dispositivo, no contra la de índice más alto) — documentado como
+      regla nueva en "Reglas de trabajo".
+    - `src/lib/muscleTargets.ts`: `MuscleTarget` (key, muscleGroups,
+      bonusPriority, maxSlots opcional, `sourceCategory`) + `PUSH_TARGETS`/
+      `PULL_TARGETS`/`LEGS_TARGETS`/`FULL_BODY_TARGETS` + `getTargetsForDayType()`.
+    - `src/lib/muscleUsage.ts`: `getUsedExerciseIds`/`markExerciseUsed`/
+      `resetMuscleCycle` sobre la tabla nueva (rotación persistente entre
+      semanas, separada del `excludeIds` de una sola generación).
+  * **Sub-paso 2 — algoritmo por músculo, validado en aislamiento**:
+    `src/lib/muscleBasedSelection.ts` — `selectExercisesForDayByMuscle()`,
+    dos pasadas: (1) mínimo garantizado por target consumiendo presupuesto
+    TOTAL combinado (compuestos+aislamientos, con cruce de bolsa si hace
+    falta); (2) bonos con lo que sobre (compuesto: orden fijo cíclico
+    pecho→espalda→cuádriceps→isquiotibiales; aislamiento: por prioridad,
+    respetando topes). Tope general de 3 ejercicios por target
+    (`MAX_EXERCISES_PER_TARGET`) salvo `maxSlots` propio (antebrazo=1). Solo
+    categorías `push`/`pull`/`legs`/`core` (cardio/mobility/full_body
+    excluidos siempre). Probado con `scripts/test-muscle-selection.ts` (8
+    escenarios) contra una BD SQLite real en memoria (`scripts/test-support/`,
+    vía `node:sqlite` + `drizzle-orm/sqlite-proxy`, porque `expo-sqlite` no
+    puede cargarse fuera del runtime de Expo).
+  * **Sub-paso 3 — conexión real a `plan-generator.ts`** (primera vez que se
+    tocó ese archivo en toda la sesión): `selectExercisesForDay()` reescrito
+    para delegar en `selectExercisesForDayByMuscle()`; `generatePlan()` ahora
+    es secuencial (`for...of` + `await`, no `Promise.all`) con un
+    `Set<string>` de ejercicios ya usados en la semana (`excludeIds`) que
+    garantiza variedad real entre días del mismo tipo (antes dependía de
+    `offset`+orden del catálogo, ver auditoría secciones 6-9). Eliminados
+    `GYM_EQUIP_PRIORITY`, `sortGymFirst`, `safePick` (confirmado sin otros
+    usos). `canDoExercise` ahora exportada. `workout.store.ts:112` con
+    `await`. Verificado con `scripts/test-full-plan-generation.ts` (plan real
+    de 4 días y de 3 días).
+  * **Corrección de datos + alineación por categoría** (post-auditoría
+    sección 12): 5 ejercicios tenían `category` mal puesta desde su creación
+    (`wrist_curl_db`/`reverse_wrist_curl_db`/`plate_pinch_hold`/`zottman_curl`:
+    `core`→`pull`; `copenhagen_plank`: `core`→`legs`). Además, el algoritmo
+    por músculo no restringía por `category` del día (solo por
+    `primaryMuscles`), dejando colar ejercicios de una categoría en el día
+    equivocado (ej. `ytw_prone`, `category:'pull'`, elegido para el target
+    `hombros` en un día `push`). Corregido en `muscleBasedSelection.ts`
+    (`allowedCategoriesFor(dayType, target)`) usando el campo nuevo
+    `sourceCategory` en `MuscleTarget` (de qué lista viene cada target —
+    nunca adivinado por nombre). Ningún target perdió cobertura tras el
+    ajuste en los 10 escenarios de prueba; el único efecto real fue un día
+    `push` con equipamiento mínimo (`mat`) pasando de 4 a 3 ejercicios (el
+    target seguía cubierto por otro ejercicio ya elegible).
+  * Todo JS puro — sin módulos nativos, no requiere recompilar. `npx tsc
+    --noEmit` limpio en cada paso. Los dos scripts de prueba
+    (`scripts/test-muscle-selection.ts`, `scripts/test-full-plan-generation.ts`)
+    quedan en el repo como regresión rápida para la próxima sesión.
+  * Pendiente para retomar (Fase 0-B o siguiente):
+    - `markExerciseUsed()` NO se llama todavía desde ningún flujo real — la
+      tabla `muscle_exercise_usage` existe y se lee, pero nadie escribe en
+      ella todavía en producción. Falta conectarla a `finishSession()` (ver
+      nota en Sub-paso 1 original) para que la rotación persistente entre
+      semanas empiece a funcionar de verdad.
+    - `console.log('[muscleBasedSelection] compoundLeft...')` en
+      `muscleBasedSelection.ts` es instrumentación de depuración añadida a
+      petición durante las pruebas — sigue activa, no se ha limpiado.
+    - Auditoría completa de los 19 ejercicios con cruce `category`/músculo
+      "intuitivo" detectados (sección 12 del audit): solo se corrigieron los
+      5 sin justificación (grupos c/d del audit); los otros 14 (deadlifts,
+      face pulls, etc., grupos a/b) se dejaron como están por tener
+      justificación real de programación (ver audit para el detalle).
 - Siguiente: FASE 7 — In-app purchase (OBLIGATORIA antes de publicar).
 - Pendiente obligatorio: FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
