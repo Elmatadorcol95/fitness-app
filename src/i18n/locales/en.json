@@ -166,7 +166,18 @@
       "restDays": "{{n}} rest days in the cycle",
       "changeEx": "Change",
       "changeExTitle": "Choose an alternative exercise",
-      "noAlternatives": "No alternatives for your current equipment"
+      "noAlternatives": "No alternatives for your current equipment",
+      "weekComplete": {
+        "title": "Week complete! 🎉",
+        "subtitle": "You trained your {{days}} days this week.",
+        "generateButton": "Generate next week's workout"
+      },
+      "resetWeek": {
+        "link": "Prefer to start fresh? Generate a new week",
+        "title": "Generate a new week?",
+        "msg": "You'll lose this week's progress (days trained). Are you sure you want to continue?",
+        "confirm": "Yes, generate"
+      }
     }
   },
   "disclaimer": "This app does not provide medical advice. Consult a healthcare professional before starting any exercise or diet program.",

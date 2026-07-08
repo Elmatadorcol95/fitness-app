@@ -6,6 +6,7 @@ import { hapticsLight, hapticsSuccess } from '@/lib/haptics';
 import { playRestDone } from '@/lib/sounds';
 import { runProgressionAfterSession } from '@/lib/progression';
 import { EXERCISES } from '@/lib/exercises';
+import { markExerciseUsed } from '@/lib/muscleUsage';
 import type { StoredPlanDay } from './workout.store';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -502,6 +503,19 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       }
     }
     console.log('[Session] guardadas', setsCount, 'series');
+
+    for (const ex of exercises) {
+      if (ex.sets.some(s => s.completed)) {
+        const exercise = EXERCISES.find(e => e.id === ex.exerciseId);
+        if (exercise) {
+          try {
+            await markExerciseUsed(exercise);
+          } catch (err) {
+            console.error('[Session] ERROR marcando ejercicio usado:', err);
+          }
+        }
+      }
+    }
 
     let hasPR = false;
     if (planId !== null) {

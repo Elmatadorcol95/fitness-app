@@ -3,6 +3,7 @@ import { desc, eq, ne } from 'drizzle-orm';
 import { db } from '@/db';
 import { gamificationMeta, planDays, workoutPlans } from '@/db/schema';
 import { generatePlan, type PlannedExercise, type DayType } from '@/lib/plan-generator';
+import { useGamificationStore } from './gamification.store';
 import type { Profile } from '@/db/schema';
 
 const ACTIVE_DAY_KEY = 'workout_active_day_index';
@@ -171,6 +172,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       await db.update(workoutPlans).set({ isActive: 0 }).where(ne(workoutPlans.id, savedPlan.id));
 
       await saveActiveDayIndex(0);
+      await useGamificationStore.getState().resetDaysTrainedThisWeek();
 
       set({
         currentPlan: {

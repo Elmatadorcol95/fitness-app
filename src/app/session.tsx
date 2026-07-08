@@ -185,7 +185,7 @@ export default function SessionScreen() {
   } = useSessionStore();
 
   const { currentPlan, advanceDayIndex } = useWorkoutStore();
-  const { recordWorkout, unlockAchievement } = useGamificationStore();
+  const { recordWorkout, unlockAchievement, incrementDaysTrainedThisWeek } = useGamificationStore();
   const { profile }           = useProfileStore();
   const equipment = parseEquipment(profile?.equipment);
   const isGym     = profile?.location === 'gym' || profile?.location === 'both';
@@ -294,10 +294,11 @@ export default function SessionScreen() {
     if (ratio >= 0.5) {
       const perfect = plannedSets > 0 && completedSets >= plannedSets;
       recordWorkout(today, { perfect });
+      incrementDaysTrainedThisWeek();
     }
 
     await advanceDayIndex();
-  }, [finishSession, unlockAchievement, recordWorkout, advanceDayIndex]);
+  }, [finishSession, unlockAchievement, recordWorkout, incrementDaysTrainedThisWeek, advanceDayIndex]);
 
   function handleFinish() {
     const pending = exercises.reduce(

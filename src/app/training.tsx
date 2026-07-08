@@ -15,6 +15,7 @@ import { ChangeExerciseModal } from '@/components/workout/ChangeExerciseModal';
 import { useWorkoutStore, type StoredPlanDay } from '@/store/workout.store';
 import { useSessionStore } from '@/store/session.store';
 import { useProfileStore } from '@/store/profile.store';
+import { useGamificationStore } from '@/store/gamification.store';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { getExerciseName, getAlternatives, canDoAtHome, EXERCISES, type Exercise } from '@/lib/exercises';
 import { getExerciseTargetsForPlan } from '@/lib/progression';
@@ -110,6 +111,7 @@ export default function TrainingScreen() {
   } = useWorkoutStore();
   const startSession       = useSessionStore(s => s.startSession);
   const setTrainingContext = useSessionStore(s => s.setTrainingContext);
+  const daysTrainedThisWeek = useGamificationStore(s => s.daysTrainedThisWeek);
 
   const [expandedOtherDay, setExpandedOtherDay] = useState<number | null>(null);
   const [changeModal, setChangeModal] = useState({
@@ -120,6 +122,7 @@ export default function TrainingScreen() {
   const [isStarting,   setIsStarting]  = useState(false);
   const [whereOpen,    setWhereOpen]   = useState(false);
   const [startError,   setStartError]  = useState('');
+  const [resetWeekOpen, setResetWeekOpen] = useState(false);
 
   const lang      = normalizeLang(i18n.language);
   const equipment = parseEquipment(profile?.equipment);
@@ -294,6 +297,8 @@ export default function TrainingScreen() {
     !hasBackVariety                   ? 'workout.today.noBackVariety' :
     'workout.today.noBicepWork';
 
+  const weekComplete = daysTrainedThisWeek >= currentPlan.days.length;
+
   return (
     <ThemedView style={styles.root}>
       <SafeAreaView style={styles.safe}>
@@ -302,6 +307,28 @@ export default function TrainingScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
+          {weekComplete ? (
+            <View style={styles.weekCompleteWrap}>
+              <VulcanSymbol size={80} />
+              <ThemedText type="subtitle" style={styles.weekCompleteTitle}>
+                {t('tabs.training.weekComplete.title')}
+              </ThemedText>
+              <ThemedText themeColor="textSecondary" style={styles.weekCompleteSubtitle}>
+                {t('tabs.training.weekComplete.subtitle', { days: currentPlan.daysPerWeek })}
+              </ThemedText>
+              <Pressable
+                style={[styles.genBtn, isGenerating && styles.genBtnDisabled]}
+                onPress={() => profile && generateAndSavePlan(profile)}
+                disabled={isGenerating || !profile}
+              >
+                {isGenerating
+                  ? <ActivityIndicator size="small" color="#04261A" />
+                  : <ThemedText style={styles.genBtnText}>{t('tabs.training.weekComplete.generateButton')}</ThemedText>
+                }
+              </Pressable>
+            </View>
+          ) : (
+          <>
           {/* ── Plan header ── */}
           <View style={styles.planHeader}>
             <View style={styles.planHeaderLeft}>
@@ -430,6 +457,20 @@ export default function TrainingScreen() {
               )}
             </>
           )}
+          </>
+          )}
+
+          {/* ── Enlace discreto: generar semana nueva desde cero (siempre visible) ── */}
+          <Pressable
+            onPress={() => setResetWeekOpen(true)}
+            style={[styles.resetWeekLink, isGenerating && styles.resetWeekLinkDisabled]}
+            disabled={isGenerating}
+            hitSlop={8}
+          >
+            <ThemedText themeColor="textSecondary" style={styles.resetWeekLinkText}>
+              {t('tabs.training.resetWeek.link')}
+            </ThemedText>
+          </Pressable>
         </ScrollView>
       </SafeAreaView>
 
@@ -470,6 +511,28 @@ export default function TrainingScreen() {
         confirmLabel="OK"
         onConfirm={() => setStartError('')}
         hideCancel
+      />
+
+      {/* ── ¿Generar semana nueva desde cero? ── */}
+      <VulcanDialog
+        visible={resetWeekOpen}
+        onClose={() => setResetWeekOpen(false)}
+        title={t('tabs.training.resetWeek.title')}
+        message={t('tabs.training.resetWeek.msg')}
+        confirmLabel={t('tabs.training.resetWeek.confirm')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        onConfirm={async () => {
+          if (isGenerating) return;
+          setResetWeekOpen(false);
+          if (profile) {
+            try {
+              await generateAndSavePlan(profile);
+            } catch (err) {
+              console.error('[Training] Error al generar semana nueva:', err);
+            }
+          }
+        }}
       />
     </ThemedView>
   );
@@ -580,4 +643,17 @@ const styles = StyleSheet.create({
   restRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingVertical: 4 },
   restLine:{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: MUTED + '44' },
   restText:{ fontSize: 12 },
+
+  // Semana completada
+  weekCompleteWrap: {
+    alignItems: 'center', justifyContent: 'center',
+    gap: Spacing.three, paddingVertical: Spacing.five,
+  },
+  weekCompleteTitle:    { textAlign: 'center', marginTop: Spacing.two },
+  weekCompleteSubtitle: { textAlign: 'center', lineHeight: 22, fontSize: 14 },
+
+  // Enlace: generar semana nueva desde cero
+  resetWeekLink:         { alignItems: 'center', paddingVertical: Spacing.three, marginTop: Spacing.one },
+  resetWeekLinkDisabled: { opacity: 0.6 },
+  resetWeekLinkText:     { fontSize: 12, textDecorationLine: 'underline', opacity: 0.8 },
 });

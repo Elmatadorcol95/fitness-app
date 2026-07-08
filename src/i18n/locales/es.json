@@ -166,7 +166,18 @@
       "restDays": "{{n}} días de descanso en el ciclo",
       "changeEx": "Cambiar",
       "changeExTitle": "Elegir ejercicio alternativo",
-      "noAlternatives": "No hay alternativas para tu equipamiento actual"
+      "noAlternatives": "No hay alternativas para tu equipamiento actual",
+      "weekComplete": {
+        "title": "¡Semana completada! 🎉",
+        "subtitle": "Entrenaste tus {{days}} días esta semana.",
+        "generateButton": "Generar entrenamiento de la próxima semana"
+      },
+      "resetWeek": {
+        "link": "¿Prefieres empezar de cero? Generar semana nueva",
+        "title": "¿Generar semana nueva?",
+        "msg": "Se perderá el progreso de la semana actual (días entrenados). ¿Seguro que quieres continuar?",
+        "confirm": "Sí, generar"
+      }
     }
   },
   "disclaimer": "Esta app no proporciona consejo médico. Consulta a un profesional de la salud antes de iniciar cualquier programa de ejercicio o dieta.",

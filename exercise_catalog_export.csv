@@ -1,0 +1,280 @@
+id,name_es,category,equipment,primaryMuscles,secondaryMuscles,isCompound,difficulty,isTimeBased
+adductor_rockback,Rockback de aductores,mobility,,adductors,"glutes;core",true,beginner,true
+ankle_circles,Círculos de tobillo,mobility,,calves,,true,beginner,true
+arm_circles,Círculos de brazos,mobility,,shoulders,,true,beginner,true
+bear_crawl,Oso caminante,cardio,,"core;shoulders","quads;chest",true,intermediate,true
+biceps_wall_stretch,Estiramiento de bíceps en pared,mobility,,biceps,forearms,false,beginner,true
+bodyweight_good_morning,Good morning sin peso,legs,,hamstrings,"glutes;back",false,beginner,false
+broad_jumps,Salto horizontal,cardio,,"quads;glutes","hamstrings;calves",true,intermediate,true
+burpee,Burpee,full_body,,"core;chest;quads","shoulders;glutes",true,intermediate,false
+burpee_sin_salto,Burpee sin salto,cardio,,"core;chest;quads","shoulders;glutes",true,beginner,true
+burpees,Burpees,cardio,,"core;chest;quads","shoulders;glutes",true,intermediate,true
+butt_kicks,Talones al glúteo,cardio,,"hamstrings;calves",quads,true,beginner,true
+calf_raise,Elevación de talones,legs,,calves,,false,beginner,false
+calf_stretch,Estiramiento de gemelos,mobility,,calves,,false,beginner,true
+cat_cow,Gato-vaca,mobility,,"back;core",,true,beginner,true
+close_grip_push_up,Flexión cerrada,push,,triceps,chest,false,beginner,false
+copenhagen_plank,Plancha copenhague,legs,,adductors,"core;abs",false,advanced,true
+cossack_squat,Sentadilla cosaco,legs,,adductors,"quads;glutes",true,intermediate,false
+crunch,Crunch abdominal,core,,abs,,false,beginner,false
+dead_bug,Dead bug,core,,"core;abs",,false,beginner,false
+deep_squat_hold,Sentadilla profunda mantenida,mobility,,"quads;glutes","hamstrings;core",true,intermediate,true
+doorway_chest_stretch,Estiramiento de pecho en marco de puerta,mobility,,chest,shoulders,false,beginner,true
+downdog_to_cobra,Perro boca abajo a cobra,mobility,,"back;shoulders","core;chest",true,beginner,true
+dynamic_bodyweight_squat,Sentadilla dinámica,mobility,,"quads;glutes","hamstrings;core",true,beginner,true
+fire_hydrants,Hidrante,mobility,,glutes,core,true,beginner,true
+forearm_extensor_stretch,Estiramiento de extensores del antebrazo,mobility,,forearms,,false,beginner,true
+forearm_flexor_stretch,Estiramiento de flexores del antebrazo,mobility,,forearms,,false,beginner,true
+glute_bridge,Puente de glúteos,legs,,glutes,"hamstrings;core",false,beginner,false
+glute_bridge_activation,Activación de puente de glúteos,mobility,,glutes,"hamstrings;core",true,beginner,true
+hamstring_sweep,Barrido de isquiotibiales,mobility,,hamstrings,"glutes;back",true,beginner,true
+heel_dig_isometric_hold,Isométrico de talón clavado,legs,,hamstrings,glutes,false,beginner,true
+high_knees,Rodillas al pecho,cardio,,"quads;core",calves,true,beginner,true
+hip_90_90_switch,Cambios de cadera 90/90,mobility,,glutes,"hamstrings;core",true,intermediate,true
+hip_airplanes,Aviones de cadera,mobility,,glutes,"hamstrings;core",true,advanced,true
+hip_circles,Círculos de cadera,mobility,,glutes,hamstrings,true,beginner,true
+hip_thrust_bodyweight,Hip thrust,legs,,glutes,"hamstrings;core",true,beginner,false
+inchworm_walkout,Inchworm,cardio,,"core;shoulders","hamstrings;chest",true,intermediate,true
+jumping_jacks,Salto de tijera,cardio,,"calves;core",shoulders,true,beginner,true
+jumping_lunges,Zancada saltada,cardio,,"quads;glutes","hamstrings;calves",true,intermediate,true
+lat_stretch_dynamic,Estiramiento dinámico de dorsal,mobility,,lats,back,true,beginner,true
+lat_stretch_static,Estiramiento estático de dorsal,mobility,,lats,back,false,beginner,true
+lateral_lunge,Zancada lateral,legs,,adductors,"quads;glutes",true,intermediate,false
+lateral_lunge_dynamic,Zancada lateral dinámica,mobility,,"quads;glutes",hamstrings,true,intermediate,true
+lateral_shuffle,Desplazamiento lateral,cardio,,"quads;glutes","calves;core",true,beginner,true
+leg_raise,Elevación de piernas,core,,"abs;core",,false,intermediate,false
+leg_swings,Balanceo de pierna,mobility,,"hamstrings;glutes",quads,true,beginner,true
+levator_scapulae_stretch,Estiramiento del elevador de la escápula,mobility,,"traps;shoulders",back,false,beginner,true
+long_lever_glute_bridge,Puente de glúteos con palanca larga,legs,,"glutes;hamstrings",core,false,intermediate,false
+lunge,Zancada,legs,,"quads;glutes","hamstrings;calves",true,beginner,false
+mountain_climber,Escalador,core,,"core;abs","chest;shoulders",true,beginner,false
+mountain_climbers,Escaladores,cardio,,"core;abs","chest;shoulders",true,beginner,true
+overhead_triceps_stretch,Estiramiento de tríceps por encima de la cabeza,mobility,,triceps,shoulders,false,beginner,true
+pike_push_up,Flexión en pica,push,,"shoulders;triceps","chest;core",true,intermediate,false
+plank,Plancha,core,,"core;abs",shoulders,false,beginner,false
+plank_shoulder_taps,Toques de hombro en plancha,mobility,,"core;shoulders",chest,true,intermediate,true
+prone_swimmers,Nadadores en prono,mobility,,"back;shoulders","glutes;core",true,beginner,true
+push_up,Flexión de brazos,push,,"chest;triceps","shoulders;core",true,beginner,false
+reverse_plank_bridge,Plancha invertida,legs,,"hamstrings;glutes","core;shoulders",false,intermediate,false
+russian_twist,Giro ruso,core,,"abs;core",,false,beginner,false
+scapular_pushup,Flexión escapular,mobility,,"chest;shoulders",triceps,true,beginner,true
+scapular_retraction,Retracción escapular,mobility,,back,traps,false,beginner,true
+shadow_boxing,Sombra de boxeo,cardio,,"shoulders;core","triceps;chest",true,beginner,true
+shoulder_rotation,Rotación de hombro,mobility,,shoulders,,true,beginner,true
+side_lying_hip_adduction,Aducción de cadera tumbado de lado,legs,,adductors,,false,beginner,false
+side_plank,Plancha lateral,core,,"core;abs",shoulders,false,beginner,false
+single_leg_calf_raise,Elevación de talones a una pierna,legs,,calves,,false,beginner,false
+single_leg_glute_bridge,Puente de glúteos a una pierna,legs,,glutes,"hamstrings;core",false,intermediate,false
+single_leg_rdl_bw,Peso muerto rumano a una pierna,legs,,"hamstrings;glutes","back;core",true,intermediate,false
+skater_jumps,Saltos laterales tipo patinador,cardio,,"glutes;quads","calves;core",true,intermediate,true
+snow_angel_prone,Ángeles de nieve invertidos,pull,,"back;shoulders","traps;core",false,beginner,false
+squat_bodyweight,Sentadilla libre,legs,,"quads;glutes","hamstrings;core",true,beginner,false
+squat_jumps,Sentadilla con salto,cardio,,"quads;glutes","calves;core",true,intermediate,true
+standing_quad_stretch,Estiramiento de cuádriceps de pie,mobility,,quads,,false,beginner,true
+step_ups,Subida a banco/escalón,cardio,,"quads;glutes","hamstrings;calves",true,beginner,true
+sumo_squat,Sentadilla sumo,legs,,"quads;glutes",hamstrings,false,beginner,false
+superman,Superman,pull,,"back;glutes","hamstrings;core",false,beginner,false
+thoracic_open_book,Apertura torácica,mobility,,"back;core",shoulders,true,beginner,true
+torso_twists,Giros de torso,mobility,,core,abs,true,beginner,true
+upper_trap_stretch,Estiramiento de trapecio superior,mobility,,traps,shoulders,false,beginner,true
+walking_lunge_twist,Zancada caminando con giro,mobility,,"quads;glutes","core;hamstrings",true,intermediate,true
+wall_slides,Deslizamiento en pared,mobility,,shoulders,back,true,beginner,true
+worlds_greatest_stretch,El mejor estiramiento del mundo,mobility,,"hamstrings;glutes","core;shoulders",true,intermediate,true
+wrist_mobility,Movilidad de muñeca,mobility,,forearms,,false,beginner,true
+ytw_prone,Y-T-W en prono,pull,,"back;shoulders",traps,false,beginner,false
+ab_machine_crunch,Crunch en máquina abdominal,core,abMachine,abs,core,false,beginner,false
+ab_roller,Rueda abdominal,core,abRoller,"abs;core",lats,false,advanced,false
+bulgarian_split_squat,Sentadilla búlgara,legs,adjustableBench,"quads;glutes","hamstrings;core",true,intermediate,false
+preacher_curl_db,Curl predicador con mancuerna,pull,"adjustableBench;dumbbells",biceps,forearms,false,intermediate,false
+assisted_dip,Fondos asistidos en máquina,push,assistedMachine,"chest;triceps",shoulders,true,beginner,false
+assisted_pullup,Dominada asistida en máquina,pull,assistedMachine,"lats;back",biceps,true,beginner,false
+barbell_bench_press,Press de banca con barra,push,barbellPlates,chest,"shoulders;triceps",true,intermediate,false
+barbell_calf_raise,Elevación de talones con barra,legs,barbellPlates,calves,,false,intermediate,false
+barbell_curl,Curl con barra,pull,barbellPlates,biceps,forearms,false,beginner,false
+barbell_deadlift,Peso muerto con barra,pull,barbellPlates,"back;hamstrings;glutes","quads;traps;core",true,advanced,false
+barbell_overhead_press,Press militar con barra,push,barbellPlates,shoulders,"triceps;traps;core",true,intermediate,false
+barbell_romanian_deadlift,Peso muerto rumano con barra,legs,barbellPlates,"hamstrings;glutes","back;core",true,intermediate,false
+barbell_row,Remo con barra,pull,barbellPlates,"back;lats","biceps;hamstrings",true,intermediate,false
+barbell_shrug,Encogimiento con barra,pull,barbellPlates,traps,,false,beginner,false
+barbell_squat,Sentadilla con barra,legs,barbellPlates,"quads;glutes","hamstrings;core",true,intermediate,false
+plate_pinch_hold,Pinza de discos,pull,barbellPlates,forearms,,false,intermediate,true
+incline_barbell_press,Press inclinado con barra,push,"barbellPlates;adjustableBench",chest,"shoulders;triceps",true,intermediate,false
+cable_crunch,Crunch en polea,core,cableMachine,abs,core,false,beginner,false
+cable_curl,Curl de bíceps en polea,pull,cableMachine,biceps,forearms,false,beginner,false
+cable_dead_bug,Dead bug en cable,core,cableMachine,"core;abs",,false,intermediate,false
+cable_face_pull,Face pull en polea,pull,cableMachine,"shoulders;traps",back,false,beginner,false
+cable_fly,Aperturas en polea,push,cableMachine,chest,shoulders,false,beginner,false
+cable_hip_abduction,Abducción de cadera en polea,legs,cableMachine,glutes,,false,beginner,false
+cable_lateral_raise,Elevación lateral en polea,push,cableMachine,shoulders,,false,beginner,false
+cable_pallof_press,Pallof press en cable,core,cableMachine,core,shoulders,false,intermediate,false
+cable_reverse_crunch,Reverse crunch en polea,core,cableMachine,abs,core,false,intermediate,false
+cable_row,Remo en polea baja,pull,cableMachine,"back;lats",biceps,true,beginner,false
+cable_shrug,Encogimiento en polea,pull,cableMachine,traps,,false,beginner,false
+cable_tricep_pushdown,Jalón de tríceps en polea,push,cableMachine,triceps,,false,beginner,false
+cable_woodchop,Cable woodchop,core,cableMachine,"core;abs",shoulders,false,intermediate,false
+lat_pulldown,Jalón al pecho en polea,pull,cableMachine,"lats;back",biceps,true,beginner,false
+standing_cable_hip_adduction,Aducción de cadera de pie en polea,legs,cableMachine,adductors,,false,intermediate,false
+seated_calf_raise_machine,Elevación de talones sentado en máquina,legs,calfMachine,calves,,false,beginner,false
+standing_calf_raise_machine,Elevación de talones de pie en máquina,legs,calfMachine,calves,,false,beginner,false
+elliptical,Elíptica,cardio,cardioMachine,"quads;glutes","hamstrings;calves",true,beginner,true
+rowing_machine_cardio,Remo (máquina),cardio,cardioMachine,"back;quads","lats;hamstrings;core",true,intermediate,true
+stair_climber,Escalera automática,cardio,cardioMachine,"quads;glutes","calves;hamstrings",true,intermediate,true
+stationary_bike,Bici estática,cardio,cardioMachine,quads,"hamstrings;calves",true,beginner,true
+treadmill,Cinta de correr,cardio,cardioMachine,"quads;hamstrings","calves;glutes",true,beginner,true
+machine_chest_press,Press pectoral en máquina,push,chestPressMachine,chest,"shoulders;triceps",true,beginner,false
+db_bench_press,Press banca con mancuernas,push,dumbbells,chest,"shoulders;triceps",true,intermediate,false
+db_bicep_curl,Curl de bíceps,pull,dumbbells,biceps,forearms,false,beginner,false
+db_calf_raise,Elevación de talones con mancuernas,legs,dumbbells,calves,,false,beginner,false
+db_dead_bug,Dead bug con mancuerna,core,dumbbells,"core;abs",,false,intermediate,false
+db_deadlift,Peso muerto con mancuernas,pull,dumbbells,"back;hamstrings;glutes","quads;traps;core",true,intermediate,false
+db_fly,Aperturas con mancuernas,push,dumbbells,chest,shoulders,false,beginner,false
+db_front_raise,Elevación frontal,push,dumbbells,shoulders,,false,beginner,false
+db_lateral_raise,Elevación lateral,push,dumbbells,shoulders,,false,beginner,false
+db_lunge,Zancada con mancuernas,legs,dumbbells,"quads;glutes","hamstrings;calves",true,intermediate,false
+db_overhead_press,Press militar con mancuernas,push,dumbbells,shoulders,"triceps;core",true,intermediate,false
+db_plank_drag_through,Plancha con arrastre de mancuerna,core,dumbbells,"core;abs",shoulders,false,intermediate,false
+db_romanian_deadlift,Peso muerto rumano,legs,dumbbells,"hamstrings;glutes","back;core",true,intermediate,false
+db_row,Remo con mancuerna,pull,dumbbells,"back;lats",biceps,true,beginner,false
+db_russian_twist,Russian twist con mancuerna,core,dumbbells,"abs;core",,false,beginner,false
+db_shrug,Encogimiento con mancuernas,pull,dumbbells,traps,,false,beginner,false
+db_side_bend,Flexión lateral con mancuerna,core,dumbbells,"abs;core",,false,beginner,false
+db_tricep_extension,Extensión de tríceps,push,dumbbells,triceps,,false,beginner,false
+farmers_carry,Farmer's carry,core,dumbbells,core,"forearms;traps",false,beginner,false
+goblet_squat,Sentadilla copa,legs,dumbbells,"quads;glutes","core;hamstrings",true,beginner,false
+hammer_curl,Curl martillo,pull,dumbbells,"biceps;forearms",,false,beginner,false
+reverse_wrist_curl_db,Curl de muñeca inverso con mancuerna,pull,dumbbells,forearms,,false,beginner,false
+seated_db_calf_raise,Elevación de talones sentado con mancuerna,legs,dumbbells,calves,,false,beginner,false
+suitcase_carry,Suitcase carry,core,dumbbells,core,forearms,false,intermediate,false
+weighted_crunch,Crunch con peso,core,dumbbells,abs,,false,beginner,false
+wrist_curl_db,Curl de muñeca con mancuerna,pull,dumbbells,forearms,,false,beginner,false
+zottman_curl,Curl Zottman,pull,dumbbells,"biceps;forearms",,false,intermediate,false
+db_hip_thrust,Hip thrust con mancuerna,legs,"dumbbells;adjustableBench",glutes,"hamstrings;core",true,intermediate,false
+fitball_core_stretch,Estiramiento de core en fitball,mobility,fitball,"core;abs",back,false,beginner,true
+fitball_crunch,Crunch en fitball,core,fitball,abs,core,false,beginner,false
+fitball_knee_tuck,Knee tuck en fitball,core,fitball,"core;abs",shoulders,false,intermediate,false
+fitball_pike,Pike en fitball,core,fitball,"core;abs",shoulders,false,advanced,false
+fitball_plank,Plancha en fitball,core,fitball,"core;abs",shoulders,false,intermediate,false
+fitball_rollout,Rollout en fitball,core,fitball,"abs;core",lats,false,intermediate,false
+stir_the_pot,Stir the pot,core,fitball,"core;abs",shoulders,false,advanced,false
+foam_roll_glutes,Rodillo de espuma en glúteos,mobility,foamRoller,glutes,,false,beginner,true
+foam_roll_quads,Rodillo de espuma en cuádriceps,mobility,foamRoller,quads,,false,beginner,true
+foam_roll_upper_back,Rodillo de espuma en espalda alta,mobility,foamRoller,back,traps,false,beginner,true
+seated_hip_abductor_machine,Máquina de abductores sentado,legs,hipAbductorMachine,glutes,,false,beginner,false
+seated_hip_adductor_machine,Máquina de aductores sentado,legs,hipAdductorMachine,adductors,,false,beginner,false
+hip_thrust_machine,Empuje de cadera en máquina,legs,hipThrustMachine,glutes,hamstrings,true,beginner,false
+jump_rope,Comba,cardio,jumpRope,"calves;core",,false,beginner,true
+kb_around_the_world,Around the world,core,kettlebells,core,shoulders,false,beginner,false
+kb_bottoms_up_press,Press bottoms-up con kettlebell,push,kettlebells,shoulders,"forearms;core",false,advanced,false
+kb_farmer_carry,Farmer's carry con kettlebell,core,kettlebells,core,"forearms;traps",false,beginner,false
+kb_floor_press,Press de suelo con kettlebell,push,kettlebells,chest,"triceps;shoulders",true,beginner,false
+kb_goblet_squat,Sentadilla copa con kettlebell,legs,kettlebells,"quads;glutes","core;hamstrings",true,beginner,false
+kb_half_kneeling_press,Press de rodilla en el suelo con kettlebell,push,kettlebells,shoulders,"triceps;core",true,intermediate,false
+kb_halo,Halo,core,kettlebells,core,shoulders,false,beginner,false
+kb_plank_drag_through,Plancha con arrastre de kettlebell,core,kettlebells,"core;abs",shoulders,false,intermediate,false
+kb_push_press,Push press con kettlebell,push,kettlebells,shoulders,"triceps;quads;core",true,intermediate,false
+kb_russian_twist,Russian twist con kettlebell,core,kettlebells,"abs;core",,false,beginner,false
+kb_shrug,Encogimiento con kettlebell,pull,kettlebells,traps,,false,beginner,false
+kb_suitcase_carry,Suitcase carry con kettlebell,core,kettlebells,core,forearms,false,intermediate,false
+kb_swing,Swing con kettlebell,pull,kettlebells,"glutes;hamstrings","back;shoulders;core",true,intermediate,false
+kb_thruster,Thruster con kettlebell,full_body,kettlebells,"quads;shoulders","glutes;core;triceps",true,intermediate,false
+kb_windmill,Windmill,core,kettlebells,core,"shoulders;hamstrings",false,advanced,false
+single_arm_kb_press,Press a una mano con kettlebell,push,kettlebells,shoulders,"triceps;core",true,intermediate,false
+turkish_getup,Turkish get-up,core,kettlebells,core,"shoulders;glutes",false,advanced,false
+hack_squat,Sentadilla hack,legs,legPressMachine,"quads;glutes",hamstrings,true,intermediate,false
+leg_curl,Curl femoral en máquina,legs,legPressMachine,hamstrings,glutes,false,beginner,false
+leg_extension,Extensión de cuádriceps,legs,legPressMachine,quads,,false,beginner,false
+leg_press,Prensa de piernas,legs,legPressMachine,"quads;glutes",hamstrings,true,beginner,false
+leg_press_calf_press,Prensa de gemelos en prensa de piernas,legs,legPressMachine,calves,,false,beginner,false
+seated_calf_raise,Elevación de talones sentado,legs,legPressMachine,calves,,false,beginner,false
+butterfly_stretch,Estiramiento mariposa,mobility,mat,adductors,glutes,false,beginner,true
+childs_pose,Postura del niño,mobility,mat,"back;lats",shoulders,false,beginner,true
+cobra_sphinx_stretch,Estiramiento cobra-esfinge,mobility,mat,"back;core",chest,false,beginner,true
+couch_stretch,Estiramiento de sofá,mobility,mat,quads,glutes,false,intermediate,true
+frog_stretch,Estiramiento de rana,mobility,mat,adductors,"hamstrings;glutes",false,intermediate,true
+kneeling_hip_flexor_stretch,Estiramiento de flexor de cadera de rodillas,mobility,mat,quads,core,false,beginner,true
+pigeon_stretch,Figura 4,mobility,mat,glutes,hamstrings,false,intermediate,true
+seated_hamstring_stretch,Estiramiento de isquiotibiales sentado,mobility,mat,hamstrings,back,false,beginner,true
+seated_straddle_stretch,Estiramiento en horqueta sentado,mobility,mat,adductors,hamstrings,false,intermediate,true
+static_90_90_hip_stretch,Estiramiento de cadera 90/90 estático,mobility,mat,glutes,hamstrings,false,intermediate,true
+supine_spinal_twist,Giro espinal supino,mobility,mat,"core;back",glutes,false,beginner,true
+thread_the_needle_static,Aguja enhebrada estática,mobility,mat,"back;shoulders",traps,false,beginner,true
+med_ball_slam,Lanzamiento de balón medicinal,full_body,medicineBall,"core;back","shoulders;abs",true,beginner,false
+clamshell,Almeja,mobility,miniGluteBands,glutes,,false,beginner,true
+lateral_band_walk,Paso lateral con banda,legs,miniGluteBands,glutes,,false,beginner,false
+monster_walk,Caminata de monstruo,mobility,miniGluteBands,glutes,quads,true,beginner,true
+dip,Fondos en paralelas,push,parallettes,"chest;triceps",shoulders,true,intermediate,false
+parallette_handstand_hold,Pino en paralelas,push,parallettes,shoulders,"triceps;core",false,advanced,true
+parallette_knee_raise,Elevación de rodillas en paralelas,core,parallettes,"abs;core",shoulders,false,intermediate,false
+parallette_lsit,L-sit en paralelas,core,parallettes,"core;abs","shoulders;triceps",false,advanced,true
+parallette_mountain_climber,Mountain climber en paralelas,core,parallettes,"core;abs","quads;shoulders",false,intermediate,false
+parallette_pushup,Flexión en paralelas,push,parallettes,"chest;triceps","shoulders;core",true,intermediate,false
+parallette_tuck_hold,Tuck hold en paralelas,core,parallettes,"core;abs",shoulders,false,intermediate,true
+pec_deck_fly,Aperturas en pec deck,push,pecDeckMachine,chest,shoulders,false,beginner,false
+box_jump,Salto al cajón,full_body,plioBox,"quads;glutes","calves;core",true,intermediate,false
+step_up,Subida al cajón,legs,plioBox,"quads;glutes",hamstrings,true,beginner,false
+chin_up,Dominada supina,pull,pullupBar,"biceps;lats","back;core",true,intermediate,false
+dead_hang,Colgado pasivo,mobility,pullupBar,"lats;back",forearms,true,beginner,true
+hanging_knee_raise,Rodillas al pecho en barra,core,pullupBar,"abs;core",,false,intermediate,false
+inverted_row,Remo invertido,pull,pullupBar,"back;lats","biceps;core",true,beginner,false
+pull_up,Dominada prona,pull,pullupBar,"lats;back","biceps;core",true,intermediate,false
+scapular_pullup,Dominada escapular,mobility,pullupBar,"lats;back",traps,true,intermediate,true
+band_curl,Curl con banda,pull,resistanceBands,biceps,,false,beginner,false
+band_external_rotation,Rotación externa con banda,mobility,resistanceBands,shoulders,,false,beginner,true
+band_face_pull_light,Face pull ligero con banda,mobility,resistanceBands,"shoulders;traps",back,false,beginner,true
+band_lateral_raise,Elevación lateral con banda,push,resistanceBands,shoulders,,false,beginner,false
+band_pass_through,Pass-through con banda,mobility,resistanceBands,shoulders,"chest;back",true,beginner,true
+band_pull_apart,Apertura con banda,mobility,resistanceBands,"shoulders;back",traps,false,beginner,true
+band_straight_arm_pulldown,Jalón de brazos rectos con banda,mobility,resistanceBands,lats,back,true,beginner,true
+face_pull_band,Face pull con banda,pull,resistanceBands,"shoulders;traps",back,false,beginner,false
+glute_kickback_band,Patada de glúteo con banda,legs,resistanceBands,glutes,hamstrings,false,beginner,false
+pallof_press_band,Pallof press con banda,core,resistanceBands,core,shoulders,false,beginner,false
+ring_assisted_squat,Sentadilla asistida en anillas,legs,rings,"quads;glutes","hamstrings;core",true,beginner,false
+ring_biceps_curl,Curl de bíceps en anillas,pull,rings,biceps,forearms,false,intermediate,false
+ring_dip,Fondos en anillas,push,rings,"chest;triceps","shoulders;core",true,advanced,false
+ring_face_pull,Face pull en anillas,pull,rings,"shoulders;traps",back,false,intermediate,false
+ring_fallout,Fallout en anillas,core,rings,"core;abs",shoulders,false,advanced,false
+ring_lsit,L-sit en anillas,core,rings,"core;abs","shoulders;triceps",false,advanced,true
+ring_pushup,Flexión en anillas,push,rings,"chest;triceps","shoulders;core",true,intermediate,false
+ring_row,Remo en anillas,pull,rings,"back;lats","biceps;core",true,beginner,false
+ring_support_hold,Sostén en anillas,push,rings,"shoulders;chest","triceps;core",false,intermediate,true
+ring_triceps_extension,Extensión de tríceps en anillas,push,rings,triceps,,false,advanced,false
+machine_row,Remo en máquina,pull,seatedRowMachine,"back;lats",biceps,true,beginner,false
+machine_overhead_press,Press de hombros en máquina,push,shoulderPressMachine,shoulders,triceps,true,beginner,false
+slider_body_saw,Body saw con deslizadores,core,sliders,"core;abs",shoulders,false,advanced,false
+slider_knee_tuck,Knee tuck con deslizadores,core,sliders,"core;abs",,false,intermediate,false
+slider_mountain_climber,Mountain climber con deslizadores,core,sliders,"core;abs","quads;shoulders",false,intermediate,false
+slider_pike,Pike con deslizadores,core,sliders,"core;abs",shoulders,false,advanced,false
+slider_plank_circles,Círculos de plancha con deslizadores,core,sliders,"core;abs",shoulders,false,advanced,false
+smith_bench_press,Press de banca en máquina Smith,push,smithMachine,chest,"shoulders;triceps",true,beginner,false
+smith_lunge,Zancada en máquina Smith,legs,smithMachine,"quads;glutes",hamstrings,true,intermediate,false
+smith_row,Remo en máquina Smith,pull,smithMachine,"back;lats",biceps,true,beginner,false
+smith_shoulder_press,Press militar en máquina Smith,push,smithMachine,shoulders,triceps,true,beginner,false
+smith_squat,Sentadilla en máquina Smith,legs,smithMachine,"quads;glutes",hamstrings,true,beginner,false
+t_bar_row,Remo en T,pull,tBarRowMachine,"back;lats",biceps,true,intermediate,false
+trx_assisted_pistol_squat,Sentadilla pistol asistida en TRX,legs,trx,"quads;glutes","hamstrings;core",true,advanced,false
+trx_atomic_pushup,TRX atomic push-up,core,trx,"core;abs","chest;shoulders;triceps",false,advanced,false
+trx_biceps_curl,Curl de bíceps en TRX,pull,trx,biceps,forearms,false,beginner,false
+trx_body_saw,TRX body saw,core,trx,"core;abs",shoulders,false,advanced,false
+trx_chest_fly,Aperturas en TRX,push,trx,chest,shoulders,false,intermediate,false
+trx_fallout,TRX fallout,core,trx,"core;abs",shoulders,false,intermediate,false
+trx_hamstring_curl,Curl femoral en TRX,legs,trx,hamstrings,"glutes;core",false,intermediate,false
+trx_knee_tuck,TRX knee tuck,core,trx,"core;abs",,false,intermediate,false
+trx_kneeling_rollout,TRX kneeling rollout,core,trx,"core;abs",lats,false,advanced,false
+trx_mountain_climber,TRX mountain climber,core,trx,"core;abs","quads;shoulders",false,intermediate,false
+trx_pike,TRX pike,core,trx,"core;abs",shoulders,false,advanced,false
+trx_plank,TRX plank,core,trx,"core;abs",shoulders,false,intermediate,false
+trx_push_up,Flexión en TRX,push,trx,"chest;triceps","shoulders;core",true,intermediate,false
+trx_reverse_lunge,Zancada inversa en TRX,legs,trx,"quads;glutes",hamstrings,true,beginner,false
+trx_row,Remo en TRX,pull,trx,"back;lats","biceps;core",true,beginner,false
+trx_squat,Sentadilla en TRX,legs,trx,"quads;glutes","hamstrings;core",true,beginner,false
+trx_triceps_extension,Extensión de tríceps en TRX,push,trx,triceps,,false,intermediate,false
+trx_y_raise,Elevación en Y en TRX,pull,trx,"shoulders;back",traps,false,intermediate,false
+weighted_vest_calf_raise,Elevación de talones con chaleco lastrado,legs,weightedVest,calves,,false,beginner,false
+weighted_vest_lunge,Zancada con chaleco lastrado,legs,weightedVest,"quads;glutes",hamstrings,true,intermediate,false
+weighted_vest_plank,Plancha con chaleco lastrado,core,weightedVest,"core;abs",shoulders,false,intermediate,true
+weighted_vest_pushup,Flexión con chaleco lastrado,push,weightedVest,"chest;triceps","shoulders;core",true,intermediate,false
+weighted_vest_squat,Sentadilla con chaleco lastrado,legs,weightedVest,"quads;glutes","hamstrings;core",true,intermediate,false
+weighted_vest_step_up,Subida al cajón con chaleco lastrado,legs,weightedVest,"quads;glutes",hamstrings,true,intermediate,false
+weighted_vest_wall_sit,Sentadilla en pared con chaleco lastrado,legs,weightedVest,quads,glutes,false,intermediate,true
+weighted_vest_chinup,Dominada supina con chaleco lastrado,pull,"weightedVest;pullupBar","biceps;lats","back;core",true,advanced,false
+weighted_vest_pullup,Dominada con chaleco lastrado,pull,"weightedVest;pullupBar","lats;back","biceps;core",true,advanced,false
