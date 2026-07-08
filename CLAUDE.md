@@ -992,8 +992,110 @@ Bucle ~1.3 s sobre fondo #141A17:
       5 sin justificación (grupos c/d del audit); los otros 14 (deadlifts,
       face pulls, etc., grupos a/b) se dejaron como están por tener
       justificación real de programación (ver audit para el detalle).
-- Siguiente: FASE 7 — In-app purchase (OBLIGATORIA antes de publicar).
-- Pendiente obligatorio: FASE 7 — In-app purchase.
+- Hecho: sesión 2026-07-08 — conexión de `markExerciseUsed()` a `finishSession()`
+  (JS, recarga): cierra el hilo suelto que había quedado pendiente de la Fase
+  0-A. En `session.store.ts` `finishSession()`, justo después de guardar
+  `sessionSets` y antes del bloque de progresión/PR, un recorrido paralelo por
+  `exercises` llama a `markExerciseUsed(exercise)` (buscado en `EXERCISES` por
+  `exerciseId`) para cada ejercicio con al menos una serie completada
+  (`ex.sets.some(s => s.completed)` — mismo criterio de siempre, sin gating
+  por el ratio de logros/racha). Envuelto en su propio try/catch con
+  `console.error` para que un fallo aquí nunca rompa el guardado de la sesión.
+  Ejercicio no encontrado en catálogo → se salta sin fallar. Verificado con
+  `git diff` que `hasPR`/`completedSets`/`plannedSets`/`runProgressionAfterSession`
+  no cambiaron ni una línea. La rotación persistente de `muscle_exercise_usage`
+  entre semanas ya funciona de verdad en producción.
+- Hecho: sesión 2026-07-08 — UI de cierre de semana (JS, recarga):
+  * `gamification.store.ts`: nuevo campo `daysTrainedThisWeek` (persistido en
+    `gamification_meta` con clave `days_trained_this_week`, mismo patrón que
+    `perfectWorkouts`). Nuevas acciones `incrementDaysTrainedThisWeek()` /
+    `resetDaysTrainedThisWeek()`. Añadido también a `resetAll()` para que el
+    store en memoria no quede con un valor obsoleto tras un borrado completo.
+  * `session.tsx` `doFinish()`: dentro del mismo bloque `if (ratio >= 0.5)` que
+    ya llama a `recordWorkout()`, ahora también llama a
+    `incrementDaysTrainedThisWeek()` — mismo criterio del 50%, sin duplicar el
+    cálculo del ratio.
+  * `workout.store.ts` `generateAndSavePlan()`: justo después de
+    `saveActiveDayIndex(0)`, llama a
+    `useGamificationStore.getState().resetDaysTrainedThisWeek()` — cada plan
+    nuevo arranca la semana en 0 días entrenados.
+  * `training.tsx`: `weekComplete = daysTrainedThisWeek >= currentPlan.days.length`.
+    Si es `true`, sustituye "Tu ciclo" + tarjeta del día + ejercicios por una
+    vista "¡Semana completada! 🎉" con botón "Generar entrenamiento de la
+    próxima semana" (mismo patrón `generateAndSavePlan(profile)` que
+    `equipment.tsx`). Enlace discreto "¿Prefieres empezar de cero? Generar
+    semana nueva" SIEMPRE visible (esté o no completa la semana), con
+    `VulcanDialog` de confirmación destructivo antes de regenerar. Ambos
+    disparadores de regeneración (botón principal y enlace) quedaron
+    protegidos contra doble disparo: el enlace tiene `disabled={isGenerating}`
+    + estilo atenuado, y su `onConfirm` tiene un guard `if (isGenerating)
+    return;` adicional (bug real detectado y corregido — el enlace no
+    comprobaba `isGenerating` en la versión original).
+  * Traducciones es/en/fr añadidas bajo `tabs.training.weekComplete.*` y
+    `tabs.training.resetWeek.*`.
+  * Verificado en cada paso: `npx tsc --noEmit` limpio y `git diff` confirma
+    que ninguna línea de la lógica de logros/racha/PR (`recordWorkout`,
+    `hasPR`, `ratio`, `perfect`, los `autoUnlock(...)`) cambió — solo
+    adiciones.
+- Hecho: sesión 2026-07-08 — FASE 1b Paso 1: generador de calentamiento,
+  construido y probado en aislamiento (JS, recarga):
+  * `src/lib/warmupGenerator.ts`: `generateWarmup(dayType, equipment, isGym,
+    totalMinutes)` — apertura de cardio fija (180s máquina en gym / 60s
+    bodyweight en casa, ignora el `defaultDurationSeconds` original de esos
+    ejercicios) + relleno de movilidad. Pool de movilidad:
+    `category==='mobility'` y `movementPhase` `warmup`/`both` (excluye
+    explícitamente `cooldown`), filtrado por `canDoExercise()` (importada de
+    `plan-generator.ts`) y combinando el pool general (sin
+    `relevantDayTypes`) con el específico del día (push→push, pull→pull,
+    legs/lower→legs, upper→push+pull, full_body→solo general). Recorre el
+    pool en orden sumando duraciones hasta igualar o superar el tiempo
+    restante; si se agota, repite desde el principio (round-robin efímero,
+    sin tocar `muscle_exercise_usage`).
+  * `scripts/test-warmup-generator.ts`: 4 escenarios verificados contra el
+    catálogo real (vía el mismo mock de `@/db` que ya usan los scripts de la
+    Fase 0-A, necesario porque `plan-generator.ts` importa transitivamente
+    `@/db`): push/gym 5-10-15 min (apertura siempre cardioMachine a 180s,
+    nunca `cooldown`), legs/casa `['mat']` 10 min (apertura 60s, respeta
+    equipamiento), full_body/casa 5 min (solo pool general), upper/casa
+    `['mat']` 15 min (pool de 18 únicos, genera 28 ítems → confirma
+    repetición round-robin sin crash).
+- Hecho: sesión 2026-07-08 — FASE 1b Paso 2: flujo de entrada al
+  calentamiento (JS, recarga):
+  * `src/store/warmup.store.ts`: store Zustand efímero (`items`,
+    `currentIndex`, `setWarmup`/`advance`/`reset`) — sin persistencia, vive
+    solo en memoria.
+  * `training.tsx`: la antigua `doStartSession(context)` se renombró a
+    `startRealSession(context)` sin tocar ni una línea de su cuerpo (E-3,
+    manejo de errores, `startSession`); la nueva `doStartSession(context)` es
+    un wrapper fino que abre `VulcanDialog` "¿Quieres calentar antes de
+    empezar?". "No" → `startRealSession(pendingContext)` (comportamiento 100%
+    idéntico al anterior, verificado con `git diff`). "Sí" → modal propio con
+    3 chips (5/10/15 min, `Pressable` envolviendo `ThemedView`, mismo
+    `borderRadius`/`borderColor`/`fontSize` que los chips
+    "Casa/Gimnasio/Ambos" de `equipment.tsx`/`StepLocation.tsx`) → llama a
+    `generateWarmup(dayType, equipment, warmupIsGym, minutos)`
+    (`warmupIsGym = pendingContext !== 'home'`, cubre tanto `null` —gym
+    puro— como `'gym'` —both eligiendo gym—) → `setWarmup(items)` → navega a
+    `/warmup`.
+  * `src/app/warmup.tsx`: placeholder simple ("Calentamiento — Paso 3
+    pendiente" + botón `router.back()`, mismo patrón que el botón de volver
+    de `exercise/[id].tsx`). La pantalla de foco real (recorrer los
+    `WarmupItem` con temporizador) queda para el Paso 3 — no construida
+    todavía.
+  * Traducciones es/en/fr bajo `workout.warmup.*`.
+  * Nota técnica: hubo que regenerar `.expo/types/router.d.ts` (arrancando
+    `expo start` unos segundos) para que TypeScript reconociera la ruta nueva
+    `/warmup` — archivo generado, gitignored, sin relación con código de
+    producción.
+  * Verificado: `npx tsc --noEmit` limpio en cada paso; `git diff` confirma
+    que `startRealSession` es copia exacta del antiguo `doStartSession` salvo
+    el nombre.
+- Siguiente inmediato: FASE 1b Paso 3 — pantalla de foco real del
+  calentamiento (recorrer `WarmupItem[]` del store con temporizador por
+  ítem, y al terminar disparar `startRealSession()` de verdad — hoy el
+  placeholder de `warmup.tsx` solo vuelve atrás con `router.back()`, no
+  arranca la sesión).
+- Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
 ## Plan de fases
@@ -1021,8 +1123,11 @@ Bucle ~1.3 s sobre fondo #141A17:
 - ~~FASE E-2 — "¿Dónde entrenas hoy?" pregunta de contexto~~ ✓ Completado (JS, recarga).
 - ~~FASE E-3 — Filtro ligero de ejercicios en sesión~~ ✓ Completado (JS, recarga).
 - ~~LOTE UI PASO 2 — Propagar VulcanBottomSheet/VulcanDialog~~ ✓ Completado (JS, recarga).
-- FASE D — Deloads automáticos, gráfica de fuerza (1RM) en pestaña Progreso,
-  calentamientos sugeridos basados en el peso objetivo.
+- FASE 1b — Calentamiento guiado antes de la sesión (en curso):
+  ~~Paso 1: generador `warmupGenerator.ts`~~ ✓ · ~~Paso 2: flujo de entrada
+  (diálogo + chips + navegación a placeholder)~~ ✓ · **Paso 3: pantalla de
+  foco real — PENDIENTE**.
+- FASE D — Deloads automáticos, gráfica de fuerza (1RM) en pestaña Progreso.
 
 ## IMPORTANTE
 Actualiza la sección "Estado actual" al final de cada sesión, anotando qué se 

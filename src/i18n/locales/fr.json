@@ -425,6 +425,17 @@
       "whereMsg": "Le plan s'adaptera à votre équipement disponible.",
       "whereGym": "Salle de sport",
       "whereHome": "Maison"
+    },
+    "warmup": {
+      "promptTitle": "Voulez-vous vous échauffer avant de commencer ?",
+      "yes": "Oui, m'échauffer",
+      "no": "Non, commencer maintenant",
+      "minutesTitle": "Combien de temps voulez-vous vous échauffer ?",
+      "min5": "5 min",
+      "min10": "10 min",
+      "min15": "15 min",
+      "placeholderTitle": "Échauffement — Étape 3 en attente",
+      "placeholderButton": "Aller à mon entraînement"
     }
   },
   "equipment": {

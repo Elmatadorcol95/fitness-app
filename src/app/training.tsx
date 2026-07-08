@@ -1,9 +1,10 @@
 import {
-  ActivityIndicator, Pressable, ScrollView, StyleSheet, View,
+  ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View,
 } from 'react-native';
 import { VulcanBottomSheet, type SheetOption } from '@/components/ui/VulcanBottomSheet';
 import { VulcanDialog } from '@/components/ui/VulcanDialog';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -16,9 +17,11 @@ import { useWorkoutStore, type StoredPlanDay } from '@/store/workout.store';
 import { useSessionStore } from '@/store/session.store';
 import { useProfileStore } from '@/store/profile.store';
 import { useGamificationStore } from '@/store/gamification.store';
+import { useWarmupStore } from '@/store/warmup.store';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { getExerciseName, getAlternatives, canDoAtHome, EXERCISES, type Exercise } from '@/lib/exercises';
 import { getExerciseTargetsForPlan } from '@/lib/progression';
+import { generateWarmup } from '@/lib/warmupGenerator';
 import type { PlannedExercise } from '@/lib/plan-generator';
 
 const GREEN = '#3FBF7F';
@@ -104,6 +107,7 @@ function OtherDayCard({ day, index, total, isExpanded, onToggle, onChangeEx, lan
 
 export default function TrainingScreen() {
   const { t, i18n } = useTranslation();
+  const router = useRouter();
   const { profile } = useProfileStore();
   const {
     currentPlan, isLoaded, isGenerating,
@@ -112,6 +116,7 @@ export default function TrainingScreen() {
   const startSession       = useSessionStore(s => s.startSession);
   const setTrainingContext = useSessionStore(s => s.setTrainingContext);
   const daysTrainedThisWeek = useGamificationStore(s => s.daysTrainedThisWeek);
+  const setWarmup           = useWarmupStore(s => s.setWarmup);
 
   const [expandedOtherDay, setExpandedOtherDay] = useState<number | null>(null);
   const [changeModal, setChangeModal] = useState({
@@ -123,6 +128,9 @@ export default function TrainingScreen() {
   const [whereOpen,    setWhereOpen]   = useState(false);
   const [startError,   setStartError]  = useState('');
   const [resetWeekOpen, setResetWeekOpen] = useState(false);
+  const [warmupPromptOpen,   setWarmupPromptOpen]   = useState(false);
+  const [warmupMinutesOpen, setWarmupMinutesOpen] = useState(false);
+  const [pendingContext, setPendingContext] = useState<'gym' | 'home' | null>(null);
 
   const lang      = normalizeLang(i18n.language);
   const equipment = parseEquipment(profile?.equipment);
@@ -148,7 +156,7 @@ export default function TrainingScreen() {
     })();
   }, [currentPlan?.id, currentPlan?.activeDayIndex]);
 
-  async function doStartSession(context: 'gym' | 'home' | null) {
+  async function startRealSession(context: 'gym' | 'home' | null) {
     if (!currentPlan) return;
     const activeIdx  = currentPlan.activeDayIndex % currentPlan.days.length;
     let   sessionDay = currentPlan.days[activeIdx];
@@ -229,6 +237,39 @@ export default function TrainingScreen() {
     } finally {
       setIsStarting(false);
     }
+  }
+
+  // ── Fase 1b Paso 2: pregunta de calentamiento ────────────────────────────────
+  // Intercepta el arranque justo con la ubicación ya resuelta (mismo "context"
+  // que hoy ya distingue casa/gimnasio, tanto para usuarios "both" como de una
+  // sola ubicación). Si el usuario dice "No", el comportamiento es idéntico al
+  // actual: startRealSession() es el mismo cuerpo que antes tenía doStartSession.
+  function doStartSession(context: 'gym' | 'home' | null) {
+    if (!currentPlan) return;
+    setPendingContext(context);
+    setWarmupPromptOpen(true);
+  }
+
+  function handleWarmupNo() {
+    setWarmupPromptOpen(false);
+    void startRealSession(pendingContext);
+  }
+
+  function handleWarmupYes() {
+    setWarmupPromptOpen(false);
+    setWarmupMinutesOpen(true);
+  }
+
+  function handleWarmupMinutes(minutes: 5 | 10 | 15) {
+    setWarmupMinutesOpen(false);
+    if (!currentPlan) return;
+    const activeIdx = currentPlan.activeDayIndex % currentPlan.days.length;
+    const dayType    = currentPlan.days[activeIdx].dayType;
+    // pendingContext: 'home' = casa; 'gym' o null (perfil solo-gym) = gimnasio.
+    const warmupIsGym = pendingContext !== 'home';
+    const items = generateWarmup(dayType, equipment, warmupIsGym, minutes);
+    setWarmup(items);
+    router.push('/warmup');
   }
 
   function handleStart() {
@@ -503,6 +544,47 @@ export default function TrainingScreen() {
         cancelLabel={t('common.cancel')}
       />
 
+      {/* ── ¿Quieres calentar antes de empezar? ── */}
+      <VulcanDialog
+        visible={warmupPromptOpen}
+        onClose={handleWarmupNo}
+        title={t('workout.warmup.promptTitle')}
+        confirmLabel={t('workout.warmup.yes')}
+        cancelLabel={t('workout.warmup.no')}
+        onConfirm={handleWarmupYes}
+      />
+
+      {/* ── ¿Cuánto tiempo quieres calentar? (chips, mismo estilo que StepLocation/equipment) ── */}
+      <Modal
+        visible={warmupMinutesOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setWarmupMinutesOpen(false)}
+      >
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setWarmupMinutesOpen(false)}>
+          <View style={[StyleSheet.absoluteFill, styles.warmupMinutesBackdrop]} />
+        </Pressable>
+
+        <View style={styles.warmupMinutesCenterer} pointerEvents="box-none">
+          <ThemedView type="backgroundElement" style={styles.warmupMinutesCard}>
+            <ThemedText type="defaultSemiBold" style={styles.warmupMinutesTitle}>
+              {t('workout.warmup.minutesTitle')}
+            </ThemedText>
+            <View style={styles.warmupChipRow}>
+              {([5, 10, 15] as const).map((m) => (
+                <Pressable key={m} onPress={() => handleWarmupMinutes(m)} style={styles.warmupChipPressable}>
+                  <ThemedView type="backgroundSelected" style={styles.warmupChip}>
+                    <ThemedText type="defaultSemiBold" style={styles.warmupChipText}>
+                      {t(`workout.warmup.min${m}`)}
+                    </ThemedText>
+                  </ThemedView>
+                </Pressable>
+              ))}
+            </View>
+          </ThemedView>
+        </View>
+      </Modal>
+
       <VulcanDialog
         visible={startError !== ''}
         onClose={() => setStartError('')}
@@ -656,4 +738,27 @@ const styles = StyleSheet.create({
   resetWeekLink:         { alignItems: 'center', paddingVertical: Spacing.three, marginTop: Spacing.one },
   resetWeekLinkDisabled: { opacity: 0.6 },
   resetWeekLinkText:     { fontSize: 12, textDecorationLine: 'underline', opacity: 0.8 },
+
+  // Modal de minutos de calentamiento — chips (mismo patrón que
+  // locationChip/chipActive de equipment.tsx y StepLocation.tsx)
+  warmupMinutesBackdrop: { backgroundColor: 'rgba(0,0,0,0.5)' },
+  warmupMinutesCenterer: {
+    flex: 1, justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: Spacing.four,
+  },
+  warmupMinutesCard: {
+    width: '100%', borderRadius: 20,
+    padding: Spacing.four, gap: Spacing.three,
+  },
+  warmupMinutesTitle: { fontSize: 17, textAlign: 'center' },
+  warmupChipRow: { flexDirection: 'row', gap: Spacing.two },
+  warmupChipPressable: { flex: 1 },
+  warmupChip: {
+    borderRadius: Spacing.two,
+    paddingVertical: Spacing.two + 4,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#3FBF7F33',
+  },
+  warmupChipText: { fontSize: 14 },
 });

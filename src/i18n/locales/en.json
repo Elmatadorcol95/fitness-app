@@ -425,6 +425,17 @@
       "whereMsg": "The plan will adapt to your available equipment.",
       "whereGym": "Gym",
       "whereHome": "Home"
+    },
+    "warmup": {
+      "promptTitle": "Do you want to warm up before starting?",
+      "yes": "Yes, warm up",
+      "no": "No, start now",
+      "minutesTitle": "How long do you want to warm up?",
+      "min5": "5 min",
+      "min10": "10 min",
+      "min15": "15 min",
+      "placeholderTitle": "Warm-up — Step 3 pending",
+      "placeholderButton": "Go to my workout"
     }
   },
   "equipment": {

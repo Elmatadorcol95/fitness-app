@@ -425,6 +425,17 @@
       "whereMsg": "El plan se adaptará al equipamiento disponible.",
       "whereGym": "Gimnasio",
       "whereHome": "En casa"
+    },
+    "warmup": {
+      "promptTitle": "¿Quieres calentar antes de empezar?",
+      "yes": "Sí, calentar",
+      "no": "No, empezar ya",
+      "minutesTitle": "¿Cuánto tiempo quieres calentar?",
+      "min5": "5 min",
+      "min10": "10 min",
+      "min15": "15 min",
+      "placeholderTitle": "Calentamiento — Paso 3 pendiente",
+      "placeholderButton": "Ir a mi entrenamiento"
     }
   },
   "equipment": {
