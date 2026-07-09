@@ -434,11 +434,10 @@
       "min5": "5 min",
       "min10": "10 min",
       "min15": "15 min",
-      "progress": "{{current}} de {{total}}",
+      "progress": "{{current}} de {{total}} completados",
       "categoryCardio": "Cardio",
       "categoryMobility": "Movilidad",
       "swap": "Intercambiar",
-      "next": "Siguiente",
       "finish": "Finalizar calentamiento",
       "goToWorkout": "Ir a tu entreno"
     }
