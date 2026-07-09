@@ -1090,11 +1090,77 @@ Bucle ~1.3 s sobre fondo #141A17:
   * Verificado: `npx tsc --noEmit` limpio en cada paso; `git diff` confirma
     que `startRealSession` es copia exacta del antiguo `doStartSession` salvo
     el nombre.
-- Siguiente inmediato: FASE 1b Paso 3 — pantalla de foco real del
-  calentamiento (recorrer `WarmupItem[]` del store con temporizador por
-  ítem, y al terminar disparar `startRealSession()` de verdad — hoy el
-  placeholder de `warmup.tsx` solo vuelve atrás con `router.back()`, no
-  arranca la sesión).
+- Hecho: sesión 2026-07-09 — FASE 1b Paso 3 completa + fix de raíz en
+  `VulcanDialog` (commit `6560593`):
+  * `warmup.tsx` convertido de ruta (`router.push('/warmup')`) a overlay
+    Zustand — mismo patrón que `session.tsx`/`equipment.tsx`. `_layout.tsx`
+    monta `<WarmupScreen />` en un `View` absoluto cuando
+    `useWarmupStore(s => s.active)` es `true`.
+  * `warmup.store.ts`: `setWarmup(items)` → `start(items, dayType, equipment,
+    isGym)` (guarda el contexto de generación, necesario para que
+    "Intercambiar" busque en el mismo pool) + `active: boolean` + `end()`
+    (antes `reset()`).
+  * `training.tsx`: nuevo `useEffect` que detecta la transición
+    `isWarmupActive: true → false` y en ese momento (y solo en ese momento)
+    llama a `startRealSession(pendingContext)` — el camino "No, gracias" al
+    calentamiento sigue arrancando la sesión por su cuenta sin pasar por el
+    store de calentamiento, así que esta transición nunca se dispara para él.
+  * `warmupGenerator.ts`: nueva `getWarmupAlternative(currentExerciseId,
+    dayType, equipment, isGym, excludeIds)` — determinista (sin
+    `Math.random()`), mismo pool que generó el ítem original (cardio o
+    movilidad), primer candidato no usado ya en la rutina.
+  * **Fix de raíz en `VulcanDialog.tsx`**: `onConfirm` disparaba `onClose`
+    automáticamente como efecto colateral de `dismiss()` (150-180ms después),
+    lo cual causaba un bug real — confirmar "¿quieres calentar?" en
+    `training.tsx` terminaba invocando `startRealSession` por el camino de
+    `onClose`, no del flujo de calentamiento. Nueva `dismissAfterConfirm()`
+    (misma animación, sin llamar `onClose()`); `handleConfirm()` la usa en
+    vez de `dismiss()`. Auditados los 14 usos del componente en el proyecto
+    (`LOTE11_REACHABILITY_AUDIT.md` sección 13): 13/14 ya reseteaban su
+    propia bandera `visible` dentro de `onConfirm`; el único caso que no lo
+    hacía (`profile.tsx` "Cerrar sesión" → `doSignOut`) se corrigió en el
+    mismo commit añadiendo `setSignOutOpen(false)` al inicio de `doSignOut`.
+  * Verificado con `npx tsc --noEmit` limpio.
+- Hecho: sesión 2026-07-09 — Rediseño de calentamiento: foco secuencial →
+  checklist con lista completa (commit `ae1c187`):
+  * Cambio de diseño (decisión del usuario tras probar el Paso 3 en
+    dispositivo): en vez de mostrar un ejercicio a la vez, `warmup.tsx`
+    ahora muestra la lista completa de ítems como checklist, cada uno con
+    su propio cronómetro independiente.
+  * Nuevo `src/components/warmup/TimedChecklistItem.tsx`: tarjeta compacta
+    reutilizable (ícono+color por categoría cardio/mobility, badge de
+    categoría, cronómetro mm:ss, botón play/pause, checkbox de completado,
+    botón intercambiar) — deliberadamente distinta de `ExerciseCard`
+    (pensada para lista, no para una tarjeta grande de foco único). Marcada
+    explícitamente como reutilizable para la futura Fase 2 (estiramiento).
+  * Mutex de cronómetro: un solo `runningIndex` en `warmup.tsx` — solo el
+    ítem activo decrementa cada segundo; el resto queda pausado tal cual al
+    cambiar de ítem activo (dos `useEffect` separados: uno decrementa,
+    el otro detecta la transición a 0 y dispara side effects).
+  * Auto-marcado al llegar a 0: reutiliza `hapticsSuccess()` +
+    `playRestDone()` (el mismo sonido/vibración del fin de descanso en
+    `session.tsx`, sin duplicar el mecanismo) y marca el ítem como
+    completado automáticamente.
+  * `warmup.store.ts`: `currentIndex` + `advance()` eliminados (ya no aplica
+    con lista completa); `replaceCurrent(exercise)` → `replaceAt(index,
+    exercise, durationSeconds)` — la duración ahora la decide `warmup.tsx`
+    al intercambiar, no el store.
+  * Duración fija preservada en el intercambio del ítem de apertura: al
+    intercambiar el ítem 0 (cardio), conserva su duración original (180s
+    gym / 60s casa) en vez de adoptar el `defaultDurationSeconds` del nuevo
+    ejercicio elegido; el resto de ítems (movilidad) sí adopta el
+    `defaultDurationSeconds` del ejercicio nuevo.
+  * Header con progreso "`X`/`Y` completados" + botón "Ir a tu entreno"
+    (equivalente a `end()`, mismo efecto que el botón "Finalizar" al pie de
+    la lista).
+  * `npx tsc --noEmit` limpio. Working tree limpio — todo comiteado.
+- **FASE 1b — Calentamiento guiado: COMPLETA** (Pasos 1, 2 y 3, más el
+  rediseño a checklist). Sin trabajo pendiente conocido en este módulo.
+- Siguiente inmediato: sin tarea en curso — el usuario debe indicar el
+  próximo módulo a atacar. Candidatos ya identificados en el roadmap: FASE D
+  (deloads automáticos + gráfica 1RM en Progreso), Fase 2 de calentamiento
+  (estiramiento, ya tiene `TimedChecklistItem` listo para reutilizar), o
+  FASE 7 (in-app purchase, obligatoria antes de publicar).
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
@@ -1123,10 +1189,8 @@ Bucle ~1.3 s sobre fondo #141A17:
 - ~~FASE E-2 — "¿Dónde entrenas hoy?" pregunta de contexto~~ ✓ Completado (JS, recarga).
 - ~~FASE E-3 — Filtro ligero de ejercicios en sesión~~ ✓ Completado (JS, recarga).
 - ~~LOTE UI PASO 2 — Propagar VulcanBottomSheet/VulcanDialog~~ ✓ Completado (JS, recarga).
-- FASE 1b — Calentamiento guiado antes de la sesión (en curso):
-  ~~Paso 1: generador `warmupGenerator.ts`~~ ✓ · ~~Paso 2: flujo de entrada
-  (diálogo + chips + navegación a placeholder)~~ ✓ · **Paso 3: pantalla de
-  foco real — PENDIENTE**.
+- ~~FASE 1b — Calentamiento guiado antes de la sesión~~ ✓ Completado (Pasos
+  1-3 + rediseño a checklist con `TimedChecklistItem`, JS, recarga).
 - FASE D — Deloads automáticos, gráfica de fuerza (1RM) en pestaña Progreso.
 
 ## IMPORTANTE
