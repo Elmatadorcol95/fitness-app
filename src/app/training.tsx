@@ -4,8 +4,7 @@ import {
 import { VulcanBottomSheet, type SheetOption } from '@/components/ui/VulcanBottomSheet';
 import { VulcanDialog } from '@/components/ui/VulcanDialog';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from '@/components/themed-text';
@@ -107,7 +106,6 @@ function OtherDayCard({ day, index, total, isExpanded, onToggle, onChangeEx, lan
 
 export default function TrainingScreen() {
   const { t, i18n } = useTranslation();
-  const router = useRouter();
   const { profile } = useProfileStore();
   const {
     currentPlan, isLoaded, isGenerating,
@@ -116,7 +114,8 @@ export default function TrainingScreen() {
   const startSession       = useSessionStore(s => s.startSession);
   const setTrainingContext = useSessionStore(s => s.setTrainingContext);
   const daysTrainedThisWeek = useGamificationStore(s => s.daysTrainedThisWeek);
-  const setWarmup           = useWarmupStore(s => s.setWarmup);
+  const startWarmup         = useWarmupStore(s => s.start);
+  const isWarmupActive      = useWarmupStore(s => s.active);
 
   const [expandedOtherDay, setExpandedOtherDay] = useState<number | null>(null);
   const [changeModal, setChangeModal] = useState({
@@ -268,9 +267,23 @@ export default function TrainingScreen() {
     // pendingContext: 'home' = casa; 'gym' o null (perfil solo-gym) = gimnasio.
     const warmupIsGym = pendingContext !== 'home';
     const items = generateWarmup(dayType, equipment, warmupIsGym, minutes);
-    setWarmup(items);
-    router.push('/warmup');
+    startWarmup(items, dayType, equipment, warmupIsGym);
   }
+
+  // ── Fase 1b Paso 3: puente de finalización del calentamiento ────────────────
+  // Detecta la transición active: true → false del store de calentamiento
+  // (botones "Finalizar calentamiento" / "Ir a tu entreno" en warmup.tsx) y
+  // SOLO entonces arranca la sesión real. Independiente de handleWarmupNo, que
+  // ya arranca la sesión por su cuenta cuando el usuario dice "No" al
+  // calentamiento — en ese camino el store de calentamiento nunca se activa,
+  // así que esta transición nunca se dispara para él.
+  const wasWarmupActive = useRef(false);
+  useEffect(() => {
+    if (wasWarmupActive.current && !isWarmupActive) {
+      void startRealSession(pendingContext);
+    }
+    wasWarmupActive.current = isWarmupActive;
+  }, [isWarmupActive, pendingContext]);
 
   function handleStart() {
     if (!currentPlan) return;

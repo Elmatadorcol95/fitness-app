@@ -434,8 +434,13 @@
       "min5": "5 min",
       "min10": "10 min",
       "min15": "15 min",
-      "placeholderTitle": "Calentamiento — Paso 3 pendiente",
-      "placeholderButton": "Ir a mi entrenamiento"
+      "progress": "{{current}} de {{total}}",
+      "categoryCardio": "Cardio",
+      "categoryMobility": "Movilidad",
+      "swap": "Intercambiar",
+      "next": "Siguiente",
+      "finish": "Finalizar calentamiento",
+      "goToWorkout": "Ir a tu entreno"
     }
   },
   "equipment": {

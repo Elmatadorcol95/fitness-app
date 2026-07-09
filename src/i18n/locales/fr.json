@@ -434,8 +434,13 @@
       "min5": "5 min",
       "min10": "10 min",
       "min15": "15 min",
-      "placeholderTitle": "Échauffement — Étape 3 en attente",
-      "placeholderButton": "Aller à mon entraînement"
+      "progress": "{{current}} sur {{total}}",
+      "categoryCardio": "Cardio",
+      "categoryMobility": "Mobilité",
+      "swap": "Échanger",
+      "next": "Suivant",
+      "finish": "Terminer l'échauffement",
+      "goToWorkout": "Aller à ton entraînement"
     }
   },
   "equipment": {

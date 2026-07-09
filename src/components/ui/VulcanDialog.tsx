@@ -47,6 +47,25 @@ export function VulcanDialog({
     ]).start(() => onClose());
   }, [backdropOp, onClose, scale]);
 
+  // Misma animación que dismiss(), pero sin onClose() al terminar: cuando el
+  // cierre viene de confirmar, onConfirm ya se encargó de la acción y de su
+  // propio cierre (ver LOTE11_REACHABILITY_AUDIT.md, Sección 13 — onClose no
+  // debe dispararse como efecto colateral de confirmar).
+  const dismissAfterConfirm = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(scale, {
+        toValue: 0.88,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropOp, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [backdropOp, scale]);
+
   useEffect(() => {
     if (visible) {
       scale.setValue(0.88);
@@ -70,7 +89,7 @@ export function VulcanDialog({
 
   function handleConfirm() {
     onConfirm();
-    dismiss();
+    dismissAfterConfirm();
   }
 
   const confirmBg   = destructive ? colors.amber : colors.accent;

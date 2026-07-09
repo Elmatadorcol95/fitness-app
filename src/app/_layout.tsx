@@ -20,7 +20,9 @@ import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
 import AppTabs            from '@/components/app-tabs';
 import SessionScreen      from '@/app/session';
 import EquipmentScreen    from '@/app/equipment';
+import WarmupScreen       from '@/app/warmup';
 import { useSessionStore } from '@/store/session.store';
+import { useWarmupStore } from '@/store/warmup.store';
 import { AchievementCelebrationOverlay } from '@/components/gamification/AchievementCelebrationOverlay';
 
 // Intercambia el código PKCE (o tokens implícitos) de una URL de callback
@@ -160,6 +162,7 @@ export default function RootLayout() {
 
   const isSessionActive    = useSessionStore(s => s.isActive);
   const isEquipmentVisible = useProfileStore(s => s.equipmentVisible);
+  const isWarmupActive     = useWarmupStore(s => s.active);
   const stillLoading   = !migrationsReady || isProfileLoading || isAuthLoading;
   const trialExpired   = hasUserStatus && !!trialStartedAt && !isTrialValid(trialStartedAt, isPaid);
   const needsOnboarding = !stillLoading && isAuthenticated && !trialExpired && !hasProfile;
@@ -202,6 +205,12 @@ export default function RootLayout() {
       {isEquipmentVisible && (
         <View style={StyleSheet.absoluteFill}>
           <EquipmentScreen />
+        </View>
+      )}
+      {/* Pantalla de calentamiento — overlay sobre las tabs */}
+      {isWarmupActive && (
+        <View style={StyleSheet.absoluteFill}>
+          <WarmupScreen />
         </View>
       )}
       {/* Overlay de logros — encima de todo, incluido la sesión */}

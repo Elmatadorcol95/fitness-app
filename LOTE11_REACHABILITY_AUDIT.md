@@ -1545,3 +1545,62 @@ identificaron 19 ejercicios con este patrón en todo el catálogo, de los
 cuales 4 ya se han visto en la práctica (en 8 de las 91 apariciones
 revisadas) durante las pruebas de los Sub-pasos 2 y 3. No se cambió nada —
 esto queda como hallazgo para decidir alcance de un posible ajuste futuro.
+
+## 13. `VulcanDialog` — ¿`onConfirm` resetea su propia bandera `visible`, o depende de `onClose`?
+
+Continuación directa de las dos auditorías de `VulcanDialog` de esta misma
+sesión (patrón `onClose` disparándose siempre tras `onConfirm`, vía
+`dismiss()` → `.start(() => onClose())`, sin excepción en las 14 instancias
+del proyecto). Esta sección responde una pregunta distinta y necesaria
+antes de tocar el componente: **si se "arreglara" `VulcanDialog` para que
+`onConfirm` ya NO dispare `onClose` automáticamente** (p. ej. quitando la
+llamada a `onClose()` del callback de `dismiss()`, o separando "cerrar
+visualmente" de "notificar cierre"), ¿cuáles de los 14 usos dejarían de
+cerrar el modal al confirmar, porque hoy dependen implícitamente de que
+`onClose` sea quien resetea su bandera `visible`?
+
+Se revisó el cuerpo literal de las 14 llamadas a `onConfirm` (no el de
+`onClose`) buscando si la propia bandera que controla `visible={...}` se
+resetea dentro de ese mismo handler.
+
+| # | Archivo:línea | Bandera `visible` | `onConfirm` resetea su propia bandera | ¿Ya la resetea? |
+|---|---|---|---|---|
+| 1 | `training.tsx:552-559` (¿calentar?) | `warmupPromptOpen` | `handleWarmupYes()` → `setWarmupPromptOpen(false)` (línea 259) | **Sí** |
+| 2 | `training.tsx:592-600` (error al iniciar) | `startError !== ''` | `() => setStartError('')` | **Sí** |
+| 3 | `training.tsx:603-622` (generar semana nueva) | `resetWeekOpen` | `setResetWeekOpen(false)` (primera línea del handler) | **Sí** |
+| 4 | `session.tsx:637-645` (¿finalizar?) | `finishState === 'confirm'` | `setFinishState('idle')` (antes de `doFinish()`) | **Sí** |
+| 5 | `session.tsx:648-657` (¿finalizar sin completar?) | `finishState === 'incomplete'` | `setFinishState('idle')` (antes de `doFinish()`) | **Sí** |
+| 6 | `session.tsx:660-669` (¿cancelar sesión?) | `cancelOpen` | `setCancelOpen(false)` (antes de `cancelSession()`) | **Sí** |
+| 7 | `session.tsx:672-680` (historial ejercicio) | `historyOpen` | `() => setHistoryOpen(false)` | **Sí** |
+| 8 | `session.tsx:683-691` (ayuda RIR) | `rirHelpOpen` | `() => setRirHelpOpen(false)` | **Sí** |
+| 9 | `profile.tsx:247-256` (cerrar sesión) | `signOutOpen` | `doSignOut` (líneas 67-82) — **no toca `signOutOpen`/`setSignOutOpen` en ningún punto** (`try`/`catch`/`finally` solo tocan `db`, `profile store`, `gamification store`, `supabase.auth`, `auth store`) | **No** |
+| 10 | `equipment.tsx:212-230` (¿regenerar plan?) | `regenOpen` | `setRegenOpen(false)` (primera línea del handler) | **Sí** |
+| 11 | `WeightTab.tsx:192-204` (borrar peso) | `deleteTarget !== null` | `setDeleteTarget(null)` (última línea del handler) | **Sí** |
+| 12 | `PhotosTab.tsx:222-235` (borrar foto) | `deleteTarget !== null` | `setDeleteTarget(null)` (última línea del handler) | **Sí** |
+| 13 | `PhotosTab.tsx:238-245` (límite de fotos) | `limitOpen` | `() => setLimitOpen(false)` | **Sí** |
+| 14 | `PhotosTab.tsx:247-255` (error al guardar) | `saveErrorMsg !== ''` | `() => setSaveErrorMsg('')` | **Sí** |
+
+**13/14 = Sí. 1/14 = No.**
+
+### Caso de riesgo adicional: #9 — `profile.tsx:247-256` (diálogo "Cerrar sesión")
+
+```tsx
+<VulcanDialog
+  visible={signOutOpen}
+  onClose={() => setSignOutOpen(false)}
+  title={t('tabs.profile.signOut')}
+  message={t('tabs.profile.signOutMsg')}
+  confirmLabel={t('tabs.profile.signOutConfirm')}
+  cancelLabel={t('common.cancel')}
+  destructive
+  onConfirm={doSignOut}
+/>
+```
+
+`onConfirm={doSignOut}` apunta directo a la función `doSignOut` (`profile.tsx:67-82`), que hace `db.delete`, `resetGamification`, `supabase.auth.signOut()` y finalmente `useAuthStore.getState().setAuthState(null, null)` — pero **en ningún punto de su `try`/`catch`/`finally` llama a `setSignOutOpen(false)`**. Hoy esto "funciona" solo porque `dismiss()` siempre dispara `onClose` (`() => setSignOutOpen(false)`) unos 150-180 ms después de `onConfirm`, independientemente de si `doSignOut` ya terminó.
+
+**Por qué es un caso de riesgo real y no solo teórico:** en la práctica, `doSignOut` normalmente hace que la propia pantalla `profile.tsx` se desmonte antes de que `onClose` llegue a ejecutarse (`setAuthState(null, null)` dispara el overlay `<AuthFlow />` en `_layout.tsx`, reemplazando las tabs) — así que hoy el reseteo de `signOutOpen` casi nunca importa visualmente. Pero **si `doSignOut` falla** (el `catch` solo hace `console.error`, sin relanzar ni bloquear el `finally`) y por alguna razón `setAuthState` tampoco se dispara a tiempo, `signOutOpen` seguiría dependiendo 100% de que `onClose` se ejecute para que el diálogo se cierre. Es exactamente el patrón que un fix ingenuo de `VulcanDialog` (quitar el `onClose` automático del `dismiss()`) rompería: el diálogo de cerrar sesión se quedaría visualmente abierto para siempre tras pulsar confirmar, sin ningún otro camino en el código que lo cierre.
+
+**Implicación directa para cualquier fix futuro de `VulcanDialog`:** si se corrige el patrón (por ejemplo, para resolver el caso crítico de la Sección 12 de la auditoría anterior — el diálogo "¿calentar?" que arranca `startRealSession` por error vía `onClose`), **no basta con tocar `VulcanDialog.tsx` o el sitio #1**. El fix tendría que incluir, en el mismo cambio, añadir `setSignOutOpen(false)` dentro de `doSignOut` (o envolver el `onConfirm` de `profile.tsx:255` en un wrapper que lo haga) — si no, el diálogo de cerrar sesión queda roto (nunca se cierra visualmente tras confirmar) como efecto colateral no intencional del fix.
+
+No se modificó ningún archivo de código — solo lectura, igual que el resto de esta auditoría.

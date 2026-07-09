@@ -434,8 +434,13 @@
       "min5": "5 min",
       "min10": "10 min",
       "min15": "15 min",
-      "placeholderTitle": "Warm-up — Step 3 pending",
-      "placeholderButton": "Go to my workout"
+      "progress": "{{current}} of {{total}}",
+      "categoryCardio": "Cardio",
+      "categoryMobility": "Mobility",
+      "swap": "Swap",
+      "next": "Next",
+      "finish": "Finish warm-up",
+      "goToWorkout": "Go to your workout"
     }
   },
   "equipment": {

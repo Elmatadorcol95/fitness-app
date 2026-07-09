@@ -15,10 +15,14 @@ function pickRandom<T>(items: T[]): T | undefined {
   return items[Math.floor(Math.random() * items.length)];
 }
 
-function pickCardioOpener(isGym: boolean): WarmupItem | null {
-  const pool = isGym
+function getCardioOpenerPool(isGym: boolean): Exercise[] {
+  return isGym
     ? EXERCISES.filter(e => e.category === 'cardio' && e.equipment.includes('cardioMachine'))
     : EXERCISES.filter(e => e.category === 'cardio' && e.equipment.length === 0);
+}
+
+function pickCardioOpener(isGym: boolean): WarmupItem | null {
+  const pool = getCardioOpenerPool(isGym);
   const exercise = pickRandom(pool);
   if (!exercise) return null;
   return { exercise, durationSeconds: isGym ? GYM_CARDIO_OPEN_SECONDS : HOME_CARDIO_OPEN_SECONDS };
@@ -84,4 +88,30 @@ export function generateWarmup(
   const mobilityItems = fillMobility(pool, remainingSeconds);
 
   return opener ? [opener, ...mobilityItems] : mobilityItems;
+}
+
+// Alternativa determinista para el botón "Intercambiar" de la pantalla de
+// calentamiento: mismo pool que generó el ítem original (cardio o movilidad),
+// primer candidato no presente en excludeIds. Sin Math.random() — el
+// intercambio debe ser predecible. Sin memoria persistente entre llamadas.
+export function getWarmupAlternative(
+  currentExerciseId: string,
+  dayType: DayType,
+  equipment: string[],
+  isGym: boolean,
+  excludeIds: string[],
+): Exercise | null {
+  const current = EXERCISES.find(e => e.id === currentExerciseId);
+  if (!current) return null;
+
+  let pool: Exercise[];
+  if (current.category === 'cardio') {
+    pool = getCardioOpenerPool(isGym);
+  } else if (current.category === 'mobility') {
+    pool = getWarmupMobilityPool(dayType, equipment, isGym);
+  } else {
+    return null;
+  }
+
+  return pool.find(e => !excludeIds.includes(e.id)) ?? null;
 }

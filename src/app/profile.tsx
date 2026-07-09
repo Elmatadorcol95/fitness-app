@@ -65,6 +65,7 @@ export default function ProfileScreen() {
   const [signOutOpen, setSignOutOpen] = useState(false);
 
   const doSignOut = async () => {
+    setSignOutOpen(false);
     console.log('[Profile] signOut — isAuthenticated antes:', !!useAuthStore.getState().session);
     try {
       await db.delete(schema.profile);
