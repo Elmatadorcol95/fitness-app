@@ -440,6 +440,16 @@
       "swap": "Swap",
       "finish": "Finish warm-up",
       "goToWorkout": "Go to your workout"
+    },
+    "cooldown": {
+      "promptTitle": "Do you want to stretch after training?",
+      "yes": "Yes, stretch",
+      "no": "No, finish now",
+      "minutesTitle": "How long do you want to stretch?",
+      "min3": "3 min",
+      "min5": "5 min",
+      "min10": "10 min",
+      "min15": "15 min"
     }
   },
   "equipment": {

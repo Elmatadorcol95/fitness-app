@@ -440,6 +440,16 @@
       "swap": "Échanger",
       "finish": "Terminer l'échauffement",
       "goToWorkout": "Aller à ton entraînement"
+    },
+    "cooldown": {
+      "promptTitle": "Voulez-vous vous étirer après l'entraînement ?",
+      "yes": "Oui, m'étirer",
+      "no": "Non, terminer maintenant",
+      "minutesTitle": "Combien de temps voulez-vous vous étirer ?",
+      "min3": "3 min",
+      "min5": "5 min",
+      "min10": "10 min",
+      "min15": "15 min"
     }
   },
   "equipment": {

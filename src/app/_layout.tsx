@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import { Linking, StyleSheet, View, useColorScheme } from 'react-native';
+import { Linking, Pressable, StyleSheet, View, useColorScheme } from 'react-native';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 
 import '@/i18n';
@@ -23,7 +23,11 @@ import EquipmentScreen    from '@/app/equipment';
 import WarmupScreen       from '@/app/warmup';
 import { useSessionStore } from '@/store/session.store';
 import { useWarmupStore } from '@/store/warmup.store';
+import { useCooldownStore } from '@/store/cooldown.store';
+import { CooldownFlowOverlay } from '@/components/cooldown/CooldownFlowOverlay';
 import { AchievementCelebrationOverlay } from '@/components/gamification/AchievementCelebrationOverlay';
+import { ThemedView } from '@/components/themed-view';
+import { ThemedText } from '@/components/themed-text';
 
 // Intercambia el código PKCE (o tokens implícitos) de una URL de callback
 async function handleAuthUrl(url: string) {
@@ -163,6 +167,7 @@ export default function RootLayout() {
   const isSessionActive    = useSessionStore(s => s.isActive);
   const isEquipmentVisible = useProfileStore(s => s.equipmentVisible);
   const isWarmupActive     = useWarmupStore(s => s.active);
+  const isCooldownActive   = useCooldownStore(s => s.active);
   const stillLoading   = !migrationsReady || isProfileLoading || isAuthLoading;
   const trialExpired   = hasUserStatus && !!trialStartedAt && !isTrialValid(trialStartedAt, isPaid);
   const needsOnboarding = !stillLoading && isAuthenticated && !trialExpired && !hasProfile;
@@ -213,8 +218,39 @@ export default function RootLayout() {
           <WarmupScreen />
         </View>
       )}
+      {/* Placeholder de enfriamiento — overlay sobre las tabs. Contenido real: Fase 2 Paso 3 */}
+      {isCooldownActive && (
+        <View style={StyleSheet.absoluteFill}>
+          <ThemedView style={styles.cooldownPlaceholder}>
+            <ThemedText type="defaultSemiBold">Cooldown</ThemedText>
+            <Pressable onPress={() => useCooldownStore.getState().end()} style={styles.cooldownFinishBtn}>
+              <ThemedText>Finalizar</ThemedText>
+            </Pressable>
+          </ThemedView>
+        </View>
+      )}
+      {/* Flujo de diálogo de enfriamiento (prompt + minutos) — siempre montado,
+          igual que el overlay de logros; lee su visibilidad del store, no del
+          ciclo de vida de SessionScreen (ver COOLDOWN_INTEGRATION_AUDIT.md) */}
+      <CooldownFlowOverlay />
       {/* Overlay de logros — encima de todo, incluido la sesión */}
       <AchievementCelebrationOverlay />
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  cooldownPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  cooldownFinishBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#3FBF7F55',
+  },
+});

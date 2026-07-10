@@ -5,6 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ACHIEVEMENT_DEFS, useGamificationStore, type AchievementId } from '@/store/gamification.store';
+import { useCooldownStore } from '@/store/cooldown.store';
 import { Spacing } from '@/constants/theme';
 
 const GREEN = '#3FBF7F';
@@ -112,8 +113,14 @@ function AchievementCard({ achievementId, onDismiss }: OverlayProps) {
 
 export function AchievementCelebrationOverlay() {
   const { celebrationQueue, popCelebration } = useGamificationStore();
+  // Se abstiene mientras el flujo de enfriamiento esté en pantalla (prompt,
+  // minutos o la rutina activa) — no toca celebrationQueue, solo pospone su
+  // lectura; en cuanto el flujo de cooldown termine, este overlay retoma la
+  // cola exactamente donde estaba.
+  const isCooldownFlowActive = useCooldownStore(s => s.promptOpen || s.minutesOpen || s.active);
   const current = celebrationQueue[0];
 
+  if (isCooldownFlowActive) return null;
   if (!current) return null;
 
   return (

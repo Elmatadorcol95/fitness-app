@@ -15,6 +15,7 @@ import { useSessionStore }     from '@/store/session.store';
 import { useWorkoutStore }     from '@/store/workout.store';
 import { useGamificationStore } from '@/store/gamification.store';
 import { useProfileStore }     from '@/store/profile.store';
+import { useCooldownStore }    from '@/store/cooldown.store';
 import { getExerciseName, EXERCISES, type ExerciseCategory, type Exercise } from '@/lib/exercises';
 import { muscleLabel, equipmentLabel } from '@/components/workout/ExerciseCard';
 import { Spacing } from '@/constants/theme';
@@ -288,6 +289,18 @@ export default function SessionScreen() {
   const doFinish = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0];
     const { hasPR, completedSets, plannedSets } = await finishSession();
+
+    // Fase 2 Paso 2: dispara el prompt de estiramiento vía store global —NO
+    // estado local de este componente, que ya se está desmontando en este
+    // punto porque finishSession() acaba de poner isActive:false (ver
+    // COOLDOWN_INTEGRATION_AUDIT.md, sección 2). isGym usa el contexto de
+    // ESTA sesión (trainingContext), no profile.location, para reflejar
+    // dónde entrenó hoy un usuario "ambos" (mismo criterio que warmupIsGym
+    // en training.tsx).
+    if (sessionDayType) {
+      useCooldownStore.getState().promptAfterSession(sessionDayType, equipment, trainingContext !== 'home');
+    }
+
     if (hasPR) unlockAchievement('personal_record');
 
     const ratio = plannedSets > 0 ? completedSets / plannedSets : 0;
@@ -298,7 +311,7 @@ export default function SessionScreen() {
     }
 
     await advanceDayIndex();
-  }, [finishSession, unlockAchievement, recordWorkout, incrementDaysTrainedThisWeek, advanceDayIndex]);
+  }, [finishSession, unlockAchievement, recordWorkout, incrementDaysTrainedThisWeek, advanceDayIndex, sessionDayType, equipment, trainingContext]);
 
   function handleFinish() {
     const pending = exercises.reduce(

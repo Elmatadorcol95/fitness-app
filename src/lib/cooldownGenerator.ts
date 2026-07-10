@@ -69,7 +69,7 @@ export function generateCooldown(
   dayType: DayType,
   equipment: string[],
   isGym: boolean,
-  totalMinutes: 5 | 10 | 15,
+  totalMinutes: 3 | 5 | 10 | 15,
 ): CooldownItem[] {
   const totalSeconds = totalMinutes * 60;
   const pool = shuffle(getCooldownPool(dayType, equipment, isGym));
