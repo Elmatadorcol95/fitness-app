@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { profile as profileTable } from '@/db/schema';
 import type { Profile } from '@/db/schema';
+import type { MuscleGroup } from '@/lib/exercises';
 
 export type Goal = 'strength' | 'hypertrophy' | 'fat_loss';
 export type Location = 'home' | 'gym' | 'both';
@@ -49,6 +50,7 @@ interface ProfileState {
   updateDraft: (updates: Partial<OnboardingDraft>) => void;
   resetDraft: () => void;
   updateEquipmentAndLocation: (location: Location, equipment: string[]) => Promise<void>;
+  updateMusclePriorities: (priorities: MuscleGroup[]) => Promise<void>;
   openEquipment: () => void;
   closeEquipment: () => void;
 }
@@ -75,5 +77,15 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
       .set({ location, equipment: equipmentJson })
       .where(eq(profileTable.id, current.id));
     set({ profile: { ...current, location, equipment: equipmentJson } });
+  },
+  updateMusclePriorities: async (priorities) => {
+    const current = get().profile;
+    if (!current) return;
+    const musclePrioritiesJson = JSON.stringify(priorities);
+    await db
+      .update(profileTable)
+      .set({ musclePriorities: musclePrioritiesJson })
+      .where(eq(profileTable.id, current.id));
+    set({ profile: { ...current, musclePriorities: musclePrioritiesJson } });
   },
 }));

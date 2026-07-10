@@ -5,6 +5,28 @@ export type MuscleGroup =
   | 'quads' | 'hamstrings' | 'glutes' | 'calves' | 'core'
   | 'lats' | 'traps' | 'forearms' | 'abs' | 'adductors';
 
+const MUSCLE_GROUP_VALUES = new Set<MuscleGroup>([
+  'chest', 'back', 'shoulders', 'biceps', 'triceps',
+  'quads', 'hamstrings', 'glutes', 'calves', 'core',
+  'lats', 'traps', 'forearms', 'abs', 'adductors',
+]);
+
+// Deserializa profile.musclePriorities — mismo try/catch que parseEquipment
+// (duplicado por archivo en el resto del proyecto), pero además filtra
+// cualquier valor que no sea un MuscleGroup real (defensa contra datos
+// corruptos o de una versión anterior/futura del tipo).
+export function parseMusclePriorities(raw?: string): MuscleGroup[] {
+  try {
+    const parsed = JSON.parse(raw ?? '[]') as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (v): v is MuscleGroup => typeof v === 'string' && MUSCLE_GROUP_VALUES.has(v as MuscleGroup),
+    );
+  } catch {
+    return [];
+  }
+}
+
 export type EquipmentKey =
   | 'dumbbells' | 'barbellPlates' | 'kettlebells'
   | 'resistanceBands' | 'miniGluteBands' | 'pullupBar' | 'parallettes'

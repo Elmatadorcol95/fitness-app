@@ -11,6 +11,7 @@ import m0006 from './0006_rpe.sql';
 import m0007 from './0007_progression.sql';
 import m0008 from './0008_rest_prefs.sql';
 import m0009 from './0009_muscle_exercise_usage.sql';
+import m0010 from './0010_muscle_priorities.sql';
 
   export default {
     journal,
@@ -24,6 +25,7 @@ import m0009 from './0009_muscle_exercise_usage.sql';
       m0006,
       m0007,
       m0008,
-      m0009
+      m0009,
+      m0010
     }
   }

@@ -14,6 +14,7 @@ export const profile = sqliteTable('profile', {
   minutesPerSession: integer('minutes_per_session').notNull(),
   location: text('location').notNull(),
   equipment: text('equipment').notNull().default('[]'),
+  musclePriorities: text('muscle_priorities').notNull().default('[]'),
   injuries: text('injuries').default(''),
   units: text('units').notNull().default('metric'),
   createdAt: integer('created_at').notNull(),
