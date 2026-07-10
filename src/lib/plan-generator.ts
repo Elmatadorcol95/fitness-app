@@ -68,8 +68,8 @@ function getSplit(daysPerWeek: number): DayType[] {
     case 1: return ['full_body'];
     case 2: return ['full_body', 'full_body'];
     case 3: return ['push', 'pull', 'legs'];
-    case 4: return ['upper', 'lower', 'upper', 'lower'];
-    case 5: return ['push', 'pull', 'legs', 'upper', 'lower'];
+    case 4: return ['push', 'pull', 'legs', 'full_body'];
+    case 5: return ['push', 'full_body', 'pull', 'full_body', 'legs'];
     case 6: return ['push', 'pull', 'legs', 'push', 'pull', 'legs'];
     case 7: return ['push', 'pull', 'legs', 'push', 'pull', 'legs', 'full_body'];
     default: return ['full_body'];

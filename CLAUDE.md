@@ -425,7 +425,8 @@ Bucle ~1.3 s sobre fondo #141A17:
   * Migración 0005_training_module.sql: 5 tablas — workout_plans, plan_days,
     workout_sessions, session_sets, exercise_maxes.
   * src/lib/exercises.ts: catálogo 62 ejercicios (es/en/fr, músculos, equipo).
-  * src/lib/plan-generator.ts: algoritmo con splits PPL/full/upper-lower,
+  * src/lib/plan-generator.ts: algoritmo con splits PPL/full_body (upper/lower
+    eliminados de la tabla de splits en sesión posterior — ver "Estado actual"),
     esquemas de reps por objetivo, filtro por equipamiento disponible.
   * src/store/workout.store.ts: Zustand + SQLite — generateAndSavePlan,
     loadCurrentPlan, advanceDayIndex, resetAll.
@@ -1156,6 +1157,23 @@ Bucle ~1.3 s sobre fondo #141A17:
   * `npx tsc --noEmit` limpio. Working tree limpio — todo comiteado.
 - **FASE 1b — Calentamiento guiado: COMPLETA** (Pasos 1, 2 y 3, más el
   rediseño a checklist). Sin trabajo pendiente conocido en este módulo.
+- Hecho: sesión 2026-07-10 — Splits sin días upper/lower (JS, recarga):
+  * `plan-generator.ts` `getSplit()`: día 4 pasa de
+    `['upper','lower','upper','lower']` a `['push','pull','legs','full_body']`;
+    día 5 pasa de `['push','pull','legs','upper','lower']` a
+    `['push','full_body','pull','full_body','legs']`. Resto de días
+    (1/2/3/6/7) sin cambios. Decisión de producto: eliminar upper/lower de
+    los splits que se GENERAN, no del tipo `DayType` en sí.
+  * Auditado con grep completo de `upper`/`lower` en `src/` antes de tocar
+    nada: el único sitio que participa en la generación de planes es
+    `getSplit()`. Todo lo demás (`muscleTargets.ts`, `muscleBasedSelection.ts`,
+    `warmupGenerator.ts`, `cooldownGenerator.ts`, catálogo de ejercicios,
+    iconos/avisos de UI en `training.tsx`/`session.tsx`/`WorkoutCard.tsx`/
+    `TodayBanner.tsx`) es capacidad pasiva que consume un `dayType` ya
+    asignado — se dejó intacto a propósito para que los planes ya generados
+    con días upper/lower sigan renderizándose y entrenándose sin problema;
+    solo desaparecen al regenerar el plan.
+  * `npx tsc --noEmit` limpio.
 - Siguiente inmediato: sin tarea en curso — el usuario debe indicar el
   próximo módulo a atacar. Candidatos ya identificados en el roadmap: FASE D
   (deloads automáticos + gráfica 1RM en Progreso), Fase 2 de calentamiento
