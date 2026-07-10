@@ -6,6 +6,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from '@/components/themed-text';
 import { ACHIEVEMENT_DEFS, useGamificationStore, type AchievementId } from '@/store/gamification.store';
 import { useCooldownStore } from '@/store/cooldown.store';
+import { hapticsSuccess } from '@/lib/haptics';
+import { playAchievement } from '@/lib/sounds';
 import { Spacing } from '@/constants/theme';
 
 const GREEN = '#3FBF7F';
@@ -72,6 +74,15 @@ function AchievementCard({ achievementId, onDismiss }: OverlayProps) {
       Animated.spring(scale, { toValue: 1, tension: 100, friction: 7, useNativeDriver: true }),
       Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
     ]).start();
+
+    // Sonido/haptics en el momento en que la tarjeta realmente se muestra —no
+    // cuando el logro se desbloqueó en unlockAchievement() (podía ocurrir
+    // minutos antes, mientras el gate de cooldown retenía la cola). Al vivir
+    // aquí, cubre por construcción tanto la tarjeta siguiente de la cola como
+    // la que estaba retenida por el gate: en ambos casos este efecto solo
+    // corre cuando `key={current}` monta una instancia nueva de la tarjeta.
+    hapticsSuccess();
+    playAchievement();
 
     // Auto-dismiss después de 3.5 s
     const timer = setTimeout(onDismiss, 3500);
