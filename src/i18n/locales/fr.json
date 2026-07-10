@@ -449,7 +449,11 @@
       "min3": "3 min",
       "min5": "5 min",
       "min10": "10 min",
-      "min15": "15 min"
+      "min15": "15 min",
+      "title": "Étirements",
+      "progress": "{{current}} sur {{total}} terminés",
+      "exit": "Quitter",
+      "finish": "Terminer l'étirement"
     }
   },
   "equipment": {
