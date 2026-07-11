@@ -1,5 +1,5 @@
-import { EXERCISES, type Exercise } from './exercises';
-import { getTargetsForDayType, type MuscleTarget } from './muscleTargets';
+import { EXERCISES, type Exercise, type MuscleGroup } from './exercises';
+import { findTargetByKey, getTargetsForDayType, targetIsPrioritized, type MuscleTarget } from './muscleTargets';
 import { getUsedExerciseIds, resetMuscleCycle } from './muscleUsage';
 import { canDoExercise, type DayType } from './plan-generator';
 
@@ -56,9 +56,33 @@ export async function selectExercisesForDayByMuscle(
   isGym: boolean,
   counts: { compounds: number; isolations: number },
   excludeIds: Set<string>,
+  musclePriorities: MuscleGroup[] = [],
 ): Promise<MuscleSelectedExercise[]> {
   const targets = [...getTargetsForDayType(dayType)].sort((a, b) => a.bonusPriority - b.bonusPriority);
   const available = EXERCISES.filter(e => ALLOWED_CATEGORIES.has(e.category) && canDoExercise(e, equipment, isGym));
+
+  // Reordenación por prioridad muscular (Fase 0-B-1): los targets priorizados
+  // pasan al frente, preservando el orden relativo original entre el resto
+  // (partición estable con filter+concat — NUNCA shuffle, ni toca el sort por
+  // bonusPriority dentro de cada mitad). NO altera el mínimo garantizado de la
+  // Pasada 1 ni el tope de 3 por músculo; solo el ORDEN en que se recorren.
+  // Con musclePriorities=[] la primera mitad es [] y orderedTargets queda con
+  // el mismo orden que `targets`: no-op exacto.
+  const isPrio = (t: MuscleTarget) => targetIsPrioritized(t, musclePriorities);
+  const orderedTargets = [...targets.filter(isPrio), ...targets.filter(t => !isPrio(t))];
+
+  // Mismo criterio para las keys de SECOND_COMPOUND_ORDER: se resuelve cada key
+  // a su MuscleTarget canónico (findTargetByKey) y las priorizadas saltan al
+  // frente, con el orden relativo del resto intacto. Con musclePriorities=[]
+  // ninguna key es prioritaria → orden idéntico al de la constante.
+  const keyIsPrio = (key: string) => {
+    const t = findTargetByKey(key);
+    return t ? targetIsPrioritized(t, musclePriorities) : false;
+  };
+  const secondCompoundOrder = [
+    ...SECOND_COMPOUND_ORDER.filter(keyIsPrio),
+    ...SECOND_COMPOUND_ORDER.filter(k => !keyIsPrio(k)),
+  ];
 
   // Orden de declaración real en EXERCISES — desempate final determinista.
   const declOrder = new Map<string, number>(EXERCISES.map((e, i) => [e.id, i]));
@@ -157,7 +181,7 @@ export async function selectExercisesForDayByMuscle(
   // consumiendo del presupuesto TOTAL combinado (compounds+isolations), no
   // de cada bolsa por separado: si la bolsa preferida no tiene cupo o
   // candidato, se cruza a la otra bolsa mientras quede presupuesto total.
-  for (const t of targets) {
+  for (const t of orderedTargets) {
     if (compoundUsed + isolationUsed >= totalBudget) break;
     if (slotsLeft(t) <= 0) continue;
 
@@ -194,7 +218,7 @@ export async function selectExercisesForDayByMuscle(
   // no logre asignar nada (mismo patrón que el bucle de aislamiento de abajo).
   while (compoundLeft > 0) {
     let assignedAny = false;
-    for (const key of SECOND_COMPOUND_ORDER) {
+    for (const key of secondCompoundOrder) {
       if (compoundLeft <= 0) break;
       const t = priority1.find(pt => pt.key === key);
       if (!t || slotsLeft(t) <= 0) continue;
@@ -206,7 +230,6 @@ export async function selectExercisesForDayByMuscle(
   // Lo que sobre de compuesto (por tope de target o lista agotada) se
   // convierte en aislamiento, para que el bucle de abajo lo reparta entre
   // el resto de targets por bonusPriority en vez de perderlo.
-  console.log('[muscleBasedSelection] compoundLeft antes de convertir a aislamiento:', compoundLeft);
   isolationLeft += compoundLeft;
   compoundLeft = 0;
 
@@ -215,7 +238,7 @@ export async function selectExercisesForDayByMuscle(
   // respetando maxSlots en todo momento.
   while (isolationLeft > 0) {
     let assignedAny = false;
-    for (const t of targets) {
+    for (const t of orderedTargets) {
       if (isolationLeft <= 0) break;
       if (slotsLeft(t) <= 0) continue;
       if (await tryAssign(t, false)) { isolationLeft--; assignedAny = true; }

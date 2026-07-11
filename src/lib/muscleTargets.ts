@@ -61,3 +61,28 @@ export function getTargetsForDayType(dayType: DayType): MuscleTarget[] {
       return FULL_BODY_TARGETS;
   }
 }
+
+// ── Prioridades musculares (Fase 0-B-1) ──────────────────────────────────────
+// Único sitio donde se decide si un target está "priorizado": lo está si
+// CUALQUIERA de sus muscleGroups aparece en la lista de prioridades del usuario.
+// Vive aquí (no en muscleBasedSelection.ts) porque es lógica pura del dominio
+// MuscleTarget, junto a las listas que consulta. Con priorities=[] devuelve
+// siempre false —`some` sobre `[].includes(mg)` es false—, así que anteponer
+// los priorizados a cualquier lista es un no-op mientras el usuario no fije
+// ninguna prioridad (caso universal hoy, sin UI).
+export function targetIsPrioritized(target: MuscleTarget, priorities: MuscleGroup[]): boolean {
+  return target.muscleGroups.some(mg => priorities.includes(mg));
+}
+
+// Resuelve una key suelta (p. ej. las de SECOND_COMPOUND_ORDER) a su MuscleTarget
+// canónico buscándola en las cuatro listas. Devuelve el primer match: las keys
+// duplicadas entre listas (pecho/espalda/cuadriceps) tienen los MISMOS
+// muscleGroups en todas, así que el resultado de targetIsPrioritized no depende
+// de cuál se resuelva.
+const ALL_TARGETS: MuscleTarget[] = [
+  ...PUSH_TARGETS, ...PULL_TARGETS, ...LEGS_TARGETS, ...FULL_BODY_TARGETS,
+];
+
+export function findTargetByKey(key: string): MuscleTarget | undefined {
+  return ALL_TARGETS.find(t => t.key === key);
+}

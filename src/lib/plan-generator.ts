@@ -1,4 +1,4 @@
-import type { Exercise } from './exercises';
+import { parseMusclePriorities, type Exercise, type MuscleGroup } from './exercises';
 import { selectExercisesForDayByMuscle } from './muscleBasedSelection';
 
 export type DayType = 'full_body' | 'push' | 'pull' | 'legs' | 'upper' | 'lower';
@@ -107,8 +107,9 @@ async function selectExercisesForDay(
   counts: { compounds: number; isolations: number },
   scheme: RepScheme,
   excludeIds: Set<string>,
+  musclePriorities: MuscleGroup[] = [],
 ): Promise<PlannedExercise[]> {
-  const selected = await selectExercisesForDayByMuscle(dayType, equipment, isGym, counts, excludeIds);
+  const selected = await selectExercisesForDayByMuscle(dayType, equipment, isGym, counts, excludeIds, musclePriorities);
   const compounds  = selected.filter(s => s.isCompound).map(s => s.exercise);
   const isolations = selected.filter(s => !s.isCompound).map(s => s.exercise);
 
@@ -125,6 +126,7 @@ export async function generatePlan(profile: {
   minutesPerSession: number;
   location: string;
   equipment: string;
+  musclePriorities?: string;
 }): Promise<GeneratedPlan> {
   const equipment: string[] = (() => {
     try { return JSON.parse(profile.equipment) as string[]; } catch { return []; }
@@ -134,12 +136,19 @@ export async function generatePlan(profile: {
   const counts = getExerciseCounts(profile.minutesPerSession);
   const split  = getSplit(profile.daysPerWeek);
 
+  // Prioridades musculares del usuario (Fase 0-B-1). Punto único de obtención.
+  // Defensa: nunca más de 2 (si llegara un array mayor por datos corruptos,
+  // usa solo los 2 primeros; nunca lanza ni bloquea la generación). Hoy nadie
+  // las fija todavía (sin UI), así que esto es [] para todos los usuarios y la
+  // generación resulta idéntica a la anterior.
+  const musclePriorities = parseMusclePriorities(profile.musclePriorities).slice(0, 2);
+
   // Secuencial (no en paralelo): cada día necesita conocer los ejercicios ya
   // elegidos por los días anteriores de ESTA generación, vía excludeIds.
   const usedThisWeek = new Set<string>();
   const days: PlanDayData[] = [];
   for (const [i, dayType] of split.entries()) {
-    const exercises = await selectExercisesForDay(dayType, equipment, isGym, counts, scheme, usedThisWeek);
+    const exercises = await selectExercisesForDay(dayType, equipment, isGym, counts, scheme, usedThisWeek, musclePriorities);
     for (const ex of exercises) usedThisWeek.add(ex.exerciseId);
     days.push({ dayIndex: i, dayType, exercises });
   }

@@ -63,8 +63,12 @@ function checkCategoryAlignment(days: PlanDayData[], label: string): boolean {
 async function main() {
   let allOk = true;
 
-  // ── Check 1: plan de 4 días (upper/lower/upper/lower), gym, 60 min ────────
-  line('CHECK 1 — Plan 4 días (upper/lower/upper/lower) / gimnasio completo / 60 min');
+  // ── Check 1: plan de 4 días (push/pull/legs/full_body), gym, 60 min ───────
+  // El split de 4 días ya no repite tipos (decisión de producto 2026-07-10:
+  // upper/lower fuera de los splits generados), así que la variedad entre días
+  // del MISMO tipo vía excludeIds se verifica sobre un split de 6 días
+  // (push/pull/legs ×2), donde sí hay pares del mismo tipo que comparar.
+  line('CHECK 1 — Plan 4 días (push/pull/legs/full_body) / gimnasio completo / 60 min');
   const plan4 = await generatePlan({
     goalPrimary: 'hypertrophy',
     goalSecondary: null,
@@ -78,21 +82,28 @@ async function main() {
     console.log(`  Día ${day.dayIndex} (${day.dayType}): ${idsOf(day.exercises).join(', ')}`);
   }
 
-  const upperDays = plan4.days.filter(d => d.dayType === 'upper');
-  const lowerDays = plan4.days.filter(d => d.dayType === 'lower');
-  console.log(`  [info] días 'upper' encontrados: ${upperDays.length}, días 'lower' encontrados: ${lowerDays.length}`);
+  line('CHECK 1b — Variedad entre días del mismo tipo: plan 6 días (push/pull/legs ×2)');
+  const plan6 = await generatePlan({
+    goalPrimary: 'hypertrophy',
+    goalSecondary: null,
+    daysPerWeek: 6,
+    minutesPerSession: 60,
+    location: 'gym',
+    equipment: '[]',
+  });
+  for (const day of plan6.days) {
+    console.log(`  Día ${day.dayIndex} (${day.dayType}): ${idsOf(day.exercises).join(', ')}`);
+  }
 
-  const upperIdsA = idsOf(upperDays[0].exercises);
-  const upperIdsB = idsOf(upperDays[1].exercises);
-  const upperIdentical = JSON.stringify(upperIdsA) === JSON.stringify(upperIdsB);
-  console.log(`  [check] los dos días 'upper' NO son idénticos: ${!upperIdentical ? 'OK' : 'FALLO — ambos son ' + JSON.stringify(upperIdsA)}`);
-  allOk = !upperIdentical && allOk;
-
-  const lowerIdsA = idsOf(lowerDays[0].exercises);
-  const lowerIdsB = idsOf(lowerDays[1].exercises);
-  const lowerIdentical = JSON.stringify(lowerIdsA) === JSON.stringify(lowerIdsB);
-  console.log(`  [check] los dos días 'lower' NO son idénticos: ${!lowerIdentical ? 'OK' : 'FALLO — ambos son ' + JSON.stringify(lowerIdsA)}`);
-  allOk = !lowerIdentical && allOk;
+  for (const dt of ['push', 'pull', 'legs'] as const) {
+    const daysOfType = plan6.days.filter(d => d.dayType === dt);
+    console.log(`  [info] días '${dt}' encontrados: ${daysOfType.length}`);
+    const idsA = idsOf(daysOfType[0].exercises);
+    const idsB = idsOf(daysOfType[1].exercises);
+    const identical = JSON.stringify(idsA) === JSON.stringify(idsB);
+    console.log(`  [check] los dos días '${dt}' NO son idénticos: ${!identical ? 'OK' : 'FALLO — ambos son ' + JSON.stringify(idsA)}`);
+    allOk = !identical && allOk;
+  }
 
   // ── Check 2: ningún ejercicio del plan es cardio/mobility/full_body ──────
   line('CHECK 2 — Ningún ejercicio del plan de 4 días es cardio/mobility/full_body');
@@ -116,7 +127,7 @@ async function main() {
   }
   allOk = check2Ok && allOk;
 
-  const check2bOk = checkCategoryAlignment(plan4.days, 'plan 4 días (upper/lower)');
+  const check2bOk = checkCategoryAlignment(plan4.days, 'plan 4 días (push/pull/legs/full_body)');
   allOk = check2bOk && allOk;
 
   // ── Check 3: cobertura semanal básica de targets push+pull+legs ──────────

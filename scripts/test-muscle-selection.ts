@@ -186,7 +186,7 @@ async function main() {
   console.log(`  [check] "pecho" topado en 3: ${pechoCount === 3 ? 'OK (3)' : 'FALLO (' + pechoCount + ')'}`);
   allOk = (pechoCount === 3) && allOk;
   const isolationCount = push5c1i.filter(r => !r.isCompound).length;
-  console.log(`  [reporte] total de ejercicios de aislamiento en el resultado: ${isolationCount} (counts.isolations pedido era 1 — cualquier exceso solo puede venir de la conversión de compoundLeft, ver log "[muscleBasedSelection] compoundLeft..." arriba)`);
+  console.log(`  [reporte] total de ejercicios de aislamiento en el resultado: ${isolationCount} (counts.isolations pedido era 1 — cualquier exceso solo puede venir de la conversión del compuesto sobrante a aislamiento en la Pasada 2)`);
   allOk = checkNoDuplicateIds(push5c1i, 'push counts a mano') && allOk;
   allOk = checkMaxSlots(push5c1i, 'antebrazo', 1, 'push counts a mano') && allOk; // push no tiene antebrazo; check trivial de control
   allOk = checkNoCardioOrMobility(push5c1i, 'push counts a mano') && allOk;
@@ -202,7 +202,7 @@ async function main() {
   console.log(`  [check] "pecho" topado en 3: ${pechoCount6 === 3 ? 'OK (3)' : 'FALLO (' + pechoCount6 + ')'}`);
   allOk = (pechoCount6 === 3) && allOk;
   const isolationCount6 = push6c1i.filter(r => !r.isCompound).length;
-  console.log(`  [reporte] total de ejercicios de aislamiento en el resultado: ${isolationCount6} (counts.isolations pedido era 1 — cualquier exceso viene de la conversión de compoundLeft, ver log "[muscleBasedSelection] compoundLeft..." arriba)`);
+  console.log(`  [reporte] total de ejercicios de aislamiento en el resultado: ${isolationCount6} (counts.isolations pedido era 1 — cualquier exceso viene de la conversión del compuesto sobrante a aislamiento en la Pasada 2)`);
   console.log(`  [check] la conversión aportó aislamiento extra: ${isolationCount6 > 1 ? 'OK (+' + (isolationCount6 - 1) + ')' : 'FALLO (sin exceso)'}`);
   allOk = (isolationCount6 > 1) && allOk;
   allOk = checkNoDuplicateIds(push6c1i, 'push counts a mano 6c1i') && allOk;
