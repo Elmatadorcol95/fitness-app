@@ -1174,11 +1174,59 @@ Bucle ~1.3 s sobre fondo #141A17:
     con días upper/lower sigan renderizándose y entrenándose sin problema;
     solo desaparecen al regenerar el plan.
   * `npx tsc --noEmit` limpio.
-- Siguiente inmediato: sin tarea en curso — el usuario debe indicar el
-  próximo módulo a atacar. Candidatos ya identificados en el roadmap: FASE D
-  (deloads automáticos + gráfica 1RM en Progreso), Fase 2 de calentamiento
-  (estiramiento, ya tiene `TimedChecklistItem` listo para reutilizar), o
-  FASE 7 (in-app purchase, obligatoria antes de publicar).
+- Hecho: FASE 0-B-1 paso 1 — cimientos de datos para prioridades musculares
+  (commit `a6fa945`, JS + migración): base para que el usuario pueda priorizar
+  hasta 2 grupos musculares. SIN UI todavía — solo el modelo de datos.
+  * `schema.ts:17`: columna nueva `musclePriorities` (`text('muscle_priorities')
+    .notNull().default('[]')`) en la tabla `profile`. Migración manual
+    `0010` (mismo patrón manual que 0001-0009; ver regla del `when` funcional
+    en "Reglas de trabajo").
+  * `exercises.ts`: `parseMusclePriorities(raw?)` — deserializa el JSON y filtra
+    cualquier valor que no sea un `MuscleGroup` real (defensa contra datos
+    corruptos), mismo try/catch que `parseEquipment`.
+  * `profile.store.ts`: acción `updateMusclePriorities(priorities: MuscleGroup[])`
+    que persiste en SQLite (`profile.muscle_priorities`) y actualiza el store.
+- Hecho: FASE 0-B-1 paso 2 — conecta `musclePriorities` con la selección de
+  ejercicios (commit `420fb8c`, JS, recarga). SIN UI todavía: nadie fija
+  prioridades reales, así que HOY el comportamiento es IDÉNTICO al anterior
+  (con `musclePriorities=[]` la reordenación es un no-op exacto).
+  * `muscleTargets.ts`: helper único `targetIsPrioritized(target, priorities)`
+    (`target.muscleGroups.some(mg => priorities.includes(mg))`) + `findTargetByKey(key)`
+    (resuelve una key suelta contra las 4 listas canónicas —
+    PUSH/PULL/LEGS/FULL_BODY_TARGETS — para reordenar `SECOND_COMPOUND_ORDER`,
+    que trabaja con keys, no con objetos MuscleTarget). Viven aquí por ser
+    lógica pura del dominio MuscleTarget.
+  * `muscleBasedSelection.ts`: nuevo parámetro `musclePriorities: MuscleGroup[] = []`
+    (default para el llamador de test aislado; en producción viaja explícito).
+    Partición estable (`[...filter(isPrio), ...filter(!isPrio)]`, filter+concat —
+    NUNCA muta ni hace shuffle; `targets` y la constante `SECOND_COMPOUND_ORDER`
+    quedan intactos) que antepone los priorizados en la Pasada 1 (`orderedTargets`),
+    en el bono de aislamiento de la Pasada 2 (`orderedTargets`) y en el bono de
+    compuesto (`secondCompoundOrder`). NO toca el mínimo garantizado de la Pasada 1
+    ni el tope de 3 por músculo — solo el ORDEN de recorrido. Eliminado el
+    `console.log` de depuración de `compoundLeft` que quedaba de la Fase 0-A.
+  * `plan-generator.ts`: `musclePriorities` viaja EXPLÍCITO por la cadena
+    `generatePlan()` → `selectExercisesForDay()` → `selectExercisesForDayByMuscle()`
+    (ninguna llamada real depende del default). Punto único de obtención en
+    `generatePlan()`: `parseMusclePriorities(profile.musclePriorities).slice(0,2)`
+    — defensa: máximo 2, nunca lanza ni bloquea la generación. El tipo inline de
+    `generatePlan()` ganó `musclePriorities?: string` (el `Profile` completo que
+    pasa `workout.store.ts` ya trae la columna). NO se tocó la lógica de splits.
+  * Scripts de regresión actualizados: `test-full-plan-generation.ts` cambió el
+    assert de variedad (el split de 4 días ya no repite tipos tras quitar
+    upper/lower el 2026-07-10) a un split de 6 días (push/pull/legs ×2, nuevo
+    CHECK 1b), y se limpiaron las referencias al log eliminado en
+    `test-muscle-selection.ts`. Ambos scripts en verde, `npx tsc --noEmit` limpio.
+  * ⚠️ PENDIENTE VALIDAR EN ANDROID: confirmar que los planes se generan
+    EXACTAMENTE igual que antes (el cambio debe ser invisible sin prioridades
+    fijadas). El commit ya está hecho, pero la validación en teléfono físico
+    aún no se ha realizado.
+- Siguiente inmediato: FASE 0-B-1 paso 3 (o siguiente) — la UI para que el
+  usuario elija hasta 2 prioridades musculares. Es lo ÚNICO que activará de
+  verdad la reordenación (hoy todos generan con `[]`). Patrón candidato:
+  `EquipmentScreen`/`StepLocation` (ver `PRIORITY_ENGINE_AUDIT.md` sección 532).
+  Recordar llamar a `updateMusclePriorities()` (ya existe) al guardar y ofrecer
+  regenerar el plan, igual que hace `equipment.tsx`.
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
