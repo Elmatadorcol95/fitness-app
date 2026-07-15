@@ -137,11 +137,14 @@ export async function generatePlan(profile: {
   const split  = getSplit(profile.daysPerWeek);
 
   // Prioridades musculares del usuario (Fase 0-B-1). Punto único de obtención.
-  // Defensa: nunca más de 2 (si llegara un array mayor por datos corruptos,
-  // usa solo los 2 primeros; nunca lanza ni bloquea la generación). Hoy nadie
-  // las fija todavía (sin UI), así que esto es [] para todos los usuarios y la
-  // generación resulta idéntica a la anterior.
-  const musclePriorities = parseMusclePriorities(profile.musclePriorities).slice(0, 2);
+  // Defensa de corrupción de datos, NO la regla de negocio real (esa vive en la
+  // pantalla de prioridades, contando ZONAS seleccionadas — máx. 2 — no valores
+  // del array). Una zona puede agrupar varios MuscleGroup (ej. Core/Abdomen =
+  // ['core','abs']), así que 2 zonas legítimas pueden superar 2 valores.
+  // slice(0,6) es un tope generoso solo para datos corruptos; nunca lanza ni
+  // bloquea la generación. Hoy nadie las fija todavía (sin UI), así que esto
+  // es [] para todos los usuarios y la generación resulta idéntica a la anterior.
+  const musclePriorities = parseMusclePriorities(profile.musclePriorities).slice(0, 6);
 
   // Secuencial (no en paralelo): cada día necesita conocer los ejercicios ya
   // elegidos por los días anteriores de ESTA generación, vía excludeIds.
