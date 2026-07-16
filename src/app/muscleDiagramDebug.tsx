@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 13 },
   tabTextActive: { fontSize: 13, fontWeight: '700', color: GREEN },
   diagramWrap: { width: 200, height: 520 },
-  diagramPhotoWrap: { width: 260 },
+  diagramPhotoWrap: { height: 520 },
   counter: { fontSize: 15 },
   list: { fontSize: 13 },
   closeBtn: {

@@ -12,6 +12,9 @@ interface MuscleDiagramPhotoProps {
   selected: MuscleRegionId[];
   onRegionPress: (id: MuscleRegionId) => void;
   calibrationMode?: boolean;
+  // Default = mismo valor fijo que usa el wrapper de MuscleDiagram.tsx
+  // (diagramWrap: { width: 200, height: 520 } en muscleDiagramDebug.tsx).
+  maxHeight?: number;
 }
 
 const GREEN = '#3FBF7F';
@@ -31,31 +34,31 @@ interface ZoneDef {
 // Coordenadas de partida (estimadas, se recalibran después) — unidades 0-100
 // = porcentaje del contenedor, tal cual las diste.
 const FRONT_ZONES: ZoneDef[] = [
-  { id: 'shoulders', key: 'shoulders_r', cx: 18, cy: 19, rx: 11, ry: 6 },
-  { id: 'shoulders', key: 'shoulders_l', cx: 82, cy: 19, rx: 11, ry: 6 },
-  { id: 'chest', key: 'chest_r', cx: 39, cy: 26, rx: 12, ry: 7 },
-  { id: 'chest', key: 'chest_l', cx: 61, cy: 26, rx: 12, ry: 7 },
-  { id: 'biceps', key: 'biceps_r', cx: 12, cy: 32, rx: 7, ry: 9 },
-  { id: 'biceps', key: 'biceps_l', cx: 88, cy: 32, rx: 7, ry: 9 },
-  { id: 'core_abdomen', key: 'core_abdomen', cx: 50, cy: 40, rx: 15, ry: 9 },
-  { id: 'quads', key: 'quads_r', cx: 36, cy: 60, rx: 11, ry: 12 },
-  { id: 'quads', key: 'quads_l', cx: 64, cy: 60, rx: 11, ry: 12 },
+  { id: 'shoulders', key: 'shoulders_r', cx: 26, cy: 21.5, rx: 7, ry: 5 },
+  { id: 'shoulders', key: 'shoulders_l', cx: 74, cy: 21.5, rx: 7, ry: 5 },
+  { id: 'chest', key: 'chest_r', cx: 39, cy: 26.5, rx: 10, ry: 6.5 },
+  { id: 'chest', key: 'chest_l', cx: 61, cy: 26.5, rx: 10, ry: 6.5 },
+  { id: 'biceps', key: 'biceps_r', cx: 19, cy: 34, rx: 6.5, ry: 7.5 },
+  { id: 'biceps', key: 'biceps_l', cx: 81, cy: 34, rx: 6.5, ry: 7.5 },
+  { id: 'core_abdomen', key: 'core_abdomen', cx: 50, cy: 43.5, rx: 13, ry: 10 },
+  { id: 'quads', key: 'quads_r', cx: 39.5, cy: 62, rx: 8.5, ry: 11 },
+  { id: 'quads', key: 'quads_l', cx: 60.5, cy: 62, rx: 8.5, ry: 11 },
 ];
 
 const BACK_ZONES: ZoneDef[] = [
-  { id: 'back', key: 'back', cx: 50, cy: 25, rx: 22, ry: 13 },
-  { id: 'triceps', key: 'triceps_r', cx: 12, cy: 30, rx: 7, ry: 9 },
-  { id: 'triceps', key: 'triceps_l', cx: 88, cy: 30, rx: 7, ry: 9 },
-  { id: 'glutes', key: 'glutes_r', cx: 40, cy: 44, rx: 11, ry: 7 },
-  { id: 'glutes', key: 'glutes_l', cx: 60, cy: 44, rx: 11, ry: 7 },
-  { id: 'hamstrings', key: 'hamstrings_r', cx: 37, cy: 59, rx: 11, ry: 10 },
-  { id: 'hamstrings', key: 'hamstrings_l', cx: 63, cy: 59, rx: 11, ry: 10 },
-  { id: 'calves', key: 'calves_r', cx: 37, cy: 78, rx: 9, ry: 9 },
-  { id: 'calves', key: 'calves_l', cx: 63, cy: 78, rx: 9, ry: 9 },
+  { id: 'back', key: 'back', cx: 50, cy: 29, rx: 20, ry: 13.5 },
+  { id: 'triceps', key: 'triceps_r', cx: 17.5, cy: 31, rx: 6, ry: 7.5 },
+  { id: 'triceps', key: 'triceps_l', cx: 82.5, cy: 31, rx: 6, ry: 7.5 },
+  { id: 'glutes', key: 'glutes_r', cx: 43.5, cy: 49.5, rx: 7.5, ry: 5.5 },
+  { id: 'glutes', key: 'glutes_l', cx: 56.5, cy: 49.5, rx: 7.5, ry: 5.5 },
+  { id: 'hamstrings', key: 'hamstrings_r', cx: 40, cy: 63, rx: 8, ry: 9 },
+  { id: 'hamstrings', key: 'hamstrings_l', cx: 60, cy: 63, rx: 8, ry: 9 },
+  { id: 'calves', key: 'calves_r', cx: 40.5, cy: 81.5, rx: 6.5, ry: 7.5 },
+  { id: 'calves', key: 'calves_l', cx: 59.5, cy: 81.5, rx: 6.5, ry: 7.5 },
 ];
 
 export function MuscleDiagramPhoto({
-  view, selected, onRegionPress, calibrationMode = true,
+  view, selected, onRegionPress, calibrationMode = true, maxHeight = 520,
 }: MuscleDiagramPhotoProps) {
   const zones = view === 'front' ? FRONT_ZONES : BACK_ZONES;
   const aspectRatio = view === 'front' ? FRONT_ASPECT : BACK_ASPECT;
@@ -63,11 +66,23 @@ export function MuscleDiagramPhoto({
     ? require('@/assets/images/musclePriorities/front.webp')
     : require('@/assets/images/musclePriorities/back.webp');
 
-  return (
-    <View style={[styles.container, { aspectRatio }]}>
-      <Image source={imageSource} resizeMode="contain" style={StyleSheet.absoluteFill} />
+  const width = maxHeight * aspectRatio;
 
-      <Svg viewBox="0 0 100 100" style={StyleSheet.absoluteFill}>
+  return (
+    <View style={[styles.container, { width, height: maxHeight }]}>
+      <Image
+        source={imageSource}
+        resizeMode="contain"
+        style={{ position: 'absolute', top: 0, left: 0, width, height: maxHeight }}
+      />
+
+      <Svg
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        width={width}
+        height={maxHeight}
+        style={{ position: 'absolute', top: 0, left: 0 }}
+      >
         {!calibrationMode && (
           <Defs>
             <RadialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
@@ -136,7 +151,7 @@ export function MuscleDiagramPhoto({
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
     position: 'relative',
+    alignSelf: 'center',
   },
 });

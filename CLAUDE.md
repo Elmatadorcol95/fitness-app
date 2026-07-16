@@ -1255,10 +1255,11 @@ Bucle ~1.3 s sobre fondo #141A17:
   duplicada (`front.webp.webp`/`back.webp.webp`); Juan las renombró a mano
   a los nombres correctos antes de que se usaran en código — ese rename
   sigue sin comitear (ver más abajo).
-- **FASE 0-B-1 Paso 3 — pantalla de prioridades: EN EXPLORACIÓN, SIN
-  COMMIT** (sesión 2026-07-15). Todo lo siguiente está en el working tree,
-  sin comitear, a la espera de que Juan decida entre las dos opciones antes
-  de seguir:
+- **FASE 0-B-1 Paso 3 — pantalla de prioridades: EN EXPLORACIÓN** (spike
+  construido 2026-07-15, comiteado ese mismo día en `40d330c` "15juliofin" —
+  ver detalle de working tree más abajo; calibración de la Opción B hecha el
+  2026-07-16, todavía sin comitear). A la espera de que Juan decida entre
+  las dos opciones antes de seguir:
   * **Descartado y ya limpiado por completo**: spike 3a
     (`useMuscleSpikeStore` + `SvgTouchSpike.tsx`) confirmó con evidencia real
     en dispositivo que **`<Use href="#id">` de `react-native-svg` NO dispara
@@ -1285,12 +1286,10 @@ Bucle ~1.3 s sobre fondo #141A17:
   * **Opción B — `src/components/musclePriorities/MuscleDiagramPhoto.tsx`**
     (foto real de fondo + zonas de toque calibrables): usa
     `front.webp`/`back.webp`, aspect ratio real por vista (516:1482 /
-    522:1388, sin forzar igualdad), `<Svg viewBox="0 0 100 100">` encima con
-    una `Ellipse` real por zona (coordenadas de partida ESTIMADAS, pendientes
-    de recalibrar). Prop `calibrationMode` (default `true`): zonas visibles
-    con etiqueta de texto con el id, para ajustar coordenadas viendo la foto
-    real. `calibrationMode=false`: zonas invisibles + resplandor con
-    degradado radial ámbar en la región seleccionada.
+    522:1388, sin forzar igualdad). Prop `calibrationMode` (default `true`):
+    zonas visibles con etiqueta de texto con el id, para ajustar coordenadas
+    viendo la foto real. `calibrationMode=false`: zonas invisibles +
+    resplandor con degradado radial ámbar en la región seleccionada.
   * **Arnés de debug**: `src/store/muscleDiagramDebugStore.ts` +
     `src/app/muscleDiagramDebug.tsx` (marcado `// TEMPORAL — spike paso 3b,
     se reemplaza en paso 3c`), montado en `_layout.tsx` y accesible desde un
@@ -1298,19 +1297,40 @@ Bucle ~1.3 s sobre fondo #141A17:
     con foto" para alternar entre las dos opciones sin salir de la pantalla,
     reutilizando el mismo estado `selected`/`handleRegionPress` (tope de 2
     zonas, con pulso visual `Animated` si se intenta una 3.ª) para ambas.
-  * **Estado del working tree ahora mismo (sin commit)**: modificados
-    `_layout.tsx`, `profile.tsx`; nuevos `muscleDiagramDebug.tsx`,
-    `muscleDiagramDebugStore.ts`, `src/components/musclePriorities/`
-    (`MuscleDiagram.tsx` + `MuscleDiagramPhoto.tsx`); rename sin comitear de
-    los dos `.webp`; además queda sin comitear `MUSCLE_SCREEN_AUDIT.md`
-    (auditoría de solo lectura de una sesión anterior, sin relación con el
-    spike). `npx tsc --noEmit` limpio en cada paso.
-- Siguiente inmediato: Juan tiene que ver ambas opciones en Android (usando
-  el botón "Diagrama corporal (temporal)" en Perfil → pestaña "Ver con
-  foto" para alternar) y decidir Opción A (SVG) vs Opción B (foto +
-  calibración) antes de seguir con el Paso 3c real. Si elige la Opción B,
-  falta recalibrar las coordenadas estimadas de las zonas contra las fotos
-  reales. Una vez decidido: comitear lo elegido, borrar el descartado y el
+  * **Commit `40d330c` "15juliofin" (2026-07-15)**: incluyó `_layout.tsx`,
+    `profile.tsx`, `muscleDiagramDebug.tsx`, `muscleDiagramDebugStore.ts`,
+    `MuscleDiagram.tsx`, `MuscleDiagramPhoto.tsx`, el rename de los dos
+    `.webp` y `MUSCLE_SCREEN_AUDIT.md` — confirmado con `git show --stat` (la
+    entrada anterior de esta sección decía "sin commit"; quedó desactualizada
+    un día).
+  * **Sesión 2026-07-16 — bug de render + calibración real (sin comitear
+    todavía)**: dos bugs de raíz encontrados y corregidos en
+    `MuscleDiagramPhoto.tsx` vía diagnóstico `onLayout` temporal (añadido y
+    luego eliminado por completo, junto con su equivalente en
+    `muscleDiagramDebug.tsx`):
+    1. El `<Image>` ignoraba `StyleSheet.absoluteFill` y se renderizaba a su
+       tamaño intrínseco (516×1482dp) en vez de ajustarse al contenedor →
+       fix: `width`/`height` explícitos (`width = maxHeight * aspectRatio`)
+       en vez de depender de `aspectRatio` de estilo.
+    2. El `<Svg viewBox="0 0 100 100">` (cuadrado) sufría letterboxing
+       (`preserveAspectRatio` por defecto `xMidYMid meet`) sobre una caja
+       181×520 → las 18 zonas quedaban comprimidas en un cuadrado centrado
+       en vez de repartidas por todo el alto → fix:
+       `preserveAspectRatio="none"` + `width`/`height` explícitos (mismos
+       números que el `Image`), así las unidades 0-100 vuelven a significar
+       "porcentaje de cada eje" tal como se diseñaron.
+    * Con el render ya correcto, Juan reemplazó `front.webp`/`back.webp` por
+      versiones con fondo transparente (mismas dimensiones — reverificado
+      con `sharp`: 516×1482 / 522×1388, `hasAlpha:true`) y midió las 18
+      coordenadas reales sobre la foto corregida. `FRONT_ZONES`/`BACK_ZONES`
+      reemplazadas con esos valores medidos (antes eran estimaciones).
+    * `npx tsc --noEmit` limpio en cada paso de la sesión. Sin commit —
+      pendiente de que Juan pruebe en Android antes de comitear.
+- Siguiente inmediato: Juan tiene que probar la Opción B ya calibrada en
+  Android (botón "Diagrama corporal (temporal)" en Perfil → pestaña "Ver con
+  foto") y decidir Opción A (SVG) vs Opción B (foto, ahora con render y
+  coordenadas correctas) antes de seguir con el Paso 3c real. Una vez
+  decidido: comitear la calibración de hoy, borrar la opción descartada y el
   arnés de debug, y conectar la pantalla real a `musclePriorities`/
   `profile.store.ts` (Paso 3c). Otros candidatos del roadmap sin tocar:
   FASE D (deloads automáticos + gráfica 1RM en Progreso), FASE 7 (in-app
