@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MuscleDiagram, type MuscleRegionId } from '@/components/musclePriorities/MuscleDiagram';
+import { MuscleDiagramLabeled } from '@/components/musclePriorities/MuscleDiagramLabeled';
 import { MuscleDiagramPhoto } from '@/components/musclePriorities/MuscleDiagramPhoto';
 import { useMuscleDiagramDebugStore } from '@/store/muscleDiagramDebugStore';
 
@@ -15,6 +16,7 @@ const MAX_SELECTED = 2;
 export default function MuscleDiagramDebugScreen() {
   const [view, setView] = useState<'front' | 'back'>('front');
   const [usePhoto, setUsePhoto] = useState(false);
+  const [previewFinal, setPreviewFinal] = useState(false);
   const [selected, setSelected] = useState<MuscleRegionId[]>([]);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -72,10 +74,29 @@ export default function MuscleDiagramDebugScreen() {
             </Pressable>
           </View>
 
+          {usePhoto && (
+            <Pressable
+              style={styles.previewToggle}
+              onPress={() => setPreviewFinal((v) => !v)}
+            >
+              <ThemedText style={previewFinal ? styles.tabTextActive : styles.tabText}>
+                {previewFinal ? 'Vista final' : 'Calibración'}
+              </ThemedText>
+            </Pressable>
+          )}
+
           {usePhoto ? (
-            <View style={styles.diagramPhotoWrap}>
-              <MuscleDiagramPhoto view={view} selected={selected} onRegionPress={handleRegionPress} />
-            </View>
+            previewFinal ? (
+              <MuscleDiagramLabeled view={view} selected={selected} onRegionPress={handleRegionPress} />
+            ) : (
+              <View style={styles.diagramPhotoWrap}>
+                <MuscleDiagramPhoto
+                  view={view}
+                  selected={selected}
+                  onRegionPress={handleRegionPress}
+                />
+              </View>
+            )
           ) : (
             <View style={styles.diagramWrap}>
               <MuscleDiagram view={view} selected={selected} onRegionPress={handleRegionPress} />
@@ -116,6 +137,10 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: GREEN + '22' },
   tabText: { fontSize: 13 },
   tabTextActive: { fontSize: 13, fontWeight: '700', color: GREEN },
+  previewToggle: {
+    paddingVertical: 6, paddingHorizontal: 14, borderRadius: 8,
+    borderWidth: 1, borderColor: GREEN + '55',
+  },
   diagramWrap: { width: 200, height: 520 },
   diagramPhotoWrap: { height: 520 },
   counter: { fontSize: 15 },
