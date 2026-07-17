@@ -1326,15 +1326,48 @@ Bucle ~1.3 s sobre fondo #141A17:
       reemplazadas con esos valores medidos (antes eran estimaciones).
     * `npx tsc --noEmit` limpio en cada paso de la sesión. Sin commit —
       pendiente de que Juan pruebe en Android antes de comitear.
-- Siguiente inmediato: Juan tiene que probar la Opción B ya calibrada en
-  Android (botón "Diagrama corporal (temporal)" en Perfil → pestaña "Ver con
-  foto") y decidir Opción A (SVG) vs Opción B (foto, ahora con render y
-  coordenadas correctas) antes de seguir con el Paso 3c real. Una vez
-  decidido: comitear la calibración de hoy, borrar la opción descartada y el
-  arnés de debug, y conectar la pantalla real a `musclePriorities`/
-  `profile.store.ts` (Paso 3c). Otros candidatos del roadmap sin tocar:
-  FASE D (deloads automáticos + gráfica 1RM en Progreso), FASE 7 (in-app
-  purchase).
+  * **Sesión 2026-07-17 — rondas finas de calibración + capa de etiquetas
+    (commit `4817953`)**: varias rondas sucesivas de ajuste manual de las 18
+    elipses de `FRONT_ZONES`/`BACK_ZONES` en `MuscleDiagramPhoto.tsx`
+    (hombros, bíceps, pecho, core, cuádriceps, glúteos, isquiotibiales,
+    gemelos — cada ronda auditada contra el código real antes de aplicarla,
+    con `npx tsc --noEmit` + `git status` verificados en cada paso). Brillo
+    ámbar del resplandor subido en dos pasos (0.35→0.525→0.7875).
+    - `MuscleDiagramPhoto.tsx`: `FRONT_ZONES`, `BACK_ZONES`, `FRONT_ASPECT`,
+      `BACK_ASPECT` y el tipo `ZoneDef` exportados (antes privados del
+      módulo) para que el componente nuevo no duplique coordenadas.
+    - Nuevo `src/components/musclePriorities/MuscleDiagramLabeled.tsx`:
+      envuelve `MuscleDiagramPhoto` (sin modificarla) para la Opción B final
+      — diagrama + columna de 140dp de etiquetas externas ancladas a la
+      posición real de cada músculo (`labelYPercent` fijo por etiqueta, ya
+      no reparto uniforme), línea guía en `Path` con doblez
+      horizontal-luego-diagonal hasta el borde de la elipse ancla, texto
+      ámbar cuando la zona está en `selected` y gris si no, leyenda fija
+      Disponible/Priorizado. `columnGap: GAP` real en el contenedor de fila
+      (fix de un hueco fantasma entre el final de la línea y el inicio del
+      texto que antes solo maquillaba `paddingLeft`). Etiquetas tocables:
+      cada una es un `Pressable` con `onPress={() => onRegionPress(zone.id)}`
+      (mismo callback recibido por props, sin estado nuevo) y
+      `hitSlop={{top:6,bottom:6,left:8,right:8}}`.
+    - `muscleDiagramDebug.tsx`: nuevo interruptor "Calibración"/"Vista final"
+      (estado `previewFinal`), visible solo cuando `usePhoto` está activo.
+      En "Vista final" renderiza `MuscleDiagramLabeled`; en "Calibración"
+      sigue mostrando `MuscleDiagramPhoto` con las elipses/etiquetas de
+      depuración de siempre.
+    - Todo JS puro, sin módulos nativos. `npx tsc --noEmit` limpio en cada
+      edición. Comiteado en `4817953` — **todavía sin `git push`** (pendiente
+      de confirmación de Juan).
+- Siguiente inmediato: Juan tiene que probar la Opción B ya calibrada y con
+  etiquetas/leyenda/toque en Android (botón "Diagrama corporal (temporal)"
+  en Perfil → pestaña "Ver con foto" → interruptor "Vista final") y decidir
+  Opción A (SVG, `MuscleDiagram.tsx`, sin tocar desde que se creó) vs Opción B
+  (foto + etiquetas, ya con varias rondas de calibración fina y comiteada)
+  antes de seguir con el Paso 3c real. Una vez decidido: borrar la opción
+  descartada y el arnés de debug (`muscleDiagramDebug.tsx`,
+  `muscleDiagramDebugStore.ts`, botón temporal en `profile.tsx`), y conectar
+  la pantalla real a `musclePriorities`/`profile.store.ts` (Paso 3c). Otros
+  candidatos del roadmap sin tocar: FASE D (deloads automáticos + gráfica
+  1RM en Progreso), FASE 7 (in-app purchase).
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
