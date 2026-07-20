@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { VulcanDialog } from '@/components/ui/VulcanDialog';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -7,6 +8,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useProfileStore } from '@/store/profile.store';
+import { useWorkoutStore } from '@/store/workout.store';
 import { parseMusclePriorities, type MuscleGroup } from '@/lib/exercises';
 import { MuscleDiagramLabeled } from '@/components/musclePriorities/MuscleDiagramLabeled';
 import type { MuscleRegionId } from '@/components/musclePriorities/MuscleDiagramPhoto';
@@ -35,9 +37,15 @@ function groupsToZones(groups: MuscleGroup[]): MuscleRegionId[] {
   );
 }
 
+function zonesToGroups(zones: MuscleRegionId[]): MuscleGroup[] {
+  const groups = zones.flatMap((zone) => ZONE_TO_GROUPS[zone]);
+  return Array.from(new Set(groups));
+}
+
 export default function MusclePrioritiesScreen() {
   const { t } = useTranslation();
-  const { profile } = useProfileStore();
+  const { profile, updateMusclePriorities } = useProfileStore();
+  const generateAndSavePlan = useWorkoutStore((s) => s.generateAndSavePlan);
 
   const initialSelected: MuscleRegionId[] = (() => {
     const groups = parseMusclePriorities(profile?.musclePriorities ?? undefined);
@@ -46,6 +54,9 @@ export default function MusclePrioritiesScreen() {
 
   const [selected, setSelected] = useState<MuscleRegionId[]>(initialSelected);
   const [view, setView] = useState<'front' | 'back'>('front');
+  const [saving, setSaving] = useState(false);
+  const [regenOpen, setRegenOpen] = useState(false);
+  const pendingProfile = useRef<typeof profile>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   function firePulse() {
@@ -70,9 +81,19 @@ export default function MusclePrioritiesScreen() {
   const hasChanged =
     JSON.stringify([...selected].sort()) !== JSON.stringify([...initialSelected].sort());
 
-  const handleSave = () => {
-    // TODO 3c-E: persistir con updateMusclePriorities + diálogo de regenerar
-    console.log('[MusclePriorities] guardar pendiente de 3c-E');
+  const handleSave = async () => {
+    if (!profile) { useProfileStore.getState().closeMusclePriorities(); return; }
+    if (!hasChanged) { useProfileStore.getState().closeMusclePriorities(); return; }
+
+    setSaving(true);
+    try {
+      const groups = zonesToGroups(selected);
+      await updateMusclePriorities(groups);
+      pendingProfile.current = { ...profile, musclePriorities: JSON.stringify(groups) };
+      setRegenOpen(true);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -128,15 +149,39 @@ export default function MusclePrioritiesScreen() {
           <Pressable
             style={[styles.saveBtn, !hasChanged && styles.saveBtnDisabled]}
             onPress={handleSave}
-            disabled={!hasChanged}
+            disabled={!hasChanged || saving}
           >
-            <ThemedText type="defaultSemiBold" style={styles.saveBtnText}>
-              {t('common.save')}
-            </ThemedText>
+            {saving ? (
+              <ActivityIndicator color="#04261A" />
+            ) : (
+              <ThemedText type="defaultSemiBold" style={styles.saveBtnText}>
+                {t('common.save')}
+              </ThemedText>
+            )}
           </Pressable>
         </View>
 
       </SafeAreaView>
+
+      <VulcanDialog
+        visible={regenOpen}
+        onClose={() => { setRegenOpen(false); useProfileStore.getState().closeMusclePriorities(); }}
+        title={t('equipment.regenTitle')}
+        message={t('equipment.regenMsg')}
+        confirmLabel={t('equipment.regenYes')}
+        cancelLabel={t('equipment.regenNo')}
+        onConfirm={async () => {
+          setRegenOpen(false);
+          if (pendingProfile.current) {
+            try {
+              await generateAndSavePlan(pendingProfile.current);
+            } catch (err) {
+              console.error('[MusclePriorities] Error al regenerar plan:', err);
+            }
+          }
+          useProfileStore.getState().closeMusclePriorities();
+        }}
+      />
     </ThemedView>
   );
 }
