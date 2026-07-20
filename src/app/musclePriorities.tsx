@@ -37,7 +37,7 @@ export function groupsToZones(groups: MuscleGroup[]): MuscleRegionId[] {
   );
 }
 
-function zonesToGroups(zones: MuscleRegionId[]): MuscleGroup[] {
+export function zonesToGroups(zones: MuscleRegionId[]): MuscleGroup[] {
   const groups = zones.flatMap((zone) => ZONE_TO_GROUPS[zone]);
   return Array.from(new Set(groups));
 }

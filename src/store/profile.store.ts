@@ -22,6 +22,7 @@ export interface OnboardingDraft {
   minutesPerSession: number;
   location: Location;
   equipment: string[];
+  musclePriorities: string[];
   injuries: string;
 }
 
@@ -35,6 +36,7 @@ const defaultDraft: OnboardingDraft = {
   minutesPerSession: 45,
   location: 'gym',
   equipment: [],
+  musclePriorities: [],
   injuries: '',
 };
 
