@@ -356,12 +356,17 @@
       "subtitle": "Optional — describe any pain or limitation to adapt your plan",
       "placeholder": "E.g. right knee pain, cannot do deep squats..."
     },
+    "musclePriorities": {
+      "title": "Muscle priority",
+      "instruction": "This step is optional. If you'd like, choose up to 2 areas where you'd like to see more exercises in your plan — you can change this later from your profile."
+    },
     "summary": {
       "title": "Your profile",
       "name": "Name",
       "goal": "Goal",
       "schedule": "Schedule",
       "location": "Location",
+      "musclePriorities": "Muscle priority",
       "units": "Units",
       "disclaimer": "⚠️ This app does not provide medical advice. Consult a healthcare professional before starting any exercise or nutrition program.",
       "start": "Start training!"
@@ -475,6 +480,11 @@
     "hint": "Choose up to 2 areas to prioritize in your plan.",
     "regenTitle": "Muscle priority updated",
     "regenMsg": "From now on you'll see more exercises targeting these areas in your plan. You can change your priority anytime — each time you edit it, your plan will automatically regenerate when you press Finish.",
-    "regenConfirm": "Finish"
+    "regenConfirm": "Finish",
+    "zoneLabels": {
+      "chest": "Chest", "shoulders": "Shoulders", "biceps": "Biceps", "quads": "Quads",
+      "core_abdomen": "Core/Abs", "back": "Back", "triceps": "Triceps",
+      "glutes": "Glutes", "hamstrings": "Hamstrings", "calves": "Calves"
+    }
   }
 }

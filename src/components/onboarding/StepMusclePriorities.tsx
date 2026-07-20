@@ -32,20 +32,17 @@ export function StepMusclePriorities() {
   // toca una tercera región distinta, no cambia la selección — solo pulso.
   // Cada cambio real de selección se escribe de inmediato al draft.
   function handleRegionPress(id: MuscleRegionId) {
-    setSelected(prev => {
-      if (prev.includes(id)) {
-        const next = prev.filter(r => r !== id);
-        updateDraft({ musclePriorities: zonesToGroups(next) });
-        return next;
-      }
-      if (prev.length < MAX_SELECTED) {
-        const next = [...prev, id];
-        updateDraft({ musclePriorities: zonesToGroups(next) });
-        return next;
-      }
+    let next: MuscleRegionId[];
+    if (selected.includes(id)) {
+      next = selected.filter(r => r !== id);
+    } else if (selected.length < MAX_SELECTED) {
+      next = [...selected, id];
+    } else {
       firePulse();
-      return prev;
-    });
+      return;
+    }
+    setSelected(next);
+    updateDraft({ musclePriorities: zonesToGroups(next) });
   }
 
   return (

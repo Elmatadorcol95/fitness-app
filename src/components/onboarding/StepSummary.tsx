@@ -5,6 +5,8 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useProfileStore, type Location } from '@/store/profile.store';
 import { cmToFtIn, kgToLb } from '@/lib/units';
+import { groupsToZones } from '@/app/musclePriorities';
+import type { MuscleGroup } from '@/lib/exercises';
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -44,6 +46,12 @@ export function StepSummary() {
     return `${pLabel}  +  ${t(`onboarding.goal.${secondary}`)}`;
   };
 
+  const musclePrioritiesLabel = draft.musclePriorities.length > 0
+    ? groupsToZones(draft.musclePriorities as MuscleGroup[])
+        .map((zone) => t(`musclePriorities.zoneLabels.${zone}`))
+        .join(', ')
+    : null;
+
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
       <ThemedText type="title" style={styles.title}>
@@ -66,6 +74,9 @@ export function StepSummary() {
         />
         {draft.injuries ? (
           <Row label={t('onboarding.injuries.title')} value={draft.injuries} />
+        ) : null}
+        {musclePrioritiesLabel ? (
+          <Row label={t('onboarding.summary.musclePriorities')} value={musclePrioritiesLabel} />
         ) : null}
       </ThemedView>
 

@@ -356,12 +356,17 @@
       "subtitle": "Opcional — describe cualquier dolor o limitación para adaptar tu plan",
       "placeholder": "Ej: dolor en la rodilla derecha, no puedo hacer sentadillas profundas..."
     },
+    "musclePriorities": {
+      "title": "Prioridad muscular",
+      "instruction": "Este paso es opcional. Si quieres, elige hasta 2 zonas donde te gustaría ver más ejercicios en tu plan — puedes cambiarlo después desde tu perfil."
+    },
     "summary": {
       "title": "Tu perfil",
       "name": "Nombre",
       "goal": "Objetivo",
       "schedule": "Horario",
       "location": "Lugar",
+      "musclePriorities": "Prioridad muscular",
       "units": "Unidades",
       "disclaimer": "⚠️ Esta app no proporciona consejo médico. Consulta a un profesional de la salud antes de iniciar cualquier programa de ejercicio o nutrición.",
       "start": "¡Empezar a entrenar!"
@@ -475,6 +480,11 @@
     "hint": "Elige hasta 2 zonas para priorizar tu plan.",
     "regenTitle": "Prioridad muscular actualizada",
     "regenMsg": "A partir de ahora verás más ejercicios dirigidos a estas zonas en tu plan. Puedes cambiar tu prioridad cuando quieras — cada vez que la edites, tu plan se regenerará automáticamente al presionar Finalizar.",
-    "regenConfirm": "Finalizar"
+    "regenConfirm": "Finalizar",
+    "zoneLabels": {
+      "chest": "Pecho", "shoulders": "Hombros", "biceps": "Bíceps", "quads": "Cuádriceps",
+      "core_abdomen": "Core/Abdomen", "back": "Espalda", "triceps": "Tríceps",
+      "glutes": "Glúteos", "hamstrings": "Isquiotibiales", "calves": "Gemelos"
+    }
   }
 }
