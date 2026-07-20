@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import type { MuscleRegionId } from './MuscleDiagram';
+import type { MuscleRegionId } from './MuscleDiagramPhoto';
 import {
   BACK_ASPECT,
   BACK_ZONES,

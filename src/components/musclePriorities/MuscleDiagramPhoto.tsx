@@ -1,11 +1,12 @@
 import { Image, StyleSheet, View } from 'react-native';
 import Svg, { Defs, Ellipse, G, RadialGradient, Stop, Text as SvgText } from 'react-native-svg';
 
-import type { MuscleRegionId } from './MuscleDiagram';
+// Exportado — importado por el paso 3c (pantalla real de prioridades).
+export type MuscleRegionId =
+  | 'chest' | 'shoulders' | 'biceps' | 'quads' | 'core_abdomen'
+  | 'back' | 'triceps' | 'glutes' | 'hamstrings' | 'calves';
 
-// Exploración paralela a MuscleDiagram.tsx (SVG puro, ya validado) — NO lo
-// reemplaza. Fondo con foto real + zonas de toque calibrables encima, para
-// comparar ambas opciones antes de decidir cuál usa la pantalla real (3c).
+// Fondo con foto real + zonas de toque calibrables encima.
 
 interface MuscleDiagramPhotoProps {
   view: 'front' | 'back';
