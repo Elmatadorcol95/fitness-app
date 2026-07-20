@@ -153,6 +153,7 @@
       "trainingSection": "Training",
       "physicalSection": "Physical data",
       "equipmentSection": "Equipment",
+      "musclePrioritiesSection": "Muscle priority",
       "signOut": "Sign out / reset",
       "signOutMsg": "Local data will be cleared. You will return to the start screen.",
       "signOutConfirm": "Confirm",
@@ -463,5 +464,17 @@
     "regenMsg": "Your equipment has changed. Do you want to regenerate the workout plan with the new settings?",
     "regenYes": "Yes, regenerate",
     "regenNo": "Keep current plan"
+  },
+  "musclePriorities": {
+    "title": "Muscle priority",
+    "editBtn": "Edit priority",
+    "tabFront": "Front",
+    "tabBack": "Back",
+    "selectedCount": "{{count}}/{{max}} selected",
+    "none": "No priority set",
+    "hint": "Choose up to 2 areas to prioritize in your plan.",
+    "regenTitle": "Muscle priority updated",
+    "regenMsg": "From now on you'll see more exercises targeting these areas in your plan. You can change your priority anytime — each time you edit it, your plan will automatically regenerate when you press Finish.",
+    "regenConfirm": "Finish"
   }
 }

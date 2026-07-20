@@ -16,6 +16,8 @@ import { db, schema } from '@/db';
 import { supabase } from '@/lib/supabase';
 import { AchievementsSection } from '@/components/gamification/AchievementsSection';
 import { useGamificationStore } from '@/store/gamification.store';
+import { parseMusclePriorities } from '@/lib/exercises';
+import { groupsToZones, MAX_SELECTED } from '@/app/musclePriorities';
 
 const GREEN = '#3FBF7F';
 const AMBER = '#F2B450';
@@ -115,6 +117,8 @@ export default function ProfileScreen() {
   const equipment: string[] = (() => {
     try { return JSON.parse(profile.equipment ?? '[]'); } catch { return []; }
   })();
+
+  const musclePrioritiesCount = groupsToZones(parseMusclePriorities(profile?.musclePriorities ?? undefined)).length;
 
   const goals = [profile.goalPrimary, profile.goalSecondary].filter(Boolean) as string[];
   const goalNode = (
@@ -223,6 +227,30 @@ export default function ProfileScreen() {
                   {t('onboarding.location.gymNote')}
                 </ThemedText>
               )}
+            </ThemedView>
+          </View>
+
+          {/* ── Prioridad muscular ── */}
+          <View style={sectionStyles.wrap}>
+            <View style={styles.equipHeader}>
+              <ThemedText style={sectionStyles.title}>
+                {t('tabs.profile.musclePrioritiesSection')}
+              </ThemedText>
+              <Pressable
+                onPress={() => useProfileStore.getState().openMusclePriorities()}
+                style={styles.editEquipBtn}
+                hitSlop={8}
+              >
+                <Ionicons name="create-outline" size={15} color="#3FBF7F" />
+                <ThemedText style={styles.editEquipText}>{t('musclePriorities.editBtn')}</ThemedText>
+              </Pressable>
+            </View>
+            <ThemedView type="backgroundElement" style={sectionStyles.card}>
+              <ThemedText themeColor="textSecondary" style={styles.gymEquipNote}>
+                {musclePrioritiesCount > 0
+                  ? t('musclePriorities.selectedCount', { count: musclePrioritiesCount, max: MAX_SELECTED })
+                  : t('musclePriorities.none')}
+              </ThemedText>
             </ThemedView>
           </View>
 

@@ -153,6 +153,7 @@
       "trainingSection": "Entraînement",
       "physicalSection": "Données physiques",
       "equipmentSection": "Équipement",
+      "musclePrioritiesSection": "Priorité musculaire",
       "signOut": "Se déconnecter / réinitialiser",
       "signOutMsg": "Les données locales seront effacées. Vous reviendrez à l'écran de départ.",
       "signOutConfirm": "Confirmer",
@@ -463,5 +464,17 @@
     "regenMsg": "Votre équipement a changé. Voulez-vous régénérer le plan d'entraînement avec les nouveaux paramètres ?",
     "regenYes": "Oui, régénérer",
     "regenNo": "Garder le plan actuel"
+  },
+  "musclePriorities": {
+    "title": "Priorité musculaire",
+    "editBtn": "Modifier la priorité",
+    "tabFront": "Avant",
+    "tabBack": "Arrière",
+    "selectedCount": "{{count}}/{{max}} sélectionnés",
+    "none": "Aucune priorité définie",
+    "hint": "Choisissez jusqu'à 2 zones à prioriser dans votre plan.",
+    "regenTitle": "Priorité musculaire mise à jour",
+    "regenMsg": "Vous verrez désormais plus d'exercices ciblant ces zones dans votre plan. Vous pouvez modifier votre priorité à tout moment — à chaque modification, votre plan se régénérera automatiquement en appuyant sur Terminer.",
+    "regenConfirm": "Terminer"
   }
 }

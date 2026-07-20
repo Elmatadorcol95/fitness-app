@@ -16,7 +16,7 @@ import { Spacing } from '@/constants/theme';
 
 const VIEWS: Array<'front' | 'back'> = ['front', 'back'];
 
-const MAX_SELECTED = 2;
+export const MAX_SELECTED = 2;
 
 const ZONE_TO_GROUPS: Record<MuscleRegionId, MuscleGroup[]> = {
   chest: ['chest'],
@@ -31,7 +31,7 @@ const ZONE_TO_GROUPS: Record<MuscleRegionId, MuscleGroup[]> = {
   calves: ['calves'],
 };
 
-function groupsToZones(groups: MuscleGroup[]): MuscleRegionId[] {
+export function groupsToZones(groups: MuscleGroup[]): MuscleRegionId[] {
   return (Object.keys(ZONE_TO_GROUPS) as MuscleRegionId[]).filter((zone) =>
     ZONE_TO_GROUPS[zone].some((g) => groups.includes(g)),
   );
@@ -96,6 +96,18 @@ export default function MusclePrioritiesScreen() {
     }
   };
 
+  const handleRegenConfirm = async () => {
+    setRegenOpen(false);
+    if (pendingProfile.current) {
+      try {
+        await generateAndSavePlan(pendingProfile.current);
+      } catch (err) {
+        console.error('[MusclePriorities] Error al regenerar plan:', err);
+      }
+    }
+    useProfileStore.getState().closeMusclePriorities();
+  };
+
   return (
     <ThemedView style={styles.root}>
       <SafeAreaView style={styles.safe}>
@@ -106,7 +118,7 @@ export default function MusclePrioritiesScreen() {
             <Ionicons name="chevron-back" size={24} color="#9DA89F" />
           </Pressable>
           <ThemedText type="subtitle" style={styles.title}>
-            Prioridad muscular
+            {t('musclePriorities.title')}
           </ThemedText>
           <View style={styles.backBtn} />
         </View>
@@ -129,19 +141,23 @@ export default function MusclePrioritiesScreen() {
                   type={view === v ? 'defaultSemiBold' : 'default'}
                   style={styles.chipText}
                 >
-                  {v === 'front' ? 'Frontal' : 'Trasera'}
+                  {v === 'front' ? t('musclePriorities.tabFront') : t('musclePriorities.tabBack')}
                 </ThemedText>
               </ThemedView>
             ))}
           </View>
 
-          <MuscleDiagramLabeled view={view} selected={selected} onRegionPress={handleRegionPress} />
+          <ThemedText themeColor="textSecondary" style={styles.hintText}>
+            {t('musclePriorities.hint')}
+          </ThemedText>
 
           <Animated.View style={[styles.counterWrap, { transform: [{ scale: pulseAnim }] }]}>
             <ThemedText type="defaultSemiBold" style={styles.counterText}>
-              {selected.length}/{MAX_SELECTED} seleccionados
+              {t('musclePriorities.selectedCount', { count: selected.length, max: MAX_SELECTED })}
             </ThemedText>
           </Animated.View>
+
+          <MuscleDiagramLabeled view={view} selected={selected} onRegionPress={handleRegionPress} />
         </ScrollView>
 
         {/* Botón Guardar */}
@@ -165,22 +181,12 @@ export default function MusclePrioritiesScreen() {
 
       <VulcanDialog
         visible={regenOpen}
-        onClose={() => { setRegenOpen(false); useProfileStore.getState().closeMusclePriorities(); }}
-        title={t('equipment.regenTitle')}
-        message={t('equipment.regenMsg')}
-        confirmLabel={t('equipment.regenYes')}
-        cancelLabel={t('equipment.regenNo')}
-        onConfirm={async () => {
-          setRegenOpen(false);
-          if (pendingProfile.current) {
-            try {
-              await generateAndSavePlan(pendingProfile.current);
-            } catch (err) {
-              console.error('[MusclePriorities] Error al regenerar plan:', err);
-            }
-          }
-          useProfileStore.getState().closeMusclePriorities();
-        }}
+        onClose={handleRegenConfirm}
+        hideCancel
+        title={t('musclePriorities.regenTitle')}
+        message={t('musclePriorities.regenMsg')}
+        confirmLabel={t('musclePriorities.regenConfirm')}
+        onConfirm={handleRegenConfirm}
       />
     </ThemedView>
   );
@@ -218,6 +224,7 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 14 },
   counterWrap: { marginTop: Spacing.two },
   counterText: { fontSize: 15 },
+  hintText: { fontSize: 13, textAlign: 'center', marginTop: Spacing.one },
   footer: {
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.three,
