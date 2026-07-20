@@ -16,8 +16,6 @@ import { db, schema } from '@/db';
 import { supabase } from '@/lib/supabase';
 import { AchievementsSection } from '@/components/gamification/AchievementsSection';
 import { useGamificationStore } from '@/store/gamification.store';
-// TEMPORAL — spike paso 3b, se reemplaza en paso 3c.
-import { useMuscleDiagramDebugStore } from '@/store/muscleDiagramDebugStore';
 
 const GREEN = '#3FBF7F';
 const AMBER = '#F2B450';
@@ -244,16 +242,6 @@ export default function ProfileScreen() {
             <ThemedText style={styles.signOutText}>{t('tabs.profile.signOut')}</ThemedText>
           </Pressable>
 
-          {/* TEMPORAL — spike paso 3b, se reemplaza en paso 3c. */}
-          <Pressable
-            onPress={() => useMuscleDiagramDebugStore.getState().open()}
-            style={styles.diagramDebugBtn}
-          >
-            <ThemedText themeColor="textSecondary" style={styles.diagramDebugBtnText}>
-              Diagrama corporal (temporal)
-            </ThemedText>
-          </Pressable>
-
         </ScrollView>
       </SafeAreaView>
 
@@ -292,9 +280,6 @@ const styles = StyleSheet.create({
   injuriesText: { fontSize: 14, lineHeight: 20 },
   signOutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: Spacing.three, marginTop: Spacing.two },
   signOutText: { fontSize: 14, color: '#9DA89F' },
-  // TEMPORAL — spike paso 3b, se reemplaza en paso 3c.
-  diagramDebugBtn: { alignItems: 'center', paddingVertical: Spacing.two },
-  diagramDebugBtnText: { fontSize: 12, textDecorationLine: 'underline' },
 });
 
 const sectionStyles = StyleSheet.create({

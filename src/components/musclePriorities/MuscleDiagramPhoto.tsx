@@ -12,8 +12,8 @@ interface MuscleDiagramPhotoProps {
   selected: MuscleRegionId[];
   onRegionPress: (id: MuscleRegionId) => void;
   calibrationMode?: boolean;
-  // Default = mismo valor fijo que usa el wrapper de MuscleDiagram.tsx
-  // (diagramWrap: { width: 200, height: 520 } en muscleDiagramDebug.tsx).
+  // 520 es simplemente el valor por defecto de maxHeight (mismo alto fijo
+  // que usaba el wrapper original de MuscleDiagram.tsx).
   maxHeight?: number;
 }
 

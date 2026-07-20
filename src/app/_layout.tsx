@@ -27,9 +27,6 @@ import { useWarmupStore } from '@/store/warmup.store';
 import { useCooldownStore } from '@/store/cooldown.store';
 import { CooldownFlowOverlay } from '@/components/cooldown/CooldownFlowOverlay';
 import { AchievementCelebrationOverlay } from '@/components/gamification/AchievementCelebrationOverlay';
-// TEMPORAL — spike paso 3b, se reemplaza en paso 3c.
-import MuscleDiagramDebugScreen from '@/app/muscleDiagramDebug';
-import { useMuscleDiagramDebugStore } from '@/store/muscleDiagramDebugStore';
 
 // Intercambia el código PKCE (o tokens implícitos) de una URL de callback
 async function handleAuthUrl(url: string) {
@@ -170,7 +167,6 @@ export default function RootLayout() {
   const isEquipmentVisible = useProfileStore(s => s.equipmentVisible);
   const isWarmupActive     = useWarmupStore(s => s.active);
   const isCooldownActive   = useCooldownStore(s => s.active);
-  const isMuscleDiagramDebugVisible = useMuscleDiagramDebugStore(s => s.visible); // TEMPORAL — spike paso 3b, se reemplaza en paso 3c.
   const stillLoading   = !migrationsReady || isProfileLoading || isAuthLoading;
   const trialExpired   = hasUserStatus && !!trialStartedAt && !isTrialValid(trialStartedAt, isPaid);
   const needsOnboarding = !stillLoading && isAuthenticated && !trialExpired && !hasProfile;
@@ -231,12 +227,6 @@ export default function RootLayout() {
           igual que el overlay de logros; lee su visibilidad del store, no del
           ciclo de vida de SessionScreen (ver COOLDOWN_INTEGRATION_AUDIT.md) */}
       <CooldownFlowOverlay />
-      {/* TEMPORAL — spike paso 3b, se reemplaza en paso 3c. */}
-      {isMuscleDiagramDebugVisible && (
-        <View style={StyleSheet.absoluteFill}>
-          <MuscleDiagramDebugScreen />
-        </View>
-      )}
       {/* Overlay de logros — encima de todo, incluido la sesión */}
       <AchievementCelebrationOverlay />
     </ThemeProvider>
