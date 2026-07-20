@@ -1157,6 +1157,44 @@ Bucle ~1.3 s sobre fondo #141A17:
   * `npx tsc --noEmit` limpio. Working tree limpio — todo comiteado.
 - **FASE 1b — Calentamiento guiado: COMPLETA** (Pasos 1, 2 y 3, más el
   rediseño a checklist). Sin trabajo pendiente conocido en este módulo.
+- Hecho: sesión 2026-07-10 — **FASE 2 (Enfriamiento/estiramiento guiado
+  post-entreno): COMPLETA**, en 3 pasos + 1 fix (commits `3dba4a4`,
+  `642b7a4`, `2c2408c`, `71f5ba4`; JS, recarga):
+  * **Paso 1** (`3dba4a4`): `src/lib/cooldownGenerator.ts` — `generateCooldown()`
+    y `getCooldownAlternative()`, espejo de `warmupGenerator.ts` pero SIN
+    bloque de cardio de apertura (lista homogénea de estiramientos). Filtra
+    el catálogo por `movementPhase` `'cooldown'`/`'both'`, `dayType` (vía
+    `relevantDayTypes`) y equipamiento (`canDoExercise()`, reutilizada de
+    `plan-generator.ts` — se corrigió en verificación un olvido de `isGym`
+    que dejaba a los usuarios de gimnasio sin estiramientos con mat/foam
+    roller). Round-robin efímero con barajado, sin persistencia.
+  * **Paso 2** (`642b7a4`): `src/store/cooldown.store.ts` (espejo de
+    `warmup.store.ts` + estado de flujo `promptOpen`/`minutesOpen`/`pending`)
+    y `CooldownFlowOverlay.tsx` (diálogo "¿quieres estirar?" + chips de
+    minutos 3/5/10/15). Integrado en `doFinish()` de `session.tsx`
+    (`promptAfterSession()` justo después de `finishSession()`, antes de
+    `unlockAchievement`) usando el `trainingContext` de la sesión (no
+    `profile.location`) para `isGym`. `AchievementCelebrationOverlay` se
+    abstiene de renderizar mientras el flujo de cooldown está activo (no
+    toca `celebrationQueue`, solo pospone su lectura) — evita que la tarjeta
+    de logro compita con el diálogo de estirar. Documentado el análisis
+    completo de timing/races en `COOLDOWN_INTEGRATION_AUDIT.md` (raíz).
+  * **Fix mismo día** (`2c2408c`): el sonido/haptics de logro sonaba en el
+    instante del desbloqueo (dentro de `doFinish()`), desincronizado de
+    cuándo la tarjeta se mostraba de verdad (podía quedar retenida minutos
+    por el gate de cooldown). Movido a un `useEffect` de montaje dentro de
+    `AchievementCard` (único uso del componente en el proyecto — verificado
+    por grep) — cubre por construcción tanto la siguiente tarjeta de la cola
+    como la que estaba retenida por el gate.
+  * **Paso 3 y cierre** (`71f5ba4`): `src/app/cooldown.tsx` — pantalla real,
+    mismo cronómetro mutex y auto-check con sonido/vibración que
+    `warmup.tsx`, reutilizando `TimedChecklistItem` sin tocarlo. Sin rama
+    especial de apertura (a diferencia de warmup). Salidas ("Salir" arriba,
+    "Finalizar estiramiento" abajo) llaman a `end()` directo, sin
+    confirmación — las celebraciones retenidas aparecen solas al cerrar.
+    `_layout.tsx`: placeholder inline reemplazado por `<CooldownScreen />`.
+  * `npx tsc --noEmit` limpio en los 4 commits. Working tree limpio tras
+    cada uno.
 - Hecho: sesión 2026-07-10 — Splits sin días upper/lower (JS, recarga):
   * `plan-generator.ts` `getSplit()`: día 4 pasa de
     `['upper','lower','upper','lower']` a `['push','pull','legs','full_body']`;
@@ -1174,59 +1212,234 @@ Bucle ~1.3 s sobre fondo #141A17:
     con días upper/lower sigan renderizándose y entrenándose sin problema;
     solo desaparecen al regenerar el plan.
   * `npx tsc --noEmit` limpio.
-- Hecho: FASE 0-B-1 paso 1 — cimientos de datos para prioridades musculares
-  (commit `a6fa945`, JS + migración): base para que el usuario pueda priorizar
-  hasta 2 grupos musculares. SIN UI todavía — solo el modelo de datos.
-  * `schema.ts:17`: columna nueva `musclePriorities` (`text('muscle_priorities')
-    .notNull().default('[]')`) en la tabla `profile`. Migración manual
-    `0010` (mismo patrón manual que 0001-0009; ver regla del `when` funcional
-    en "Reglas de trabajo").
-  * `exercises.ts`: `parseMusclePriorities(raw?)` — deserializa el JSON y filtra
-    cualquier valor que no sea un `MuscleGroup` real (defensa contra datos
-    corruptos), mismo try/catch que `parseEquipment`.
-  * `profile.store.ts`: acción `updateMusclePriorities(priorities: MuscleGroup[])`
-    que persiste en SQLite (`profile.muscle_priorities`) y actualiza el store.
-- Hecho: FASE 0-B-1 paso 2 — conecta `musclePriorities` con la selección de
-  ejercicios (commit `420fb8c`, JS, recarga). SIN UI todavía: nadie fija
-  prioridades reales, así que HOY el comportamiento es IDÉNTICO al anterior
-  (con `musclePriorities=[]` la reordenación es un no-op exacto).
-  * `muscleTargets.ts`: helper único `targetIsPrioritized(target, priorities)`
-    (`target.muscleGroups.some(mg => priorities.includes(mg))`) + `findTargetByKey(key)`
-    (resuelve una key suelta contra las 4 listas canónicas —
-    PUSH/PULL/LEGS/FULL_BODY_TARGETS — para reordenar `SECOND_COMPOUND_ORDER`,
-    que trabaja con keys, no con objetos MuscleTarget). Viven aquí por ser
-    lógica pura del dominio MuscleTarget.
-  * `muscleBasedSelection.ts`: nuevo parámetro `musclePriorities: MuscleGroup[] = []`
-    (default para el llamador de test aislado; en producción viaja explícito).
-    Partición estable (`[...filter(isPrio), ...filter(!isPrio)]`, filter+concat —
-    NUNCA muta ni hace shuffle; `targets` y la constante `SECOND_COMPOUND_ORDER`
-    quedan intactos) que antepone los priorizados en la Pasada 1 (`orderedTargets`),
-    en el bono de aislamiento de la Pasada 2 (`orderedTargets`) y en el bono de
-    compuesto (`secondCompoundOrder`). NO toca el mínimo garantizado de la Pasada 1
-    ni el tope de 3 por músculo — solo el ORDEN de recorrido. Eliminado el
-    `console.log` de depuración de `compoundLeft` que quedaba de la Fase 0-A.
-  * `plan-generator.ts`: `musclePriorities` viaja EXPLÍCITO por la cadena
-    `generatePlan()` → `selectExercisesForDay()` → `selectExercisesForDayByMuscle()`
-    (ninguna llamada real depende del default). Punto único de obtención en
-    `generatePlan()`: `parseMusclePriorities(profile.musclePriorities).slice(0,2)`
-    — defensa: máximo 2, nunca lanza ni bloquea la generación. El tipo inline de
-    `generatePlan()` ganó `musclePriorities?: string` (el `Profile` completo que
-    pasa `workout.store.ts` ya trae la columna). NO se tocó la lógica de splits.
-  * Scripts de regresión actualizados: `test-full-plan-generation.ts` cambió el
-    assert de variedad (el split de 4 días ya no repite tipos tras quitar
-    upper/lower el 2026-07-10) a un split de 6 días (push/pull/legs ×2, nuevo
-    CHECK 1b), y se limpiaron las referencias al log eliminado en
-    `test-muscle-selection.ts`. Ambos scripts en verde, `npx tsc --noEmit` limpio.
-  * ⚠️ PENDIENTE VALIDAR EN ANDROID: confirmar que los planes se generan
-    EXACTAMENTE igual que antes (el cambio debe ser invisible sin prioridades
-    fijadas). El commit ya está hecho, pero la validación en teléfono físico
-    aún no se ha realizado.
-- Siguiente inmediato: FASE 0-B-1 paso 3 (o siguiente) — la UI para que el
-  usuario elija hasta 2 prioridades musculares. Es lo ÚNICO que activará de
-  verdad la reordenación (hoy todos generan con `[]`). Patrón candidato:
-  `EquipmentScreen`/`StepLocation` (ver `PRIORITY_ENGINE_AUDIT.md` sección 532).
-  Recordar llamar a `updateMusclePriorities()` (ya existe) al guardar y ofrecer
-  regenerar el plan, igual que hace `equipment.tsx`.
+- Hecho: sesión 2026-07-10 — **FASE 0-B-1 Paso 1: cimientos de datos para
+  prioridades musculares** (commit `a6fa945`; solo persistencia, sin UI ni
+  generador tocado):
+  * Migración manual `0010_muscle_priorities`: `ALTER TABLE profile ADD
+    COLUMN muscle_priorities text NOT NULL DEFAULT '[]'`. Verificada en frío
+    con `node:sqlite` ejecutando la cadena real 0000-0010 contra un perfil
+    ya existente (sin pérdida de datos) y como instalación limpia.
+  * `schema.ts`: `musclePriorities` en la tabla `profile`.
+  * `exercises.ts`: `parseMusclePriorities(raw)` — mismo try/catch que las 4
+    copias de `parseEquipment` (no tocadas), filtra además cualquier valor
+    que no sea un `MuscleGroup` real.
+  * `profile.store.ts`: `updateMusclePriorities(priorities)`, espejo de
+    `updateEquipmentAndLocation`.
+- Hecho: sesión 2026-07-11 — **FASE 0-B-1 Paso 2: conecta musclePriorities
+  con la selección de ejercicios** (commit `420fb8c`; sin UI todavía —
+  con `musclePriorities=[]` el comportamiento es idéntico al anterior):
+  * `muscleTargets.ts`: `targetIsPrioritized(target, priorities)` +
+    `findTargetByKey(key)`.
+  * `muscleBasedSelection.ts`: nuevo parámetro `musclePriorities` (default
+    `[]`). Partición estable (filter+concat, nunca muta) que antepone los
+    targets priorizados en la Pasada 1, la Pasada 2 y `SECOND_COMPOUND_ORDER`.
+    No toca el mínimo garantizado ni el tope de 3 por músculo. Eliminado el
+    `console.log` de depuración de `compoundLeft` que quedaba pendiente
+    desde la Fase 0-A.
+  * `plan-generator.ts`: `musclePriorities` viaja explícito
+    `generatePlan()` → `selectExercisesForDay()` → `selectExercisesForDayByMuscle()`.
+  * Scripts de regresión (`test-full-plan-generation.ts`,
+    `test-muscle-selection.ts`) actualizados tras el cambio de splits del
+    2026-07-10.
+- Hecho: sesión 2026-07-15 — Ajuste del tope de corrupción de
+  `musclePriorities` (commit `f5887e6`): `slice(0,2)` confundía la defensa
+  de datos corruptos con la regla de negocio real (máx. 2 ZONAS
+  seleccionadas en la futura pantalla, no 2 valores del array — una zona
+  puede agrupar varios `MuscleGroup`, ej. Core/Abdomen = `['core','abs']`).
+  Cambiado a `slice(0,6)`, tope generoso solo para datos corruptos; sin
+  efecto observable hoy (sigue siendo `[]` para todos los usuarios).
+- Hecho: sesión 2026-07-15 — Assets del diagrama muscular (commit
+  `73c2d6d`): `assets/images/musclePriorities/front.webp` (516×1482) y
+  `back.webp` (522×1388) — fotos reales para la Opción B de la pantalla de
+  prioridades (ver más abajo). Nota: se subieron inicialmente con extensión
+  duplicada (`front.webp.webp`/`back.webp.webp`); Juan las renombró a mano
+  a los nombres correctos antes de que se usaran en código — ese rename
+  sigue sin comitear (ver más abajo).
+- **FASE 0-B-1 Paso 3 — pantalla de prioridades: COMPLETA** (spike
+  construido 2026-07-15, comiteado ese mismo día en `40d330c` "15juliofin" —
+  ver detalle de working tree más abajo; calibración de la Opción B hecha el
+  2026-07-16, comiteada en `4817953` el día 17). Decisión tomada: gana la
+  Opción B (foto + etiquetas). Detalle de la exploración conservado abajo
+  como historial:
+  * **Descartado y ya limpiado por completo**: spike 3a
+    (`useMuscleSpikeStore` + `SvgTouchSpike.tsx`) confirmó con evidencia real
+    en dispositivo que **`<Use href="#id">` de `react-native-svg` NO dispara
+    su propio `onPress`** — cualquier toque sobre su geometría resuelve al
+    elemento original referenciado, sin importar dónde se toque. Regla
+    derivada y ya aplicada en todo lo posterior: cualquier forma que
+    necesite `onPress` propio debe ser un `Path`/`Ellipse` real con
+    coordenadas duplicadas, nunca `<Use>`. El spike se eliminó por completo
+    tras confirmar esto (sin rastro en el repo, verificado por grep).
+  * **Opción A — `src/components/musclePriorities/MuscleDiagram.tsx`** (SVG
+    puro, silueta vectorial dibujada a mano): exporta `MuscleRegionId` (10
+    regiones: `chest`, `shoulders`, `biceps`, `quads`, `core_abdomen`,
+    `back`, `triceps`, `glutes`, `hamstrings`, `calves`). Cada bilateral son
+    2 `Path` reales (derecho + izquierdo derivado negando la X, dejando la Y
+    intacta — geometría verificada coordenada por coordenada); cada central,
+    1 solo `Path`. Silueta decorativa (piernas/brazos/torso, sin toque) SÍ
+    usa `<Use>` para su espejo — ahí no hay riesgo, no llevan `onPress`.
+    Además tiene líneas anatómicas decorativas (clavícula, deltoides, surco
+    pectoral, etc. — coordenadas exactas dadas por Juan, no inventadas) que
+    SÍ pueden usar `<Use>` porque tampoco llevan `onPress`; color casi negro
+    `#0F1712`/marrón `#8A5F1E` según la selección de su región. Puramente
+    presentacional — sin estado propio, sin store, sin saber nada de
+    `MuscleGroup`.
+  * **Opción B — `src/components/musclePriorities/MuscleDiagramPhoto.tsx`**
+    (foto real de fondo + zonas de toque calibrables): usa
+    `front.webp`/`back.webp`, aspect ratio real por vista (516:1482 /
+    522:1388, sin forzar igualdad). Prop `calibrationMode` (default `true`):
+    zonas visibles con etiqueta de texto con el id, para ajustar coordenadas
+    viendo la foto real. `calibrationMode=false`: zonas invisibles +
+    resplandor con degradado radial ámbar en la región seleccionada.
+  * **Arnés de debug**: `src/store/muscleDiagramDebugStore.ts` +
+    `src/app/muscleDiagramDebug.tsx` (marcado `// TEMPORAL — spike paso 3b,
+    se reemplaza en paso 3c`), montado en `_layout.tsx` y accesible desde un
+    botón temporal en `profile.tsx`. Pestañas Frontal/Trasera + botón "Ver
+    con foto" para alternar entre las dos opciones sin salir de la pantalla,
+    reutilizando el mismo estado `selected`/`handleRegionPress` (tope de 2
+    zonas, con pulso visual `Animated` si se intenta una 3.ª) para ambas.
+  * **Commit `40d330c` "15juliofin" (2026-07-15)**: incluyó `_layout.tsx`,
+    `profile.tsx`, `muscleDiagramDebug.tsx`, `muscleDiagramDebugStore.ts`,
+    `MuscleDiagram.tsx`, `MuscleDiagramPhoto.tsx`, el rename de los dos
+    `.webp` y `MUSCLE_SCREEN_AUDIT.md` — confirmado con `git show --stat` (la
+    entrada anterior de esta sección decía "sin commit"; quedó desactualizada
+    un día).
+  * **Sesión 2026-07-16 — bug de render + calibración real (sin comitear
+    todavía)**: dos bugs de raíz encontrados y corregidos en
+    `MuscleDiagramPhoto.tsx` vía diagnóstico `onLayout` temporal (añadido y
+    luego eliminado por completo, junto con su equivalente en
+    `muscleDiagramDebug.tsx`):
+    1. El `<Image>` ignoraba `StyleSheet.absoluteFill` y se renderizaba a su
+       tamaño intrínseco (516×1482dp) en vez de ajustarse al contenedor →
+       fix: `width`/`height` explícitos (`width = maxHeight * aspectRatio`)
+       en vez de depender de `aspectRatio` de estilo.
+    2. El `<Svg viewBox="0 0 100 100">` (cuadrado) sufría letterboxing
+       (`preserveAspectRatio` por defecto `xMidYMid meet`) sobre una caja
+       181×520 → las 18 zonas quedaban comprimidas en un cuadrado centrado
+       en vez de repartidas por todo el alto → fix:
+       `preserveAspectRatio="none"` + `width`/`height` explícitos (mismos
+       números que el `Image`), así las unidades 0-100 vuelven a significar
+       "porcentaje de cada eje" tal como se diseñaron.
+    * Con el render ya correcto, Juan reemplazó `front.webp`/`back.webp` por
+      versiones con fondo transparente (mismas dimensiones — reverificado
+      con `sharp`: 516×1482 / 522×1388, `hasAlpha:true`) y midió las 18
+      coordenadas reales sobre la foto corregida. `FRONT_ZONES`/`BACK_ZONES`
+      reemplazadas con esos valores medidos (antes eran estimaciones).
+    * `npx tsc --noEmit` limpio en cada paso de la sesión. Sin commit —
+      pendiente de que Juan pruebe en Android antes de comitear.
+  * **Sesión 2026-07-17 — rondas finas de calibración + capa de etiquetas
+    (commit `4817953`)**: varias rondas sucesivas de ajuste manual de las 18
+    elipses de `FRONT_ZONES`/`BACK_ZONES` en `MuscleDiagramPhoto.tsx`
+    (hombros, bíceps, pecho, core, cuádriceps, glúteos, isquiotibiales,
+    gemelos — cada ronda auditada contra el código real antes de aplicarla,
+    con `npx tsc --noEmit` + `git status` verificados en cada paso). Brillo
+    ámbar del resplandor subido en dos pasos (0.35→0.525→0.7875).
+    - `MuscleDiagramPhoto.tsx`: `FRONT_ZONES`, `BACK_ZONES`, `FRONT_ASPECT`,
+      `BACK_ASPECT` y el tipo `ZoneDef` exportados (antes privados del
+      módulo) para que el componente nuevo no duplique coordenadas.
+    - Nuevo `src/components/musclePriorities/MuscleDiagramLabeled.tsx`:
+      envuelve `MuscleDiagramPhoto` (sin modificarla) para la Opción B final
+      — diagrama + columna de 140dp de etiquetas externas ancladas a la
+      posición real de cada músculo (`labelYPercent` fijo por etiqueta, ya
+      no reparto uniforme), línea guía en `Path` con doblez
+      horizontal-luego-diagonal hasta el borde de la elipse ancla, texto
+      ámbar cuando la zona está en `selected` y gris si no, leyenda fija
+      Disponible/Priorizado. `columnGap: GAP` real en el contenedor de fila
+      (fix de un hueco fantasma entre el final de la línea y el inicio del
+      texto que antes solo maquillaba `paddingLeft`). Etiquetas tocables:
+      cada una es un `Pressable` con `onPress={() => onRegionPress(zone.id)}`
+      (mismo callback recibido por props, sin estado nuevo) y
+      `hitSlop={{top:6,bottom:6,left:8,right:8}}`.
+    - `muscleDiagramDebug.tsx`: nuevo interruptor "Calibración"/"Vista final"
+      (estado `previewFinal`), visible solo cuando `usePhoto` está activo.
+      En "Vista final" renderiza `MuscleDiagramLabeled`; en "Calibración"
+      sigue mostrando `MuscleDiagramPhoto` con las elipses/etiquetas de
+      depuración de siempre.
+    - Todo JS puro, sin módulos nativos. `npx tsc --noEmit` limpio en cada
+      edición. Comiteado en `4817953` — **todavía sin `git push`** (pendiente
+      de confirmación de Juan).
+- Hecho: sesión 2026-07-20 — **Paso 3c-A: eliminación del arnés de
+  debug** (commit `02d2236`): borrados por completo
+  `src/app/muscleDiagramDebug.tsx` y `src/store/muscleDiagramDebugStore.ts`;
+  quitadas las referencias quirúrgicas en `profile.tsx` (import + botón
+  "Diagrama corporal (temporal)" + estilos huérfanos) y en `_layout.tsx`
+  (import, selector `isMuscleDiagramDebugVisible`, bloque de montaje).
+  `npx tsc --noEmit` limpio, validado en Android antes de comitear.
+- Hecho: sesión 2026-07-20 — **Paso 3c-B: se resuelve Opción A vs
+  Opción B — gana la B** (commit `5dd9178`): `MuscleRegionId` se mueve
+  de `MuscleDiagram.tsx` a `MuscleDiagramPhoto.tsx` (ahora exportado
+  desde ahí), `MuscleDiagramLabeled.tsx` reapunta su import, y
+  `MuscleDiagram.tsx` (Opción A, SVG puro) se borra por completo — blast
+  radius confirmado por grep antes de borrar (solo 3 importadores, todos
+  ya migrados). `npx tsc --noEmit` limpio.
+- Hecho: sesión 2026-07-20 — **Pasos 3c-C a 3c-E: pantalla real
+  `MusclePrioritiesScreen`** (commits `0cd7128`, `5e39ec0`, `63dc751`):
+  par `musclePrioritiesVisible`/`openMusclePriorities`/
+  `closeMusclePriorities` añadido a `profile.store.ts` (mismo patrón que
+  `equipmentVisible`); nuevo `src/app/musclePriorities.tsx` — estado
+  inicial vía `parseMusclePriorities` + mapeo zona↔grupo
+  (`ZONE_TO_GROUPS`/`groupsToZones`/`zonesToGroups`), tabs Frontal/
+  Trasera, tope de 2 zonas con pulso (migrado literal del arnés de
+  debug ya borrado), guardado real vía `updateMusclePriorities` +
+  `VulcanDialog` de regenerar plan (`generateAndSavePlan`).
+- Hecho: sesión 2026-07-20 — **Paso 3c-F: montaje + entrada en Perfil +
+  pulido** (commit `ff0ed20`): `MusclePrioritiesScreen` montada en
+  `_layout.tsx` (mismo patrón overlay que `EquipmentScreen`); nueva
+  sección "Prioridad muscular" en `profile.tsx` junto a "Equipamiento";
+  i18n `musclePriorities.*` propio en es/en/fr. Ajustes de UX tras
+  validación en dispositivo: hint + contador con pulso reubicados ANTES
+  del diagrama (antes quedaban ocultos sin hacer scroll); diálogo de
+  regenerar reescrito con copy propio (ya no reutiliza los textos de
+  "equipamiento actualizado") y reducido a un solo botón "Finalizar"
+  (`hideCancel`, `onClose` y `onConfirm` apuntan a la misma función —
+  no hay un "no, gracias" legítimo en este flujo).
+- Hecho: sesión 2026-07-20 — **Fase 0-B-2: integración en el onboarding,
+  opcional** (commits `ce79549`, `b74a460`): nuevo
+  `StepMusclePriorities.tsx` (patrón `StepGoal`, sin botón Guardar ni
+  diálogo — escribe directo a `draft.musclePriorities` en cada toque);
+  campo `musclePriorities: string[]` añadido a `OnboardingDraft`/
+  `defaultDraft`; paso insertado en `OnboardingFlow.tsx` entre Lesiones
+  y Resumen (`TOTAL_STEPS` 7→8); `canGoNext()` sin tocar — el paso cae
+  en su `return true` por defecto, que es el comportamiento "opcional"
+  buscado; escritura a SQLite añadida en el `db.insert` de
+  `handleNext()`; fila condicional en `StepSummary` (mismo patrón que
+  Lesiones). Bug encontrado y corregido durante la validación: el toggle
+  de zona llamaba `updateDraft()` (efecto de otro store) dentro del
+  updater funcional de `setState`, lo que React marca como error — se
+  reescribió para leer `selected` del closure y llamar `updateDraft()`
+  en el cuerpo de la función, no dentro del updater.
+- Siguiente inmediato: la funcionalidad de prioridad muscular queda
+  COMPLETA de punta a punta (motor + pantalla de Perfil + onboarding
+  opcional), validada en dispositivo real. Próxima fase: **FASE 3 —
+  cardio según objetivo** (`fat_loss` como principal → ~2 bloques de
+  cardio/día; como secundario → 1 bloque, todos los días de entreno).
+  Diseño ya cerrado con Juan, implementación sin empezar:
+  * El cardio sustituye huecos de fuerza (1 bloque = 1 hueco menos,
+    resta primero de `isolations` y luego de `compounds`), tope de
+    cardio = mitad de los huecos totales del día (redondeo hacia abajo).
+  * Selección de cardio separada de `muscleBasedSelection.ts`
+    (independiente de `dayType`, siempre después de la fuerza); el
+    cardio de apertura ya existente en `warmupGenerator.ts` no se toca,
+    conviven sin relación.
+  * Dos tipos de cardio distintos: gimnasio (1 bloque continuo, 10 min
+    por defecto, editable) vs casa (circuito de ~10 ejercicios de 30s
+    formando 2 rondas de 5 min, con ejercicios variados entre rondas vía
+    `excludeIds`).
+  * `PlanDayData` gana un campo nuevo y separado
+    `cardio: PlannedCardioBlock[]` — `PlannedExercise`/`buildPlanned`
+    intocados. Se renderiza en `session.tsx` reutilizando
+    `TimedChecklistItem` (misma pieza que calentamiento/estiramiento),
+    siempre después de la lista de fuerza.
+  * v1: el cardio solo se marca como hecho en estado local de la
+    sesión — no se persiste en `session_sets` ni entra en progresión/PR.
+    Backlog futuro: vista de "minutos de cardio esta semana" con
+    persistencia real.
+  * Temporizador del bloque: por capas — primero duración fija por
+    defecto, luego editable (como el de descanso), luego modo cronómetro
+    libre (cuenta hacia arriba) como alternativa a la cuenta regresiva,
+    intercambiables por el usuario.
+  Primer paso técnico pendiente: construir la función de selección de
+  cardio aislada (3-A).
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
@@ -1257,6 +1470,12 @@ Bucle ~1.3 s sobre fondo #141A17:
 - ~~LOTE UI PASO 2 — Propagar VulcanBottomSheet/VulcanDialog~~ ✓ Completado (JS, recarga).
 - ~~FASE 1b — Calentamiento guiado antes de la sesión~~ ✓ Completado (Pasos
   1-3 + rediseño a checklist con `TimedChecklistItem`, JS, recarga).
+- ~~FASE 2 — Enfriamiento/estiramiento guiado post-entreno~~ ✓ Completado
+  (generador + store + flujo de diálogo + gate de celebraciones + pantalla
+  real, JS, recarga).
+- FASE 0-B-1 — Motor de priorización muscular: Pasos 1-2 completos (datos +
+  conectado al generador, sin UI). Paso 3 (pantalla) EN EXPLORACIÓN — Opción
+  A (SVG) vs Opción B (foto + calibración), pendiente decisión de Juan.
 - FASE D — Deloads automáticos, gráfica de fuerza (1RM) en pestaña Progreso.
 
 ## IMPORTANTE

@@ -12,6 +12,7 @@ import { StepGoal } from './StepGoal';
 import { StepSchedule } from './StepSchedule';
 import { StepLocation } from './StepLocation';
 import { StepInjuries } from './StepInjuries';
+import { StepMusclePriorities } from './StepMusclePriorities';
 import { StepSummary } from './StepSummary';
 
 import { eq } from 'drizzle-orm';
@@ -21,8 +22,8 @@ import { useProfileStore } from '@/store/profile.store';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-const TOTAL_STEPS = 7;
-const STEPS = [StepWelcome, StepPhysical, StepGoal, StepSchedule, StepLocation, StepInjuries, StepSummary];
+const TOTAL_STEPS = 8;
+const STEPS = [StepWelcome, StepPhysical, StepGoal, StepSchedule, StepLocation, StepInjuries, StepMusclePriorities, StepSummary];
 
 export function OnboardingFlow() {
   const { t } = useTranslation();
@@ -60,6 +61,7 @@ export function OnboardingFlow() {
         minutesPerSession: draft.minutesPerSession,
         location:         draft.location,
         equipment:        JSON.stringify(draft.equipment),
+        musclePriorities: JSON.stringify(draft.musclePriorities),
         injuries:         draft.injuries,
         units:            draft.units,
         createdAt:        now,

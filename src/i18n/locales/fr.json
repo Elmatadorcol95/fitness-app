@@ -153,6 +153,7 @@
       "trainingSection": "Entraînement",
       "physicalSection": "Données physiques",
       "equipmentSection": "Équipement",
+      "musclePrioritiesSection": "Priorité musculaire",
       "signOut": "Se déconnecter / réinitialiser",
       "signOutMsg": "Les données locales seront effacées. Vous reviendrez à l'écran de départ.",
       "signOutConfirm": "Confirmer",
@@ -355,12 +356,17 @@
       "subtitle": "Optionnel — décrivez toute douleur ou limitation pour adapter votre programme",
       "placeholder": "Ex : douleur au genou droit, pas de squat profond..."
     },
+    "musclePriorities": {
+      "title": "Priorité musculaire",
+      "instruction": "Cette étape est facultative. Si vous le souhaitez, choisissez jusqu'à 2 zones où vous aimeriez voir plus d'exercices dans votre plan — vous pourrez modifier cela plus tard depuis votre profil."
+    },
     "summary": {
       "title": "Votre profil",
       "name": "Prénom",
       "goal": "Objectif",
       "schedule": "Planning",
       "location": "Lieu",
+      "musclePriorities": "Priorité musculaire",
       "units": "Unités",
       "disclaimer": "⚠️ Cette application ne fournit pas de conseils médicaux. Consultez un professionnel de santé avant de commencer tout programme d'exercice ou de nutrition.",
       "start": "Commencer l'entraînement !"
@@ -463,5 +469,22 @@
     "regenMsg": "Votre équipement a changé. Voulez-vous régénérer le plan d'entraînement avec les nouveaux paramètres ?",
     "regenYes": "Oui, régénérer",
     "regenNo": "Garder le plan actuel"
+  },
+  "musclePriorities": {
+    "title": "Priorité musculaire",
+    "editBtn": "Modifier la priorité",
+    "tabFront": "Avant",
+    "tabBack": "Arrière",
+    "selectedCount": "{{count}}/{{max}} sélectionnés",
+    "none": "Aucune priorité définie",
+    "hint": "Choisissez jusqu'à 2 zones à prioriser dans votre plan.",
+    "regenTitle": "Priorité musculaire mise à jour",
+    "regenMsg": "Vous verrez désormais plus d'exercices ciblant ces zones dans votre plan. Vous pouvez modifier votre priorité à tout moment — à chaque modification, votre plan se régénérera automatiquement en appuyant sur Terminer.",
+    "regenConfirm": "Terminer",
+    "zoneLabels": {
+      "chest": "Pectoraux", "shoulders": "Épaules", "biceps": "Biceps", "quads": "Quadriceps",
+      "core_abdomen": "Core/Abdominaux", "back": "Dos", "triceps": "Triceps",
+      "glutes": "Fessiers", "hamstrings": "Ischio-jambiers", "calves": "Mollets"
+    }
   }
 }
