@@ -44,6 +44,7 @@ interface ProfileState {
   isDbReady: boolean;
   draft: OnboardingDraft;
   equipmentVisible: boolean;
+  musclePrioritiesVisible: boolean;
   setProfile: (p: Profile | null) => void;
   setLoading: (v: boolean) => void;
   setDbReady: (v: boolean) => void;
@@ -53,6 +54,8 @@ interface ProfileState {
   updateMusclePriorities: (priorities: MuscleGroup[]) => Promise<void>;
   openEquipment: () => void;
   closeEquipment: () => void;
+  openMusclePriorities: () => void;
+  closeMusclePriorities: () => void;
 }
 
 export const useProfileStore = create<ProfileState>((set, get) => ({
@@ -61,6 +64,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   isDbReady: false,
   draft: { ...defaultDraft },
   equipmentVisible: false,
+  musclePrioritiesVisible: false,
   setProfile: (profile) => set({ profile }),
   setLoading: (isLoading) => set({ isLoading }),
   setDbReady: (isDbReady) => set({ isDbReady }),
@@ -68,6 +72,8 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   resetDraft: () => set({ draft: { ...defaultDraft } }),
   openEquipment:  () => set({ equipmentVisible: true }),
   closeEquipment: () => set({ equipmentVisible: false }),
+  openMusclePriorities:  () => set({ musclePrioritiesVisible: true }),
+  closeMusclePriorities: () => set({ musclePrioritiesVisible: false }),
   updateEquipmentAndLocation: async (location, equipment) => {
     const current = get().profile;
     if (!current) return;
