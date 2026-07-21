@@ -18,6 +18,10 @@ import { useProfileStore }     from '@/store/profile.store';
 import { useCooldownStore }    from '@/store/cooldown.store';
 import { getExerciseName, EXERCISES, type ExerciseCategory, type Exercise } from '@/lib/exercises';
 import { muscleLabel, equipmentLabel } from '@/components/workout/ExerciseCard';
+import { TimedChecklistItem } from '@/components/warmup/TimedChecklistItem';
+import type { PlannedCardioBlock } from '@/lib/cardioSelection';
+import { hapticsSuccess } from '@/lib/haptics';
+import { playRestDone } from '@/lib/sounds';
 import { Spacing } from '@/constants/theme';
 
 const GREEN = '#3FBF7F';
@@ -191,6 +195,8 @@ export default function SessionScreen() {
   const equipment = parseEquipment(profile?.equipment);
   const isGym     = profile?.location === 'gym' || profile?.location === 'both';
 
+  const cardioBlocks: PlannedCardioBlock[] = currentPlan?.days.find(d => d.dbId === planDayId)?.cardio ?? [];
+
   const [elapsed, setElapsed]       = useState(0);
   const [showNote, setShowNote]     = useState(false);
   const [swapModal, setSwapModal]   = useState(false);
@@ -202,6 +208,10 @@ export default function SessionScreen() {
   const [historyOpen,  setHistoryOpen]  = useState(false);
   const [historyMsg,   setHistoryMsg]   = useState('');
   const [rirHelpOpen,  setRirHelpOpen]  = useState(false);
+  const [showingCardio, setShowingCardio] = useState(false);
+  const [cardioRunningIndex, setCardioRunningIndex] = useState<number | null>(null);
+  const [cardioRemaining, setCardioRemaining] = useState<number[]>(() => cardioBlocks.map(b => b.durationSeconds));
+  const [cardioCompleted, setCardioCompleted] = useState<boolean[]>(() => cardioBlocks.map(() => false));
   const carouselRef = useRef<FlatList<any>>(null);
 
   const currentEx = exercises[currentExerciseIdx];
@@ -273,6 +283,31 @@ export default function SessionScreen() {
     if (currentEx) setRestInputStr(String(currentEx.restSeconds));
   }, [currentEx?.restSeconds, currentExerciseIdx]);
 
+  useEffect(() => {
+    if (cardioRunningIndex === null) return;
+    const idx = cardioRunningIndex;
+    const id = setInterval(() => {
+      setCardioRemaining(prev => {
+        const current = prev[idx];
+        if (current <= 0) return prev;
+        const next = [...prev];
+        next[idx] = current - 1;
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [cardioRunningIndex]);
+
+  useEffect(() => {
+    if (cardioRunningIndex === null) return;
+    if (cardioRemaining[cardioRunningIndex] > 0) return;
+    const idx = cardioRunningIndex;
+    setCardioRunningIndex(null);
+    hapticsSuccess();
+    playRestDone();
+    setCardioCompleted(c => { const next = [...c]; next[idx] = true; return next; });
+  }, [cardioRunningIndex, cardioRemaining]);
+
   // ── Acciones ──────────────────────────────────────────────────────────────────
 
   function applyRestInput() {
@@ -340,6 +375,17 @@ export default function SessionScreen() {
 
   function showRirHelp() {
     setRirHelpOpen(true);
+  }
+
+  function handleCardioPlayPause(i: number) {
+    setCardioRunningIndex(prev => (prev === i ? null : i));
+  }
+  function handleCardioToggleComplete(i: number) {
+    setCardioCompleted(c => {
+      const next = [...c];
+      next[i] = !next[i];
+      return next;
+    });
   }
 
   if (!isActive || !currentEx) {
@@ -415,7 +461,7 @@ export default function SessionScreen() {
               const ic2    = (ex2 ? CAT_ICONS[ex2.category] : 'barbell-outline') as any;
               return (
                 <Pressable
-                  onPress={() => setCurrentExercise(index)}
+                  onPress={() => { setCurrentExercise(index); setShowingCardio(false); }}
                   style={[styles.carouselItem, isCurr && styles.carouselItemActive]}
                 >
                   <View style={[styles.carouselIcon, { backgroundColor: c2 + '22' }]}>
@@ -440,6 +486,8 @@ export default function SessionScreen() {
             contentContainerStyle={styles.body}
             keyboardShouldPersistTaps="handled"
           >
+            {!showingCardio && (
+            <>
             {/* Ejercicio actual */}
             <View style={[styles.exHero, { backgroundColor: catColor + '18' }]}>
               <Ionicons name={catIcon} size={56} color={catColor} />
@@ -607,7 +655,7 @@ export default function SessionScreen() {
                   <ThemedText style={styles.exNavText}>{t('workout.session.prevEx')}</ThemedText>
                 </Pressable>
               )}
-              {currentExerciseIdx < exercises.length - 1 && (
+              {currentExerciseIdx < exercises.length - 1 ? (
                 <Pressable
                   style={[styles.exNavBtn, styles.exNavBtnRight]}
                   onPress={() => setCurrentExercise(currentExerciseIdx + 1)}
@@ -615,8 +663,45 @@ export default function SessionScreen() {
                   <ThemedText style={styles.exNavText}>{t('workout.session.nextEx')}</ThemedText>
                   <Ionicons name="chevron-forward" size={16} color={GREEN} />
                 </Pressable>
-              )}
+              ) : cardioBlocks.length > 0 ? (
+                <Pressable
+                  style={[styles.exNavBtn, styles.exNavBtnRight]}
+                  onPress={() => setShowingCardio(true)}
+                >
+                  <ThemedText style={styles.exNavText}>{t('workout.session.goToCardio')}</ThemedText>
+                  <Ionicons name="chevron-forward" size={16} color={GREEN} />
+                </Pressable>
+              ) : null}
             </View>
+            </>
+            )}
+
+            {showingCardio && (
+              <>
+                <ThemedText type="title">{t('workout.session.cardioTitle')}</ThemedText>
+                {cardioBlocks.map((block, i) => {
+                  const cardioEx = EXERCISES.find(e => e.id === block.exerciseId);
+                  if (!cardioEx) return null;
+                  return (
+                    <TimedChecklistItem
+                      key={i}
+                      exercise={cardioEx}
+                      remainingSeconds={cardioRemaining[i] ?? 0}
+                      isRunning={cardioRunningIndex === i}
+                      isCompleted={cardioCompleted[i] ?? false}
+                      swapDisabled={true}
+                      onPlayPause={() => handleCardioPlayPause(i)}
+                      onToggleComplete={() => handleCardioToggleComplete(i)}
+                      onSwap={() => {}}
+                    />
+                  );
+                })}
+                <Pressable style={styles.exNavBtn} onPress={() => setShowingCardio(false)}>
+                  <Ionicons name="chevron-back" size={16} color={GREEN} />
+                  <ThemedText style={styles.exNavText}>{t('workout.session.backToExercises')}</ThemedText>
+                </Pressable>
+              </>
+            )}
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>

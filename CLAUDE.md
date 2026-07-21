@@ -1408,38 +1408,104 @@ Bucle ~1.3 s sobre fondo #141A17:
   updater funcional de `setState`, lo que React marca como error — se
   reescribió para leer `selected` del closure y llamar `updateDraft()`
   en el cuerpo de la función, no dentro del updater.
-- Siguiente inmediato: la funcionalidad de prioridad muscular queda
-  COMPLETA de punta a punta (motor + pantalla de Perfil + onboarding
-  opcional), validada en dispositivo real. Próxima fase: **FASE 3 —
-  cardio según objetivo** (`fat_loss` como principal → ~2 bloques de
-  cardio/día; como secundario → 1 bloque, todos los días de entreno).
-  Diseño ya cerrado con Juan, implementación sin empezar:
-  * El cardio sustituye huecos de fuerza (1 bloque = 1 hueco menos,
-    resta primero de `isolations` y luego de `compounds`), tope de
-    cardio = mitad de los huecos totales del día (redondeo hacia abajo).
-  * Selección de cardio separada de `muscleBasedSelection.ts`
-    (independiente de `dayType`, siempre después de la fuerza); el
-    cardio de apertura ya existente en `warmupGenerator.ts` no se toca,
-    conviven sin relación.
-  * Dos tipos de cardio distintos: gimnasio (1 bloque continuo, 10 min
-    por defecto, editable) vs casa (circuito de ~10 ejercicios de 30s
-    formando 2 rondas de 5 min, con ejercicios variados entre rondas vía
-    `excludeIds`).
-  * `PlanDayData` gana un campo nuevo y separado
-    `cardio: PlannedCardioBlock[]` — `PlannedExercise`/`buildPlanned`
-    intocados. Se renderiza en `session.tsx` reutilizando
-    `TimedChecklistItem` (misma pieza que calentamiento/estiramiento),
-    siempre después de la lista de fuerza.
-  * v1: el cardio solo se marca como hecho en estado local de la
-    sesión — no se persiste en `session_sets` ni entra en progresión/PR.
-    Backlog futuro: vista de "minutos de cardio esta semana" con
-    persistencia real.
-  * Temporizador del bloque: por capas — primero duración fija por
-    defecto, luego editable (como el de descanso), luego modo cronómetro
-    libre (cuenta hacia arriba) como alternativa a la cuenta regresiva,
-    intercambiables por el usuario.
-  Primer paso técnico pendiente: construir la función de selección de
-  cardio aislada (3-A).
+- Hecho: la funcionalidad de prioridad muscular quedó COMPLETA de punta
+  a punta (motor + pantalla de Perfil + onboarding opcional), validada
+  en dispositivo real (Fase 0-B-1 y 0-B-2 cerradas en sesiones previas).
+- Hecho: **FASE 3 — cardio según objetivo, Pasos 3-A a 3-D** (diseño
+  cerrado con Juan; `fat_loss` como principal → ~2 bloques de cardio/día;
+  como secundario → 1 bloque, todos los días de entreno):
+  * **3-A** — `src/lib/cardioSelection.ts` nuevo: `selectCardioBlocks(slots,
+    equipment, isGym, excludeIds)` → `PlannedCardioBlock[]`. Gimnasio: 1
+    ejercicio de `category:'cardio'` con `cardioMachine`, bloque fijo de
+    600s (`CARDIO_BLOCK_SECONDS`), independiente del `defaultDurationSeconds`
+    del catálogo. Casa: circuito acumulado con `canDoExercise()`, sumando
+    ejercicios distintos con su propia duración real hasta cubrir
+    `slots × CARDIO_BLOCK_SECONDS`. Función aislada, sin conectar a nada
+    hasta 3-B.
+  * **3-B** — conectado al pipeline de generación y persistencia:
+    - Migración manual `0011_plan_days_cardio` (`ALTER TABLE plan_days ADD
+      COLUMN cardio text NOT NULL DEFAULT '[]'`), siguiendo el mismo patrón
+      manual de 3 puntos de edición (`migrations.js` + `_journal.json` con
+      `when` real > máximo anterior + `schema.ts`). Verificada en frío con
+      `node:sqlite`, cadena completa 0000→0011, en dos escenarios (instalación
+      limpia y perfil/plan ya existentes antes de aplicarla) — sin pérdida
+      de datos, columna `cardio` con default `'[]'` confirmado.
+    - `plan-generator.ts`: `PlanDayData` gana `cardio: PlannedCardioBlock[]`.
+      Nuevas funciones puras `getCardioSlots(goalPrimary, goalSecondary,
+      totalSlots)` (2 si `fat_loss` es principal, 1 si es secundario, 0 si
+      no aparece, con tope de mitad de los huecos totales del día) y
+      `subtractCardioSlots(counts, cardioSlots)` (resta primero de
+      `isolations`, luego de `compounds`). Dentro de `generatePlan()`, cada
+      día usa `reducedCounts` para la fuerza y genera su cardio por
+      separado, compartiendo `usedThisWeek` (mismo `excludeIds`) para que
+      cardio y fuerza no se pisen entre sí ni entre días.
+    - `workout.store.ts`: `StoredPlanDay` gana `cardio: PlannedCardioBlock[]`.
+      Nueva `mapDayRows()` a nivel de módulo que unifica el mapeo que antes
+      estaba duplicado en `loadCurrentPlan()` y `generateAndSavePlan()`
+      (ambos ahora llaman a la misma función). `generateAndSavePlan()`
+      serializa `day.cardio` al insertar en `plan_days`.
+    - Verificado en vivo en Android con `console.log` temporal (añadido y
+      retirado en el mismo lote, `git diff` confirmado limpio tras
+      quitarlo) para los 3 casos: `fat_loss` principal, secundario, y
+      ausente (regresión: `cardioSlots=0`, `cardio=[]` en todos los días).
+    - Comiteado y pusheado: commit `0888b29`.
+  * **3-C** — solo investigación de lectura (sin cambios de código): se
+    confirmó que `sessionDayType` en `session.tsx` (línea ~229 antes de
+    3-D) se calcula inline, sin `useMemo` ni función auxiliar, cruzando
+    `currentPlan?.days.find(d => d.dbId === planDayId)?.dayType` — mismo
+    patrón reutilizado para `cardioBlocks` en 3-D. `ExerciseState` (store
+    de sesión) no guarda `dayType` ni `cardio` — viven solo del lado de
+    `workout.store.ts`.
+  * **3-D** — modo cardio "skeleton" en `session.tsx` (entrar/salir,
+    duración fija, cuenta regresiva simple, marcar completado; SIN edición
+    de duración, SIN modo cronómetro, SIN intercambio — eso es 3-E/3-F):
+    - `cardioBlocks` calculado igual que `sessionDayType` (mismo cruce
+      `currentPlan.days.find(...).cardio`), pero declarado **antes** del
+      bloque de `useState` (línea 198), no junto a `sessionDayType` (que
+      quedó más abajo) — ver el bug real de abajo.
+    - 4 `useState` nuevos (`showingCardio`, `cardioRunningIndex`,
+      `cardioRemaining`, `cardioCompleted`) + 2 `useEffect` copiados
+      literalmente del mecanismo mutex de `cooldown.tsx` (decremento por
+      segundo del índice corriendo + transición a completado con
+      `hapticsSuccess()`/`playRestDone()`, mismo patrón que warmup/cooldown).
+    - Reutiliza `TimedChecklistItem` (mismo componente de calentamiento/
+      estiramiento) con `swapDisabled={true}` fijo por ahora.
+    - Cuerpo del `ScrollView` dividido en `{!showingCardio && (...)}` (todo
+      el bloque de ejercicio de fuerza ya existente, sin cambios internos)
+      y `{showingCardio && (...)}` (lista de cardio + botón volver). El
+      botón "Siguiente" del último ejercicio de fuerza pasa a 3 ramas:
+      Siguiente ejercicio → "Ir a cardio" (si `cardioBlocks.length > 0`) →
+      nada.
+    - Strings i18n usados sin crear todavía (`workout.session.cardioTitle`,
+      `backToExercises`, `goToCardio`) — se añaden en 3-G, mostrarán la key
+      cruda hasta entonces (esperado).
+    - **Bug real encontrado y corregido en el mismo paso** (zona muerta
+      temporal): el primer intento colocó `const cardioBlocks = ...` junto
+      a `sessionDayType` (más abajo en el archivo) pero los 4 `useState`
+      nuevos (que leen `cardioBlocks.map(...)` en su inicializador
+      perezoso) quedaron más arriba, en el bloque de `useState` existente
+      — `cardioBlocks` se leía antes de declararse. Diagnosticado con
+      `tsc` (no lo detecta, closures) y confirmado con Node puro
+      (`ReferenceError: Cannot access before initialization`). Se investigó
+      además por qué el patrón preexistente análogo (`currentEx` leído en
+      `useState(() => ...)` antes de su propia declaración, línea 202) NO
+      crashea en producción: `babel-preset-expo` transpila `const`→`var`
+      (confirmado transpilando con el `@babel/core` real del proyecto), así
+      que no hay TDZ real en el bundle — pero mis líneas SÍ habrían
+      crasheado igual, con `TypeError` en `undefined.map()` en vez de
+      `ReferenceError`, porque `cardioBlocks.map(...)` no tiene `?.` como sí
+      tiene el patrón de `currentEx`. Fix aplicado: `cardioBlocks` movido a
+      ANTES de todo el bloque de `useState` (línea 198, antes de `elapsed`),
+      sin tocar el orden interno de los `useState` entre sí. Confirmado con
+      líneas exactas tras el fix: `cardioBlocks` en 198, `cardioRemaining`
+      (el primer consumidor) en 213.
+    - Comiteado y pusheado en esta sesión.
+  Pendiente inmediato: **3-E/3-F** (duración editable del bloque de cardio,
+  modo cronómetro libre como alternativa a la cuenta regresiva) y **3-G**
+  (claves i18n `workout.session.cardioTitle`/`backToExercises`/`goToCardio`
+  en es/en/fr — hoy muestran la key cruda a propósito). El intercambio
+  (swap) de bloques de cardio sigue deshabilitado (`swapDisabled={true}`
+  fijo), sin fecha aún.
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
