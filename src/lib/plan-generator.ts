@@ -1,5 +1,6 @@
 import { parseMusclePriorities, type Exercise, type MuscleGroup } from './exercises';
 import { selectExercisesForDayByMuscle } from './muscleBasedSelection';
+import { selectCardioBlocks, type PlannedCardioBlock } from './cardioSelection';
 
 export type DayType = 'full_body' | 'push' | 'pull' | 'legs' | 'upper' | 'lower';
 export type GoalKey  = 'strength' | 'hypertrophy' | 'fat_loss';
@@ -16,6 +17,7 @@ export interface PlanDayData {
   dayIndex: number;
   dayType: DayType;
   exercises: PlannedExercise[];
+  cardio: PlannedCardioBlock[];
 }
 
 export interface GeneratedPlan {
@@ -61,6 +63,21 @@ function getExerciseCounts(minutes: number): { compounds: number; isolations: nu
   if (minutes <= 75) return { compounds: 4, isolations: 3 };
   if (minutes <= 90) return { compounds: 4, isolations: 4 };
   return { compounds: 5, isolations: 4 };
+}
+
+function getCardioSlots(goalPrimary: GoalKey, goalSecondary: GoalKey | null, totalSlots: number): number {
+  const raw = goalPrimary === 'fat_loss' ? 2 : goalSecondary === 'fat_loss' ? 1 : 0;
+  return Math.min(raw, Math.floor(totalSlots / 2));
+}
+
+function subtractCardioSlots(counts: { compounds: number; isolations: number }, cardioSlots: number): { compounds: number; isolations: number } {
+  const fromIsolations = Math.min(cardioSlots, counts.isolations);
+  const remaining = cardioSlots - fromIsolations;
+  const fromCompounds = Math.min(remaining, counts.compounds);
+  return {
+    isolations: counts.isolations - fromIsolations,
+    compounds: counts.compounds - fromCompounds,
+  };
 }
 
 function getSplit(daysPerWeek: number): DayType[] {
@@ -136,6 +153,10 @@ export async function generatePlan(profile: {
   const counts = getExerciseCounts(profile.minutesPerSession);
   const split  = getSplit(profile.daysPerWeek);
 
+  const totalSlotsPerDay = counts.compounds + counts.isolations;
+  const cardioSlots = getCardioSlots(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null, totalSlotsPerDay);
+  const reducedCounts = subtractCardioSlots(counts, cardioSlots);
+
   // Prioridades musculares del usuario (Fase 0-B-1). Punto único de obtención.
   // Defensa de corrupción de datos, NO la regla de negocio real (esa vive en la
   // pantalla de prioridades, contando ZONAS seleccionadas — máx. 2 — no valores
@@ -151,9 +172,11 @@ export async function generatePlan(profile: {
   const usedThisWeek = new Set<string>();
   const days: PlanDayData[] = [];
   for (const [i, dayType] of split.entries()) {
-    const exercises = await selectExercisesForDay(dayType, equipment, isGym, counts, scheme, usedThisWeek, musclePriorities);
+    const exercises = await selectExercisesForDay(dayType, equipment, isGym, reducedCounts, scheme, usedThisWeek, musclePriorities);
     for (const ex of exercises) usedThisWeek.add(ex.exerciseId);
-    days.push({ dayIndex: i, dayType, exercises });
+    const cardio = selectCardioBlocks(cardioSlots, equipment, isGym, usedThisWeek);
+    for (const c of cardio) usedThisWeek.add(c.exerciseId);
+    days.push({ dayIndex: i, dayType, exercises, cardio });
   }
 
   return {

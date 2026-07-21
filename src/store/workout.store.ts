@@ -3,6 +3,7 @@ import { desc, eq, ne } from 'drizzle-orm';
 import { db } from '@/db';
 import { gamificationMeta, planDays, workoutPlans } from '@/db/schema';
 import { generatePlan, type PlannedExercise, type DayType } from '@/lib/plan-generator';
+import type { PlannedCardioBlock } from '@/lib/cardioSelection';
 import { useGamificationStore } from './gamification.store';
 import type { Profile } from '@/db/schema';
 
@@ -15,6 +16,7 @@ export interface StoredPlanDay {
   dayIndex: number;
   dayType: DayType;
   exercises: PlannedExercise[];
+  cardio: PlannedCardioBlock[];
 }
 
 export interface StoredPlan {
@@ -48,6 +50,18 @@ async function saveActiveDayIndex(value: number): Promise<void> {
     .insert(gamificationMeta)
     .values({ key: ACTIVE_DAY_KEY, value: String(value) })
     .onConflictDoUpdate({ target: gamificationMeta.key, set: { value: String(value) } });
+}
+
+function mapDayRows(dayRows: (typeof planDays.$inferSelect)[]): StoredPlanDay[] {
+  return dayRows
+    .sort((a, b) => a.dayIndex - b.dayIndex)
+    .map(d => ({
+      dbId: d.id,
+      dayIndex: d.dayIndex,
+      dayType: d.dayType as DayType,
+      exercises: JSON.parse(d.exercises) as PlannedExercise[],
+      cardio: JSON.parse(d.cardio) as PlannedCardioBlock[],
+    }));
 }
 
 export const useWorkoutStore = create<WorkoutState>((set, get) => ({
@@ -86,14 +100,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           daysPerWeek: plan.daysPerWeek,
           minutesPerSession: plan.minutesPerSession,
           activeDayIndex,
-          days: dayRows
-            .sort((a, b) => a.dayIndex - b.dayIndex)
-            .map(d => ({
-              dbId:      d.id,
-              dayIndex:  d.dayIndex,
-              dayType:   d.dayType as DayType,
-              exercises: JSON.parse(d.exercises) as PlannedExercise[],
-            })),
+          days: mapDayRows(dayRows),
         },
         isLoaded: true,
       });
@@ -138,6 +145,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
             dayIndex:  day.dayIndex,
             dayType:   day.dayType,
             exercises: JSON.stringify(day.exercises),
+            cardio:    JSON.stringify(day.cardio),
           });
         }
 
@@ -182,14 +190,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           daysPerWeek:       plan.daysPerWeek,
           minutesPerSession: plan.minutesPerSession,
           activeDayIndex:    0,
-          days: savedDayRows
-            .sort((a, b) => a.dayIndex - b.dayIndex)
-            .map(d => ({
-              dbId:      d.id,
-              dayIndex:  d.dayIndex,
-              dayType:   d.dayType as DayType,
-              exercises: JSON.parse(d.exercises) as PlannedExercise[],
-            })),
+          days: mapDayRows(savedDayRows),
         },
       });
     } finally {

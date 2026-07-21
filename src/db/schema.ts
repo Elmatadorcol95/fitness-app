@@ -96,6 +96,7 @@ export const planDays = sqliteTable('plan_days', {
   dayIndex: integer('day_index').notNull(),
   dayType: text('day_type').notNull(),
   exercises: text('exercises').notNull(),
+  cardio: text('cardio').notNull().default('[]'),
 });
 
 export const workoutSessions = sqliteTable('workout_sessions', {
