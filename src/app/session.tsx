@@ -19,7 +19,7 @@ import { useCooldownStore }    from '@/store/cooldown.store';
 import { getExerciseName, EXERCISES, type ExerciseCategory, type Exercise } from '@/lib/exercises';
 import { muscleLabel, equipmentLabel } from '@/components/workout/ExerciseCard';
 import { TimedChecklistItem } from '@/components/warmup/TimedChecklistItem';
-import type { CardioPlan, PlannedCardioBlock } from '@/lib/cardioSelection';
+import { selectCardio, createCardioCycleState, type CardioPlan, type PlannedCardioBlock } from '@/lib/cardioSelection';
 import { hapticsSuccess } from '@/lib/haptics';
 import { playRestDone } from '@/lib/sounds';
 import { Spacing } from '@/constants/theme';
@@ -196,11 +196,17 @@ export default function SessionScreen() {
   const isGym     = profile?.location === 'gym' || profile?.location === 'both';
 
   const cardio: CardioPlan = currentPlan?.days.find(d => d.dbId === planDayId)?.cardio ?? { gym: [], homeSessions: [] };
-  const homeBlocks: PlannedCardioBlock[] = cardio.homeSessions.flatMap(s => s.blocks);
+  const cardioSlotsForDay = cardio.gym.length > 0 ? cardio.gym.length : cardio.homeSessions.length / 2;
+  const wasGymGenerated = cardio.gym.length > 0;
+  const effectiveIsGymForCardio = trainingContext === 'home' ? false : trainingContext === 'gym' ? true : isGym;
+  const displayCardio: CardioPlan = (cardioSlotsForDay > 0 && wasGymGenerated !== effectiveIsGymForCardio)
+    ? selectCardio(cardioSlotsForDay, equipment, effectiveIsGymForCardio, new Set(), createCardioCycleState())
+    : cardio;
+  const homeBlocks: PlannedCardioBlock[] = displayCardio.homeSessions.flatMap(s => s.blocks);
   const sessionOffsets: number[] = [];
   {
     let acc = 0;
-    for (const s of cardio.homeSessions) { sessionOffsets.push(acc); acc += s.blocks.length; }
+    for (const s of displayCardio.homeSessions) { sessionOffsets.push(acc); acc += s.blocks.length; }
   }
 
   const [elapsed, setElapsed]       = useState(0);
@@ -219,13 +225,13 @@ export default function SessionScreen() {
   const [cardioRemaining, setCardioRemaining] = useState<number[]>(() => homeBlocks.map(b => b.durationSeconds));
   const [cardioCompleted, setCardioCompleted] = useState<boolean[]>(() => homeBlocks.map(() => false));
   const [gymRunningIndex, setGymRunningIndex] = useState<number | null>(null);
-  const [gymRemaining, setGymRemaining] = useState<number[]>(() => cardio.gym.map(b => b.durationSeconds));
-  const [gymCompleted, setGymCompleted] = useState<boolean[]>(() => cardio.gym.map(() => false));
-  const [gymInputStr, setGymInputStr] = useState<string[]>(() => cardio.gym.map(b => String(Math.round(b.durationSeconds / 60))));
+  const [gymRemaining, setGymRemaining] = useState<number[]>(() => displayCardio.gym.map(b => b.durationSeconds));
+  const [gymCompleted, setGymCompleted] = useState<boolean[]>(() => displayCardio.gym.map(() => false));
+  const [gymInputStr, setGymInputStr] = useState<string[]>(() => displayCardio.gym.map(b => String(Math.round(b.durationSeconds / 60))));
   const [sessionRestRunning, setSessionRestRunning] = useState<number | null>(null);
-  const [sessionRestRemaining, setSessionRestRemaining] = useState<number[]>(() => cardio.homeSessions.map(s => s.restAfterSeconds));
-  const [sessionRestInputStr, setSessionRestInputStr] = useState<string[]>(() => cardio.homeSessions.map(s => String(s.restAfterSeconds)));
-  const [sessionRestAutoStarted, setSessionRestAutoStarted] = useState<boolean[]>(() => cardio.homeSessions.map(() => false));
+  const [sessionRestRemaining, setSessionRestRemaining] = useState<number[]>(() => displayCardio.homeSessions.map(s => s.restAfterSeconds));
+  const [sessionRestInputStr, setSessionRestInputStr] = useState<string[]>(() => displayCardio.homeSessions.map(s => String(s.restAfterSeconds)));
+  const [sessionRestAutoStarted, setSessionRestAutoStarted] = useState<boolean[]>(() => displayCardio.homeSessions.map(() => false));
   const carouselRef = useRef<FlatList<any>>(null);
 
   const currentEx = exercises[currentExerciseIdx];
@@ -371,7 +377,7 @@ export default function SessionScreen() {
   }, [sessionRestRunning, sessionRestRemaining]);
 
   useEffect(() => {
-    cardio.homeSessions.forEach((session, s) => {
+    displayCardio.homeSessions.forEach((session, s) => {
       if (session.restAfterSeconds <= 0) return;
       if (sessionRestAutoStarted[s]) return;
       if (sessionRestRunning === s) return;
@@ -799,7 +805,7 @@ export default function SessionScreen() {
                   <ThemedText style={styles.exNavText}>{t('workout.session.nextEx')}</ThemedText>
                   <Ionicons name="chevron-forward" size={16} color={GREEN} />
                 </Pressable>
-              ) : (cardio.gym.length > 0 || homeBlocks.length > 0) ? (
+              ) : (displayCardio.gym.length > 0 || homeBlocks.length > 0) ? (
                 <Pressable
                   style={[styles.exNavBtn, styles.exNavBtnRight]}
                   onPress={() => setShowingCardio(true)}
@@ -816,7 +822,7 @@ export default function SessionScreen() {
               <>
                 <ThemedText type="title">{t('workout.session.cardioTitle')}</ThemedText>
 
-                {cardio.gym.map((block, i) => {
+                {displayCardio.gym.map((block, i) => {
                   const gymEx = EXERCISES.find(e => e.id === block.exerciseId);
                   if (!gymEx) return null;
                   return (
@@ -871,7 +877,7 @@ export default function SessionScreen() {
                   );
                 })}
 
-                {cardio.homeSessions.map((session, s) => (
+                {displayCardio.homeSessions.map((session, s) => (
                   <View key={`session-${s}`}>
                     <ThemedText type="defaultSemiBold" style={styles.cardioSessionTitle}>
                       {t('workout.session.sessionLabel', { n: s + 1 })}
