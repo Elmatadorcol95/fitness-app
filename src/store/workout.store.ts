@@ -3,7 +3,7 @@ import { desc, eq, ne } from 'drizzle-orm';
 import { db } from '@/db';
 import { gamificationMeta, planDays, workoutPlans } from '@/db/schema';
 import { generatePlan, type PlannedExercise, type DayType } from '@/lib/plan-generator';
-import type { PlannedCardioBlock } from '@/lib/cardioSelection';
+import type { CardioPlan } from '@/lib/cardioSelection';
 import { useGamificationStore } from './gamification.store';
 import type { Profile } from '@/db/schema';
 
@@ -16,7 +16,7 @@ export interface StoredPlanDay {
   dayIndex: number;
   dayType: DayType;
   exercises: PlannedExercise[];
-  cardio: PlannedCardioBlock[];
+  cardio: CardioPlan;
 }
 
 export interface StoredPlan {
@@ -60,7 +60,7 @@ function mapDayRows(dayRows: (typeof planDays.$inferSelect)[]): StoredPlanDay[] 
       dayIndex: d.dayIndex,
       dayType: d.dayType as DayType,
       exercises: JSON.parse(d.exercises) as PlannedExercise[],
-      cardio: JSON.parse(d.cardio) as PlannedCardioBlock[],
+      cardio: JSON.parse(d.cardio) as CardioPlan,
     }));
 }
 

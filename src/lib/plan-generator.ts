@@ -1,6 +1,6 @@
 import { parseMusclePriorities, type Exercise, type MuscleGroup } from './exercises';
 import { selectExercisesForDayByMuscle } from './muscleBasedSelection';
-import { selectCardioBlocks, type PlannedCardioBlock } from './cardioSelection';
+import { selectCardio, createCardioCycleState, type CardioPlan } from './cardioSelection';
 
 export type DayType = 'full_body' | 'push' | 'pull' | 'legs' | 'upper' | 'lower';
 export type GoalKey  = 'strength' | 'hypertrophy' | 'fat_loss';
@@ -17,7 +17,7 @@ export interface PlanDayData {
   dayIndex: number;
   dayType: DayType;
   exercises: PlannedExercise[];
-  cardio: PlannedCardioBlock[];
+  cardio: CardioPlan;
 }
 
 export interface GeneratedPlan {
@@ -170,12 +170,16 @@ export async function generatePlan(profile: {
   // Secuencial (no en paralelo): cada día necesita conocer los ejercicios ya
   // elegidos por los días anteriores de ESTA generación, vía excludeIds.
   const usedThisWeek = new Set<string>();
+  const cardioCycle = createCardioCycleState();
   const days: PlanDayData[] = [];
   for (const [i, dayType] of split.entries()) {
     const exercises = await selectExercisesForDay(dayType, equipment, isGym, reducedCounts, scheme, usedThisWeek, musclePriorities);
     for (const ex of exercises) usedThisWeek.add(ex.exerciseId);
-    const cardio = selectCardioBlocks(cardioSlots, equipment, isGym, usedThisWeek);
-    for (const c of cardio) usedThisWeek.add(c.exerciseId);
+    const cardio = selectCardio(cardioSlots, equipment, isGym, usedThisWeek, cardioCycle);
+    for (const c of cardio.gym) usedThisWeek.add(c.exerciseId);
+    for (const session of cardio.homeSessions) {
+      for (const c of session.blocks) usedThisWeek.add(c.exerciseId);
+    }
     days.push({ dayIndex: i, dayType, exercises, cardio });
   }
 

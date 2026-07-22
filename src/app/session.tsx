@@ -19,7 +19,7 @@ import { useCooldownStore }    from '@/store/cooldown.store';
 import { getExerciseName, EXERCISES, type ExerciseCategory, type Exercise } from '@/lib/exercises';
 import { muscleLabel, equipmentLabel } from '@/components/workout/ExerciseCard';
 import { TimedChecklistItem } from '@/components/warmup/TimedChecklistItem';
-import type { PlannedCardioBlock } from '@/lib/cardioSelection';
+import type { CardioPlan, PlannedCardioBlock } from '@/lib/cardioSelection';
 import { hapticsSuccess } from '@/lib/haptics';
 import { playRestDone } from '@/lib/sounds';
 import { Spacing } from '@/constants/theme';
@@ -195,7 +195,8 @@ export default function SessionScreen() {
   const equipment = parseEquipment(profile?.equipment);
   const isGym     = profile?.location === 'gym' || profile?.location === 'both';
 
-  const cardioBlocks: PlannedCardioBlock[] = currentPlan?.days.find(d => d.dbId === planDayId)?.cardio ?? [];
+  const cardio: CardioPlan = currentPlan?.days.find(d => d.dbId === planDayId)?.cardio ?? { gym: [], homeSessions: [] };
+  const homeBlocks: PlannedCardioBlock[] = cardio.homeSessions.flatMap(s => s.blocks);
 
   const [elapsed, setElapsed]       = useState(0);
   const [showNote, setShowNote]     = useState(false);
@@ -210,8 +211,12 @@ export default function SessionScreen() {
   const [rirHelpOpen,  setRirHelpOpen]  = useState(false);
   const [showingCardio, setShowingCardio] = useState(false);
   const [cardioRunningIndex, setCardioRunningIndex] = useState<number | null>(null);
-  const [cardioRemaining, setCardioRemaining] = useState<number[]>(() => cardioBlocks.map(b => b.durationSeconds));
-  const [cardioCompleted, setCardioCompleted] = useState<boolean[]>(() => cardioBlocks.map(() => false));
+  const [cardioRemaining, setCardioRemaining] = useState<number[]>(() => homeBlocks.map(b => b.durationSeconds));
+  const [cardioCompleted, setCardioCompleted] = useState<boolean[]>(() => homeBlocks.map(() => false));
+  const [gymRunningIndex, setGymRunningIndex] = useState<number | null>(null);
+  const [gymRemaining, setGymRemaining] = useState<number[]>(() => cardio.gym.map(b => b.durationSeconds));
+  const [gymCompleted, setGymCompleted] = useState<boolean[]>(() => cardio.gym.map(() => false));
+  const [gymInputStr, setGymInputStr] = useState<string[]>(() => cardio.gym.map(b => String(Math.round(b.durationSeconds / 60))));
   const carouselRef = useRef<FlatList<any>>(null);
 
   const currentEx = exercises[currentExerciseIdx];
@@ -308,6 +313,31 @@ export default function SessionScreen() {
     setCardioCompleted(c => { const next = [...c]; next[idx] = true; return next; });
   }, [cardioRunningIndex, cardioRemaining]);
 
+  useEffect(() => {
+    if (gymRunningIndex === null) return;
+    const idx = gymRunningIndex;
+    const id = setInterval(() => {
+      setGymRemaining(prev => {
+        const current = prev[idx];
+        if (current <= 0) return prev;
+        const next = [...prev];
+        next[idx] = current - 1;
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [gymRunningIndex]);
+
+  useEffect(() => {
+    if (gymRunningIndex === null) return;
+    if (gymRemaining[gymRunningIndex] > 0) return;
+    const idx = gymRunningIndex;
+    setGymRunningIndex(null);
+    hapticsSuccess();
+    playRestDone();
+    setGymCompleted(c => { const next = [...c]; next[idx] = true; return next; });
+  }, [gymRunningIndex, gymRemaining]);
+
   // ── Acciones ──────────────────────────────────────────────────────────────────
 
   function applyRestInput() {
@@ -384,6 +414,35 @@ export default function SessionScreen() {
     setCardioCompleted(c => {
       const next = [...c];
       next[i] = !next[i];
+      return next;
+    });
+  }
+
+  function applyGymInput(i: number) {
+    const v = parseInt(gymInputStr[i], 10);
+    if (v >= 1 && v <= 60) {
+      const newSeconds = v * 60;
+      setGymRemaining(prev => { const next = [...prev]; next[i] = newSeconds; return next; });
+      setGymInputStr(prev => { const next = [...prev]; next[i] = String(v); return next; });
+    } else {
+      setGymInputStr(prev => { const next = [...prev]; next[i] = String(Math.round((gymRemaining[i] ?? 600) / 60)); return next; });
+    }
+  }
+  function handleGymPlayPause(i: number) {
+    if (gymRunningIndex === i) {
+      setGymRunningIndex(null);
+    } else {
+      applyGymInput(i);
+      setGymRunningIndex(i);
+    }
+  }
+  function handleGymToggleComplete(i: number) {
+    setGymCompleted(c => { const next = [...c]; next[i] = !next[i]; return next; });
+  }
+  function handleGymAdjust(i: number, deltaSeconds: number) {
+    setGymRemaining(prev => {
+      const next = [...prev];
+      next[i] = Math.max(60, Math.min(3600, next[i] + deltaSeconds));
       return next;
     });
   }
@@ -663,7 +722,7 @@ export default function SessionScreen() {
                   <ThemedText style={styles.exNavText}>{t('workout.session.nextEx')}</ThemedText>
                   <Ionicons name="chevron-forward" size={16} color={GREEN} />
                 </Pressable>
-              ) : cardioBlocks.length > 0 ? (
+              ) : (cardio.gym.length > 0 || homeBlocks.length > 0) ? (
                 <Pressable
                   style={[styles.exNavBtn, styles.exNavBtnRight]}
                   onPress={() => setShowingCardio(true)}
@@ -679,12 +738,68 @@ export default function SessionScreen() {
             {showingCardio && (
               <>
                 <ThemedText type="title">{t('workout.session.cardioTitle')}</ThemedText>
-                {cardioBlocks.map((block, i) => {
+
+                {cardio.gym.map((block, i) => {
+                  const gymEx = EXERCISES.find(e => e.id === block.exerciseId);
+                  if (!gymEx) return null;
+                  return (
+                    <View key={`gym-${i}`} style={styles.cardioGymBlock}>
+                      <View style={styles.cardioGymHeader}>
+                        <Ionicons name="bicycle-outline" size={20} color={AMBER} />
+                        <ThemedText style={styles.cardioGymName}>{getExerciseName(gymEx.id, lang)}</ThemedText>
+                        <Pressable onPress={() => handleGymToggleComplete(i)} style={[styles.checkBtn, gymCompleted[i] && styles.checkBtnDone]}>
+                          <Ionicons name={gymCompleted[i] ? 'checkmark' : 'ellipse-outline'} size={20} color={gymCompleted[i] ? '#04261A' : MUTED} />
+                        </Pressable>
+                      </View>
+                      {!gymCompleted[i] && (
+                        gymRunningIndex === i ? (
+                          <View style={styles.restBox}>
+                            <Pressable onPress={() => handleGymAdjust(i, -300)} style={styles.restAdjBtn} hitSlop={8}>
+                              <ThemedText style={styles.restAdjText}>−5min</ThemedText>
+                            </Pressable>
+                            <View style={styles.restCenter}>
+                              <Ionicons name="hourglass-outline" size={16} color={AMBER} />
+                              <ThemedText style={styles.restTimer}>{formatRest(gymRemaining[i] ?? 0)}</ThemedText>
+                            </View>
+                            <Pressable onPress={() => handleGymAdjust(i, +300)} style={styles.restAdjBtn} hitSlop={8}>
+                              <ThemedText style={styles.restAdjText}>+5min</ThemedText>
+                            </Pressable>
+                            <Pressable onPress={() => handleGymPlayPause(i)} style={styles.restStopBtn}>
+                              <ThemedText style={styles.restStopText}>{t('workout.session.pause')}</ThemedText>
+                            </Pressable>
+                          </View>
+                        ) : (
+                          <View style={styles.restIdleRow}>
+                            <View style={styles.restEditRow}>
+                              <Ionicons name="timer-outline" size={16} color={MUTED} />
+                              <TextInput
+                                style={styles.restEditInput}
+                                keyboardType="numeric"
+                                value={gymInputStr[i] ?? ''}
+                                onChangeText={(text) => setGymInputStr(prev => { const next = [...prev]; next[i] = text; return next; })}
+                                onEndEditing={() => applyGymInput(i)}
+                                onSubmitEditing={() => applyGymInput(i)}
+                                selectTextOnFocus
+                                returnKeyType="done"
+                              />
+                              <ThemedText themeColor="textSecondary" style={styles.restStartText}>{t('workout.session.minutesAbbrev')}</ThemedText>
+                              <Pressable hitSlop={8} onPress={() => handleGymPlayPause(i)}>
+                                <Ionicons name="play-circle" size={28} color={GREEN} />
+                              </Pressable>
+                            </View>
+                          </View>
+                        )
+                      )}
+                    </View>
+                  );
+                })}
+
+                {homeBlocks.map((block, i) => {
                   const cardioEx = EXERCISES.find(e => e.id === block.exerciseId);
                   if (!cardioEx) return null;
                   return (
                     <TimedChecklistItem
-                      key={i}
+                      key={`home-${i}`}
                       exercise={cardioEx}
                       remainingSeconds={cardioRemaining[i] ?? 0}
                       isRunning={cardioRunningIndex === i}
@@ -696,6 +811,7 @@ export default function SessionScreen() {
                     />
                   );
                 })}
+
                 <Pressable style={styles.exNavBtn} onPress={() => setShowingCardio(false)}>
                   <Ionicons name="chevron-back" size={16} color={GREEN} />
                   <ThemedText style={styles.exNavText}>{t('workout.session.backToExercises')}</ThemedText>
@@ -1043,6 +1159,9 @@ const styles = StyleSheet.create({
   restStartText: { fontSize: 13 },
   restNudgeRow:  { flexDirection: 'row', justifyContent: 'center', gap: Spacing.four },
   restNudgeText: { fontSize: 12, color: MUTED },
+  cardioGymBlock: { gap: 6, marginBottom: Spacing.two, paddingBottom: Spacing.two, borderBottomWidth: 1, borderBottomColor: MUTED + '22' },
+  cardioGymHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardioGymName: { flex: 1, fontSize: 15, fontWeight: '600' },
 
   // Set table
   tableHeader: {
