@@ -436,7 +436,11 @@
       "goToCardio": "Cardio",
       "minutesAbbrev": "min",
       "pause": "Pausar",
-      "sessionLabel": "Sesión {{n}}"
+      "sessionLabel": "Sesión {{n}}",
+      "cardioGymLabel": "Máquina de gimnasio",
+      "cardioHomeLabel": "Circuito en casa",
+      "cardioGymSummary": "{{n}} × 10 min",
+      "cardioHomeSummary": "{{n}} sesiones × 5 min"
     },
     "warmup": {
       "promptTitle": "¿Quieres calentar antes de empezar?",

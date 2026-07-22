@@ -96,6 +96,18 @@ function OtherDayCard({ day, index, total, isExpanded, onToggle, onChangeEx, lan
               </Pressable>
             </View>
           ))}
+          {(day.cardio.gym.length > 0 || day.cardio.homeSessions.length > 0) && (
+            <View style={[styles.otherDayExRow, day.exercises.length > 0 && styles.otherDayExBorder]}>
+              <ThemedText themeColor="textSecondary" style={styles.otherDayExName} numberOfLines={1}>
+                {t('workout.session.cardioTitle')}
+              </ThemedText>
+              <ThemedText style={styles.otherDayCardioSummary}>
+                {day.cardio.gym.length > 0
+                  ? t('workout.session.cardioGymSummary', { n: day.cardio.gym.length })
+                  : t('workout.session.cardioHomeSummary', { n: day.cardio.homeSessions.length })}
+              </ThemedText>
+            </View>
+          )}
         </View>
       )}
     </ThemedView>
@@ -449,6 +461,27 @@ export default function TrainingScreen() {
             />
           ))}
 
+          {(today.cardio.gym.length > 0 || today.cardio.homeSessions.length > 0) && (
+            <ThemedView type="backgroundElement" style={styles.cardioCard}>
+              <View style={[styles.cardioPlaceholder, { backgroundColor: AMBER + '22' }]}>
+                <Ionicons name="bicycle-outline" size={34} color={AMBER} />
+              </View>
+              <View style={styles.cardioInfo}>
+                <ThemedText type="defaultSemiBold" style={styles.cardioName}>
+                  {t('workout.session.cardioTitle')}
+                </ThemedText>
+                <ThemedText themeColor="textSecondary" style={styles.cardioSubtitle}>
+                  {today.cardio.gym.length > 0 ? t('workout.session.cardioGymLabel') : t('workout.session.cardioHomeLabel')}
+                </ThemedText>
+                <ThemedText style={styles.cardioSummary}>
+                  {today.cardio.gym.length > 0
+                    ? t('workout.session.cardioGymSummary', { n: today.cardio.gym.length })
+                    : t('workout.session.cardioHomeSummary', { n: today.cardio.homeSessions.length })}
+                </ThemedText>
+              </View>
+            </ThemedView>
+          )}
+
           {/* ── Botón INICIAR ── */}
           <Pressable
             style={[styles.startBtn, isStarting && styles.startBtnDisabled]}
@@ -733,6 +766,21 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.one, borderWidth: 1, borderColor: GREEN + '44',
   },
   miniChangeBtnText: { fontSize: 11, color: GREEN },
+  otherDayCardioSummary: { fontSize: 12, color: AMBER },
+
+  // Cardio card (hoy)
+  cardioCard: {
+    borderRadius: Spacing.three, padding: Spacing.three,
+    flexDirection: 'row', gap: Spacing.three, alignItems: 'flex-start',
+  },
+  cardioPlaceholder: {
+    width: 72, height: 72, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  cardioInfo: { flex: 1, gap: 4 },
+  cardioName: { fontSize: 15, lineHeight: 20 },
+  cardioSubtitle: { fontSize: 12 },
+  cardioSummary: { fontSize: 13, fontWeight: '500', color: '#F1F4F1' },
 
   // Rest indicator
   restRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingVertical: 4 },

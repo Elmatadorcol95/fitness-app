@@ -436,7 +436,11 @@
       "goToCardio": "Cardio",
       "minutesAbbrev": "min",
       "pause": "Pause",
-      "sessionLabel": "Session {{n}}"
+      "sessionLabel": "Session {{n}}",
+      "cardioGymLabel": "Gym machine",
+      "cardioHomeLabel": "Home circuit",
+      "cardioGymSummary": "{{n}} × 10 min",
+      "cardioHomeSummary": "{{n}} sessions × 5 min"
     },
     "warmup": {
       "promptTitle": "Do you want to warm up before starting?",

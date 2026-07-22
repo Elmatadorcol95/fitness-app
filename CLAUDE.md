@@ -1500,12 +1500,80 @@ Bucle ~1.3 s sobre fondo #141A17:
       líneas exactas tras el fix: `cardioBlocks` en 198, `cardioRemaining`
       (el primer consumidor) en 213.
     - Comiteado y pusheado en esta sesión.
-  Pendiente inmediato: **3-E/3-F** (duración editable del bloque de cardio,
-  modo cronómetro libre como alternativa a la cuenta regresiva) y **3-G**
-  (claves i18n `workout.session.cardioTitle`/`backToExercises`/`goToCardio`
-  en es/en/fr — hoy muestran la key cruda a propósito). El intercambio
-  (swap) de bloques de cardio sigue deshabilitado (`swapDisabled={true}`
-  fijo), sin fecha aún.
+- Hecho: sesión 2026-07-22 — **FASE 3 completa (pasos 3-E a 3-K + pulido de
+  UI)**: cierra el resto de cardio abierto desde la sesión anterior.
+  * **3-E** — duración editable del bloque de cardio de gimnasio: campo
+    numérico en minutos (1-60) sobre el bloque de máquina, solo visible
+    mientras no está corriendo ni completado (`isGymBlock` filtra por
+    `equipment.includes('cardioMachine')` para no aplicarlo a los bloques
+    de casa). Corrección de alcance en el mismo paso: el campo NUNCA
+    aparece en bloques de circuito de casa (duración fija por ejercicio,
+    no editable ahí).
+  * **3-F** — rediseño completo de `src/lib/cardioSelection.ts`: nueva
+    forma `CardioPlan { gym: PlannedCardioBlock[]; homeSessions:
+    HomeCardioSession[] }` (antes un array plano único). Gimnasio: 1 bloque
+    de 600s por hueco. Casa: `slots × 2` sesiones de 300s cada una, con
+    `restAfterSeconds` (90s por defecto, 0 en la última) entre sesiones del
+    mismo día. `CardioCycleState` (`gymCount`/`homeCount`) — pasado por
+    referencia a través de TODOS los días de la semana en una misma
+    generación — corrige un bug real: al agotar el pool de variedad, antes
+    SIEMPRE se repetía el primer ejercicio del catálogo; ahora la
+    repetición rota de verdad.
+  * **3-G** — `plan-generator.ts`/`workout.store.ts` migrados de
+    `PlannedCardioBlock[]` a `CardioPlan` (tipos, `PlanDayData`,
+    `StoredPlanDay`, `mapDayRows`). `generatePlan()` crea un único
+    `cardioCycle` antes del bucle de días (mismo patrón que `usedThisWeek`).
+  * **3-H** — `session.tsx` adaptado a `CardioPlan`: bloque de gimnasio con
+    UI homogénea al descanso real entre series (mismo `restBox`/
+    `restIdleRow`/`restEditRow`, ±5min en vez de ±15s), bloques de casa
+    agrupados por sesión reutilizando `TimedChecklistItem`. `checkBtn`/
+    `checkBtnDone`/`formatRest` reutilizados sin duplicar.
+  * **3-I** — agrupamiento "Sesión N" + descanso editable (idéntico al de
+    gimnasio, ±15s) entre sesiones de casa del mismo día, con auto-inicio:
+    un `useEffect` sobre `cardioCompleted` detecta cuándo todos los
+    ejercicios de una sesión quedan marcados y arranca el descanso
+    siguiente solo (una vez por sesión, vía `sessionRestAutoStarted`).
+  * **3-J** — recálculo en vivo (`displayCardio`) cuando `trainingContext`
+    (elegido al arrancar la sesión) contradice cómo se generó el cardio del
+    día (ej. plan generado para "ambos" con cardio de gimnasio pero el
+    usuario elige entrenar en casa hoy): recalcula con `selectCardio()` al
+    vuelo, sin persistir el resultado. El `cardio` original (persistido)
+    solo se usa para derivar `cardioSlotsForDay`/`wasGymGenerated`; todo el
+    resto del componente (estado, efectos, JSX) lee `displayCardio`.
+  * **Pulido de UI**: pestaña "Cardio" añadida al `ListFooterComponent` del
+    carrusel de ejercicios de arriba (además del botón existente en
+    `exNav`, que se mantiene); `isCurr` del carrusel ahora respeta
+    `showingCardio` para no resaltar dos ítems a la vez. Botón "Finalizar"
+    añadido junto al de cardio en `exNav` (cuando no hay más ejercicios de
+    fuerza) y en la vista de cardio (fila "Volver a ejercicios" +
+    "Finalizar"), llamando a `handleFinish` sin tocarla.
+  * **3-K** — i18n final: 6 claves nuevas bajo `workout.session.*`
+    (`cardioTitle`, `backToExercises`, `goToCardio`, `minutesAbbrev`,
+    `pause`, `sessionLabel`) en es/en/fr, que hasta este paso mostraban la
+    key cruda a propósito.
+  * **Tarjetas de resumen de Cardio en `training.tsx`**: tarjeta en la
+    pantalla de Entreno (día de hoy, clon visual de `ExerciseCard` —
+    mismas dimensiones de placeholder/info/nombre/resumen — pero SIN botón
+    "···"/cambiar, intencional) y fila equivalente dentro de `OtherDayCard`
+    ("Tu ciclo"), ambas condicionadas a `cardio.gym.length > 0 ||
+    cardio.homeSessions.length > 0`. 4 claves i18n adicionales
+    (`cardioGymLabel`, `cardioHomeLabel`, `cardioGymSummary`,
+    `cardioHomeSummary`) en es/en/fr.
+  * Todo JS puro — sin módulos nativos, solo recarga. `npx tsc --noEmit`
+    limpio verificado en cada paso (evidencia pegada literal en cada turno
+    de la sesión, siguiendo el protocolo "Paso 0" acordado con Juan).
+  * Nota de proceso: varios commits de este tramo (`bba3f0b` "3-E a 3-H",
+    `caf6fb5` "3-I", `78e9cc0` "auto-inicio", `81caeb9` "3-J", `c2c86f2`
+    "3-K") los hizo Juan directamente fuera de esta conversación —
+    detectado por `git log`/`git diff --stat` a mitad de sesión, no por el
+    propio asistente.
+  * Pendiente conocido, sin fecha: el intercambio (swap) de bloques de
+    cardio sigue deshabilitado (`swapDisabled={true}` fijo en
+    `TimedChecklistItem` para los ítems de cardio). El "modo cronómetro
+    libre" como alternativa a la cuenta regresiva, mencionado como posible
+    en una nota anterior, no se construyó — quedó superado por el diseño
+    final (duración editable en minutos + cuenta regresiva homogénea con
+    el descanso de series).
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
@@ -1539,6 +1607,9 @@ Bucle ~1.3 s sobre fondo #141A17:
 - ~~FASE 2 — Enfriamiento/estiramiento guiado post-entreno~~ ✓ Completado
   (generador + store + flujo de diálogo + gate de celebraciones + pantalla
   real, JS, recarga).
+- ~~FASE 3 — Cardio según objetivo (pasos 3-A a 3-K)~~ ✓ Completado (JS,
+  recarga). Pendiente sin fecha: intercambio (swap) de bloques de cardio,
+  hoy deshabilitado a propósito.
 - FASE 0-B-1 — Motor de priorización muscular: Pasos 1-2 completos (datos +
   conectado al generador, sin UI). Paso 3 (pantalla) EN EXPLORACIÓN — Opción
   A (SVG) vs Opción B (foto + calibración), pendiente decisión de Juan.

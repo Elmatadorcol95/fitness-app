@@ -596,9 +596,29 @@ export default function SessionScreen() {
             style={styles.carouselList}
             contentContainerStyle={styles.carousel}
             onScrollToIndexFailed={() => {}}
+            ListFooterComponent={
+              (displayCardio.gym.length > 0 || homeBlocks.length > 0) ? (
+                <Pressable
+                  onPress={() => setShowingCardio(true)}
+                  style={[styles.carouselItem, showingCardio && styles.carouselItemActive]}
+                >
+                  <View style={[styles.carouselIcon, { backgroundColor: AMBER + '22' }]}>
+                    <Ionicons name="bicycle-outline" size={20} color={showingCardio ? AMBER : MUTED} />
+                  </View>
+                  <ThemedText
+                    numberOfLines={2}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                    style={[styles.carouselLabel, showingCardio ? { color: AMBER } : undefined]}
+                  >
+                    {t('workout.session.cardioTitle')}
+                  </ThemedText>
+                </Pressable>
+              ) : null
+            }
             renderItem={({ item, index }) => {
               const ex2    = EXERCISES.find(e => e.id === item.exerciseId);
-              const isCurr = index === currentExerciseIdx;
+              const isCurr = !showingCardio && index === currentExerciseIdx;
               const c2     = ex2 ? CAT_COLORS[ex2.category] : GREEN;
               const ic2    = (ex2 ? CAT_ICONS[ex2.category] : 'barbell-outline') as any;
               return (
@@ -813,7 +833,14 @@ export default function SessionScreen() {
                   <ThemedText style={styles.exNavText}>{t('workout.session.goToCardio')}</ThemedText>
                   <Ionicons name="chevron-forward" size={16} color={GREEN} />
                 </Pressable>
-              ) : null}
+              ) : (
+                <Pressable
+                  style={[styles.exNavBtn, styles.exNavBtnRight]}
+                  onPress={handleFinish}
+                >
+                  <ThemedText style={styles.exNavText}>{t('workout.session.finishSession')}</ThemedText>
+                </Pressable>
+              )}
             </View>
             </>
             )}
@@ -942,10 +969,15 @@ export default function SessionScreen() {
                   </View>
                 ))}
 
-                <Pressable style={styles.exNavBtn} onPress={() => setShowingCardio(false)}>
-                  <Ionicons name="chevron-back" size={16} color={GREEN} />
-                  <ThemedText style={styles.exNavText}>{t('workout.session.backToExercises')}</ThemedText>
-                </Pressable>
+                <View style={styles.exNav}>
+                  <Pressable style={styles.exNavBtn} onPress={() => setShowingCardio(false)}>
+                    <Ionicons name="chevron-back" size={16} color={GREEN} />
+                    <ThemedText style={styles.exNavText}>{t('workout.session.backToExercises')}</ThemedText>
+                  </Pressable>
+                  <Pressable style={[styles.exNavBtn, styles.exNavBtnRight]} onPress={handleFinish}>
+                    <ThemedText style={styles.exNavText}>{t('workout.session.finishSession')}</ThemedText>
+                  </Pressable>
+                </View>
               </>
             )}
           </ScrollView>
