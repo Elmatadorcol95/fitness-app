@@ -225,6 +225,7 @@ export default function SessionScreen() {
   const [sessionRestRunning, setSessionRestRunning] = useState<number | null>(null);
   const [sessionRestRemaining, setSessionRestRemaining] = useState<number[]>(() => cardio.homeSessions.map(s => s.restAfterSeconds));
   const [sessionRestInputStr, setSessionRestInputStr] = useState<string[]>(() => cardio.homeSessions.map(s => String(s.restAfterSeconds)));
+  const [sessionRestAutoStarted, setSessionRestAutoStarted] = useState<boolean[]>(() => cardio.homeSessions.map(() => false));
   const carouselRef = useRef<FlatList<any>>(null);
 
   const currentEx = exercises[currentExerciseIdx];
@@ -368,6 +369,23 @@ export default function SessionScreen() {
     hapticsSuccess();
     playRestDone();
   }, [sessionRestRunning, sessionRestRemaining]);
+
+  useEffect(() => {
+    cardio.homeSessions.forEach((session, s) => {
+      if (session.restAfterSeconds <= 0) return;
+      if (sessionRestAutoStarted[s]) return;
+      if (sessionRestRunning === s) return;
+      if (session.blocks.length === 0) return;
+      const start = sessionOffsets[s];
+      const end = start + session.blocks.length;
+      const allDone = cardioCompleted.slice(start, end).every(Boolean);
+      if (allDone) {
+        setSessionRestAutoStarted(prev => { const next = [...prev]; next[s] = true; return next; });
+        applySessionRestInput(s);
+        setSessionRestRunning(s);
+      }
+    });
+  }, [cardioCompleted]);
 
   // ── Acciones ──────────────────────────────────────────────────────────────────
 
