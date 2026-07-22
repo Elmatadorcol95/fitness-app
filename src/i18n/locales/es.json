@@ -430,7 +430,13 @@
       "whereTitle": "¿Dónde entrenas hoy?",
       "whereMsg": "El plan se adaptará al equipamiento disponible.",
       "whereGym": "Gimnasio",
-      "whereHome": "En casa"
+      "whereHome": "En casa",
+      "cardioTitle": "Cardio",
+      "backToExercises": "Volver a ejercicios",
+      "goToCardio": "Cardio",
+      "minutesAbbrev": "min",
+      "pause": "Pausar",
+      "sessionLabel": "Sesión {{n}}"
     },
     "warmup": {
       "promptTitle": "¿Quieres calentar antes de empezar?",

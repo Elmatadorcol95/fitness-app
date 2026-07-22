@@ -430,7 +430,13 @@
       "whereTitle": "Where are you training today?",
       "whereMsg": "The plan will adapt to your available equipment.",
       "whereGym": "Gym",
-      "whereHome": "Home"
+      "whereHome": "Home",
+      "cardioTitle": "Cardio",
+      "backToExercises": "Back to exercises",
+      "goToCardio": "Cardio",
+      "minutesAbbrev": "min",
+      "pause": "Pause",
+      "sessionLabel": "Session {{n}}"
     },
     "warmup": {
       "promptTitle": "Do you want to warm up before starting?",
