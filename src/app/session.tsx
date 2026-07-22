@@ -197,6 +197,11 @@ export default function SessionScreen() {
 
   const cardio: CardioPlan = currentPlan?.days.find(d => d.dbId === planDayId)?.cardio ?? { gym: [], homeSessions: [] };
   const homeBlocks: PlannedCardioBlock[] = cardio.homeSessions.flatMap(s => s.blocks);
+  const sessionOffsets: number[] = [];
+  {
+    let acc = 0;
+    for (const s of cardio.homeSessions) { sessionOffsets.push(acc); acc += s.blocks.length; }
+  }
 
   const [elapsed, setElapsed]       = useState(0);
   const [showNote, setShowNote]     = useState(false);
@@ -217,6 +222,9 @@ export default function SessionScreen() {
   const [gymRemaining, setGymRemaining] = useState<number[]>(() => cardio.gym.map(b => b.durationSeconds));
   const [gymCompleted, setGymCompleted] = useState<boolean[]>(() => cardio.gym.map(() => false));
   const [gymInputStr, setGymInputStr] = useState<string[]>(() => cardio.gym.map(b => String(Math.round(b.durationSeconds / 60))));
+  const [sessionRestRunning, setSessionRestRunning] = useState<number | null>(null);
+  const [sessionRestRemaining, setSessionRestRemaining] = useState<number[]>(() => cardio.homeSessions.map(s => s.restAfterSeconds));
+  const [sessionRestInputStr, setSessionRestInputStr] = useState<string[]>(() => cardio.homeSessions.map(s => String(s.restAfterSeconds)));
   const carouselRef = useRef<FlatList<any>>(null);
 
   const currentEx = exercises[currentExerciseIdx];
@@ -338,6 +346,29 @@ export default function SessionScreen() {
     setGymCompleted(c => { const next = [...c]; next[idx] = true; return next; });
   }, [gymRunningIndex, gymRemaining]);
 
+  useEffect(() => {
+    if (sessionRestRunning === null) return;
+    const idx = sessionRestRunning;
+    const id = setInterval(() => {
+      setSessionRestRemaining(prev => {
+        const current = prev[idx];
+        if (current <= 0) return prev;
+        const next = [...prev];
+        next[idx] = current - 1;
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [sessionRestRunning]);
+
+  useEffect(() => {
+    if (sessionRestRunning === null) return;
+    if (sessionRestRemaining[sessionRestRunning] > 0) return;
+    setSessionRestRunning(null);
+    hapticsSuccess();
+    playRestDone();
+  }, [sessionRestRunning, sessionRestRemaining]);
+
   // ── Acciones ──────────────────────────────────────────────────────────────────
 
   function applyRestInput() {
@@ -445,6 +476,34 @@ export default function SessionScreen() {
       next[i] = Math.max(60, Math.min(3600, next[i] + deltaSeconds));
       return next;
     });
+  }
+
+  function applySessionRestInput(s: number) {
+    const v = parseInt(sessionRestInputStr[s], 10);
+    if (v >= 1 && v <= 600) {
+      setSessionRestRemaining(prev => { const next = [...prev]; next[s] = v; return next; });
+      setSessionRestInputStr(prev => { const next = [...prev]; next[s] = String(v); return next; });
+    } else {
+      setSessionRestInputStr(prev => { const next = [...prev]; next[s] = String(sessionRestRemaining[s] ?? 90); return next; });
+    }
+  }
+  function handleSessionRestPlayPause(s: number) {
+    if (sessionRestRunning === s) {
+      setSessionRestRunning(null);
+    } else {
+      applySessionRestInput(s);
+      setSessionRestRunning(s);
+    }
+  }
+  function handleSessionRestAdjust(s: number, delta: number) {
+    setSessionRestRemaining(prev => {
+      const next = [...prev];
+      next[s] = Math.max(1, Math.min(600, next[s] + delta));
+      return next;
+    });
+  }
+  function handleSessionRestSkip(s: number) {
+    setSessionRestRunning(null);
   }
 
   if (!isActive || !currentEx) {
@@ -794,23 +853,70 @@ export default function SessionScreen() {
                   );
                 })}
 
-                {homeBlocks.map((block, i) => {
-                  const cardioEx = EXERCISES.find(e => e.id === block.exerciseId);
-                  if (!cardioEx) return null;
-                  return (
-                    <TimedChecklistItem
-                      key={`home-${i}`}
-                      exercise={cardioEx}
-                      remainingSeconds={cardioRemaining[i] ?? 0}
-                      isRunning={cardioRunningIndex === i}
-                      isCompleted={cardioCompleted[i] ?? false}
-                      swapDisabled={true}
-                      onPlayPause={() => handleCardioPlayPause(i)}
-                      onToggleComplete={() => handleCardioToggleComplete(i)}
-                      onSwap={() => {}}
-                    />
-                  );
-                })}
+                {cardio.homeSessions.map((session, s) => (
+                  <View key={`session-${s}`}>
+                    <ThemedText type="defaultSemiBold" style={styles.cardioSessionTitle}>
+                      {t('workout.session.sessionLabel', { n: s + 1 })}
+                    </ThemedText>
+                    {session.blocks.map((block, bi) => {
+                      const flatIdx = sessionOffsets[s] + bi;
+                      const cardioEx = EXERCISES.find(e => e.id === block.exerciseId);
+                      if (!cardioEx) return null;
+                      return (
+                        <TimedChecklistItem
+                          key={`home-${flatIdx}`}
+                          exercise={cardioEx}
+                          remainingSeconds={cardioRemaining[flatIdx] ?? 0}
+                          isRunning={cardioRunningIndex === flatIdx}
+                          isCompleted={cardioCompleted[flatIdx] ?? false}
+                          swapDisabled={true}
+                          onPlayPause={() => handleCardioPlayPause(flatIdx)}
+                          onToggleComplete={() => handleCardioToggleComplete(flatIdx)}
+                          onSwap={() => {}}
+                        />
+                      );
+                    })}
+                    {session.restAfterSeconds > 0 && (
+                      sessionRestRunning === s ? (
+                        <View style={styles.restBox}>
+                          <Pressable onPress={() => handleSessionRestAdjust(s, -15)} style={styles.restAdjBtn} hitSlop={8}>
+                            <ThemedText style={styles.restAdjText}>−15s</ThemedText>
+                          </Pressable>
+                          <View style={styles.restCenter}>
+                            <Ionicons name="hourglass-outline" size={16} color={AMBER} />
+                            <ThemedText style={styles.restTimer}>{formatRest(sessionRestRemaining[s] ?? 0)}</ThemedText>
+                          </View>
+                          <Pressable onPress={() => handleSessionRestAdjust(s, +15)} style={styles.restAdjBtn} hitSlop={8}>
+                            <ThemedText style={styles.restAdjText}>+15s</ThemedText>
+                          </Pressable>
+                          <Pressable onPress={() => handleSessionRestSkip(s)} style={styles.restStopBtn}>
+                            <ThemedText style={styles.restStopText}>{t('workout.session.skipRest')}</ThemedText>
+                          </Pressable>
+                        </View>
+                      ) : (
+                        <View style={styles.restIdleRow}>
+                          <View style={styles.restEditRow}>
+                            <Ionicons name="timer-outline" size={16} color={MUTED} />
+                            <TextInput
+                              style={styles.restEditInput}
+                              keyboardType="numeric"
+                              value={sessionRestInputStr[s] ?? ''}
+                              onChangeText={(text) => setSessionRestInputStr(prev => { const next = [...prev]; next[s] = text; return next; })}
+                              onEndEditing={() => applySessionRestInput(s)}
+                              onSubmitEditing={() => applySessionRestInput(s)}
+                              selectTextOnFocus
+                              returnKeyType="done"
+                            />
+                            <ThemedText themeColor="textSecondary" style={styles.restStartText}>s</ThemedText>
+                            <Pressable hitSlop={8} onPress={() => handleSessionRestPlayPause(s)}>
+                              <Ionicons name="play-circle" size={28} color={GREEN} />
+                            </Pressable>
+                          </View>
+                        </View>
+                      )
+                    )}
+                  </View>
+                ))}
 
                 <Pressable style={styles.exNavBtn} onPress={() => setShowingCardio(false)}>
                   <Ionicons name="chevron-back" size={16} color={GREEN} />
@@ -1162,6 +1268,7 @@ const styles = StyleSheet.create({
   cardioGymBlock: { gap: 6, marginBottom: Spacing.two, paddingBottom: Spacing.two, borderBottomWidth: 1, borderBottomColor: MUTED + '22' },
   cardioGymHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardioGymName: { flex: 1, fontSize: 15, fontWeight: '600' },
+  cardioSessionTitle: { fontSize: 16, marginTop: Spacing.three, marginBottom: Spacing.one },
 
   // Set table
   tableHeader: {
