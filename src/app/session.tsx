@@ -23,6 +23,7 @@ import { selectCardio, createCardioCycleState, type CardioPlan, type PlannedCard
 import { hapticsSuccess } from '@/lib/haptics';
 import { playRestDone } from '@/lib/sounds';
 import { Spacing } from '@/constants/theme';
+import { getAllPreferences, togglePreference, type Preference } from '@/lib/exercisePreferences';
 
 const GREEN = '#3FBF7F';
 const AMBER = '#F2B450';
@@ -232,6 +233,7 @@ export default function SessionScreen() {
   const [sessionRestRemaining, setSessionRestRemaining] = useState<number[]>(() => displayCardio.homeSessions.map(s => s.restAfterSeconds));
   const [sessionRestInputStr, setSessionRestInputStr] = useState<string[]>(() => displayCardio.homeSessions.map(s => String(s.restAfterSeconds)));
   const [sessionRestAutoStarted, setSessionRestAutoStarted] = useState<boolean[]>(() => displayCardio.homeSessions.map(() => false));
+  const [preferencesMap, setPreferencesMap] = useState<Map<string, Preference>>(new Map());
   const carouselRef = useRef<FlatList<any>>(null);
 
   const currentEx = exercises[currentExerciseIdx];
@@ -273,6 +275,10 @@ export default function SessionScreen() {
   // Log de diagnóstico al montar
   useEffect(() => {
     console.log('[Session] mounted — isActive:', isActive, 'exercises:', exercises.length);
+  }, []);
+
+  useEffect(() => {
+    getAllPreferences().then(setPreferencesMap);
   }, []);
 
   // Cronómetro + rest timer (cada segundo)
@@ -460,6 +466,19 @@ export default function SessionScreen() {
 
   function showRirHelp() {
     setRirHelpOpen(true);
+  }
+
+  async function handleTogglePreference(exerciseId: string, preference: Preference) {
+    await togglePreference(exerciseId, preference);
+    setPreferencesMap(prev => {
+      const next = new Map(prev);
+      if (next.get(exerciseId) === preference) {
+        next.delete(exerciseId);
+      } else {
+        next.set(exerciseId, preference);
+      }
+      return next;
+    });
   }
 
   function handleCardioPlayPause(i: number) {
@@ -804,6 +823,29 @@ export default function SessionScreen() {
                   </ThemedText>
                 </Pressable>
               )}
+            </View>
+
+            {/* Preferencia del ejercicio actual */}
+            <View style={styles.prefSection}>
+              <View style={styles.prefRow}>
+                <Pressable onPress={() => handleTogglePreference(currentEx.exerciseId, 'liked')} hitSlop={10} style={styles.prefBtn}>
+                  <Ionicons
+                    name={preferencesMap.get(currentEx.exerciseId) === 'liked' ? 'thumbs-up' : 'thumbs-up-outline'}
+                    size={20}
+                    color={preferencesMap.get(currentEx.exerciseId) === 'liked' ? GREEN : MUTED}
+                  />
+                </Pressable>
+                <Pressable onPress={() => handleTogglePreference(currentEx.exerciseId, 'disliked')} hitSlop={10} style={styles.prefBtn}>
+                  <Ionicons
+                    name={preferencesMap.get(currentEx.exerciseId) === 'disliked' ? 'thumbs-down' : 'thumbs-down-outline'}
+                    size={20}
+                    color={preferencesMap.get(currentEx.exerciseId) === 'disliked' ? AMBER : MUTED}
+                  />
+                </Pressable>
+              </View>
+              <ThemedText themeColor="textSecondary" style={styles.prefHint}>
+                <Ionicons name="thumbs-up" size={12} color={GREEN} /> tus favoritos aparecerán con más frecuencia. <Ionicons name="thumbs-down" size={12} color={AMBER} /> no volverán a aparecer en tu plan — puedes deshacerlo cuando quieras desde tu perfil.
+              </ThemedText>
             </View>
 
             {/* Navegación entre ejercicios */}
@@ -1369,6 +1411,12 @@ const styles = StyleSheet.create({
   addSetText:   { color: GREEN, fontSize: 14 },
   removeSetBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   removeSetText:{ fontSize: 14 },
+
+  // Preferencia del ejercicio
+  prefSection: { alignItems: 'center', gap: 6, marginTop: Spacing.two, marginBottom: Spacing.one },
+  prefRow: { flexDirection: 'row', gap: 16 },
+  prefBtn: { padding: 4 },
+  prefHint: { fontSize: 12, textAlign: 'center', paddingHorizontal: Spacing.four, lineHeight: 18 },
 
   // Exercise nav
   exNav: {
