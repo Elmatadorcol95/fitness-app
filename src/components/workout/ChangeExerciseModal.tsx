@@ -84,7 +84,7 @@ export function ChangeExerciseModal({
         </View>
 
         <ThemedText themeColor="textSecondary" style={styles.prefHint}>
-          👍 tus favoritos aparecerán con más frecuencia. 👎 no volverán a aparecer en tu plan — puedes deshacerlo cuando quieras desde tu perfil.
+          <Ionicons name="thumbs-up" size={13} color={GREEN} /> tus favoritos aparecerán con más frecuencia. <Ionicons name="thumbs-down" size={13} color={AMBER} /> no volverán a aparecer en tu plan — puedes deshacerlo cuando quieras desde tu perfil.
         </ThemedText>
 
         {alternatives.length === 0 ? (

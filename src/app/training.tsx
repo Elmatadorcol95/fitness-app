@@ -22,7 +22,7 @@ import { getExerciseName, getAlternatives, canDoAtHome, EXERCISES, type Exercise
 import { getExerciseTargetsForPlan } from '@/lib/progression';
 import { generateWarmup } from '@/lib/warmupGenerator';
 import type { PlannedExercise } from '@/lib/plan-generator';
-import { getDislikedIds } from '@/lib/exercisePreferences';
+import { getDislikedIds, getAllPreferences, togglePreference, type Preference } from '@/lib/exercisePreferences';
 
 const GREEN = '#3FBF7F';
 const AMBER = '#F2B450';
@@ -136,6 +136,7 @@ export default function TrainingScreen() {
   });
   // targetMap: exerciseId → { weightKg, reason } del sistema de progresión
   const [targetMap, setTargetMap] = useState<Record<string, { weightKg: number | null; reason: string | null }>>({});
+  const [preferencesMap, setPreferencesMap] = useState<Map<string, Preference>>(new Map());
   const [isStarting,   setIsStarting]  = useState(false);
   const [whereOpen,    setWhereOpen]   = useState(false);
   const [startError,   setStartError]  = useState('');
@@ -166,6 +167,10 @@ export default function TrainingScreen() {
       }
       setTargetMap(map);
     })();
+  }, [currentPlan?.id, currentPlan?.activeDayIndex]);
+
+  useEffect(() => {
+    getAllPreferences().then(setPreferencesMap);
   }, [currentPlan?.id, currentPlan?.activeDayIndex]);
 
   async function startRealSession(context: 'gym' | 'home' | null) {
@@ -308,6 +313,19 @@ export default function TrainingScreen() {
     } else {
       void doStartSession(null);
     }
+  }
+
+  async function handleTogglePreference(exerciseId: string, preference: Preference) {
+    await togglePreference(exerciseId, preference);
+    setPreferencesMap(prev => {
+      const next = new Map(prev);
+      if (next.get(exerciseId) === preference) {
+        next.delete(exerciseId);
+      } else {
+        next.set(exerciseId, preference);
+      }
+      return next;
+    });
   }
 
   // ── Loading ──────────────────────────────────────────────────────────────────
@@ -460,6 +478,8 @@ export default function TrainingScreen() {
                 exIdx:   i,
                 exId:    ex.exerciseId,
               })}
+              preference={preferencesMap.get(ex.exerciseId) ?? null}
+              onTogglePreference={(pref) => handleTogglePreference(ex.exerciseId, pref)}
             />
           ))}
 

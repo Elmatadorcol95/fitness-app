@@ -8,6 +8,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { getExerciseName, EXERCISES, type ExerciseCategory } from '@/lib/exercises';
 import type { PlannedExercise } from '@/lib/plan-generator';
 import { Spacing } from '@/constants/theme';
+import type { Preference } from '@/lib/exercisePreferences';
 
 const GREEN = '#3FBF7F';
 const AMBER = '#F2B450';
@@ -83,9 +84,11 @@ interface Props {
   lang: 'es' | 'en' | 'fr';
   onChangeExercise: () => void;
   bodyweightLabel: string;  // "Peso corporal" / "Bodyweight" / "Poids du corps"
+  preference: Preference | null;
+  onTogglePreference: (preference: Preference) => void;
 }
 
-export function ExerciseCard({ plannedEx, lastWeightKg, progressionReason, lang, onChangeExercise, bodyweightLabel }: Props) {
+export function ExerciseCard({ plannedEx, lastWeightKg, progressionReason, lang, onChangeExercise, bodyweightLabel, preference, onTogglePreference }: Props) {
   const router = useRouter();
   const theme  = useTheme();
 
@@ -130,6 +133,20 @@ export function ExerciseCard({ plannedEx, lastWeightKg, progressionReason, lang,
             <ThemedText type="defaultSemiBold" style={styles.name} numberOfLines={2}>
               {name}
             </ThemedText>
+            <Pressable onPress={() => onTogglePreference('liked')} hitSlop={10} style={styles.prefBtn}>
+              <Ionicons
+                name={preference === 'liked' ? 'thumbs-up' : 'thumbs-up-outline'}
+                size={16}
+                color={preference === 'liked' ? GREEN : MUTED}
+              />
+            </Pressable>
+            <Pressable onPress={() => onTogglePreference('disliked')} hitSlop={10} style={styles.prefBtn}>
+              <Ionicons
+                name={preference === 'disliked' ? 'thumbs-down' : 'thumbs-down-outline'}
+                size={16}
+                color={preference === 'disliked' ? AMBER : MUTED}
+              />
+            </Pressable>
             <Pressable onPress={onChangeExercise} hitSlop={12} style={styles.menuBtn}>
               <Ionicons name="ellipsis-horizontal" size={20} color={MUTED} />
             </Pressable>
@@ -208,6 +225,7 @@ const styles = StyleSheet.create({
   nameRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
   name:     { flex: 1, fontSize: 15, lineHeight: 20 },
   menuBtn:  { paddingLeft: 4, paddingTop: 1 },
+  prefBtn:  { paddingHorizontal: 2, paddingTop: 1 },
   muscles:  { fontSize: 12 },
   equipment:{ fontSize: 12 },
   divider:  { height: 1, marginVertical: 4 },
