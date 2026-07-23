@@ -1,5 +1,5 @@
 import { EXERCISES, type Exercise } from './exercises';
-import { canDoExercise } from './plan-generator';
+import { isExerciseUsable } from './plan-generator';
 
 export interface PlannedCardioBlock {
   exerciseId: string;
@@ -39,8 +39,8 @@ const CARDIO_BLOCK_SECONDS = 600; // 10 min fijos por hueco de gimnasio (decisi√
 const HOME_SESSION_SECONDS = 300; // 5 min por sesi√≥n de casa
 const HOME_SESSION_REST_SECONDS = 90; // descanso por defecto entre sesiones de casa (editable en la UI, esto es solo el valor inicial)
 
-function selectGymCardio(slots: number, excludeIds: Set<string>, cycle: CardioCycleState): PlannedCardioBlock[] {
-  const pool = EXERCISES.filter(e => e.category === 'cardio' && e.equipment.includes('cardioMachine'));
+function selectGymCardio(slots: number, excludeIds: Set<string>, cycle: CardioCycleState, dislikedIds: Set<string>): PlannedCardioBlock[] {
+  const pool = EXERCISES.filter(e => e.category === 'cardio' && e.equipment.includes('cardioMachine') && !dislikedIds.has(e.id));
   const blocks: PlannedCardioBlock[] = [];
   const chosenIds = new Set<string>();
 
@@ -71,9 +71,10 @@ function selectHomeCardioSessions(
   equipment: string[],
   excludeIds: Set<string>,
   cycle: CardioCycleState,
+  dislikedIds: Set<string>,
 ): HomeCardioSession[] {
   const sessionCount = slots * 2;
-  const pool = EXERCISES.filter(e => e.category === 'cardio' && canDoExercise(e, equipment, false));
+  const pool = EXERCISES.filter(e => e.category === 'cardio' && isExerciseUsable(e, equipment, false, dislikedIds));
   const sessions: HomeCardioSession[] = [];
   const chosenIdsAllSessions = new Set<string>();
 
@@ -112,9 +113,10 @@ export function selectCardio(
   isGym: boolean,
   excludeIds: Set<string>,
   cycle: CardioCycleState,
+  dislikedIds: Set<string> = new Set(),
 ): CardioPlan {
   if (slots <= 0) return { gym: [], homeSessions: [] };
   return isGym
-    ? { gym: selectGymCardio(slots, excludeIds, cycle), homeSessions: [] }
-    : { gym: [], homeSessions: selectHomeCardioSessions(slots, equipment, excludeIds, cycle) };
+    ? { gym: selectGymCardio(slots, excludeIds, cycle, dislikedIds), homeSessions: [] }
+    : { gym: [], homeSessions: selectHomeCardioSessions(slots, equipment, excludeIds, cycle, dislikedIds) };
 }

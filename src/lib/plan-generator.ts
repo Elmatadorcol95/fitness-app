@@ -1,6 +1,7 @@
 import { parseMusclePriorities, type Exercise, type MuscleGroup } from './exercises';
 import { selectExercisesForDayByMuscle } from './muscleBasedSelection';
 import { selectCardio, createCardioCycleState, type CardioPlan } from './cardioSelection';
+import { getDislikedIds } from './exercisePreferences';
 
 export type DayType = 'full_body' | 'push' | 'pull' | 'legs' | 'upper' | 'lower';
 export type GoalKey  = 'strength' | 'hypertrophy' | 'fat_loss';
@@ -99,6 +100,10 @@ export function canDoExercise(ex: Exercise, equipment: string[], isGym: boolean)
   return ex.equipment.every(eq => equipment.includes(eq));
 }
 
+export function isExerciseUsable(ex: Exercise, equipment: string[], isGym: boolean, dislikedIds: Set<string>): boolean {
+  return canDoExercise(ex, equipment, isGym) && !dislikedIds.has(ex.id);
+}
+
 // Solo la barra con discos acepta rangos de fuerza bajos (3-5, 4-6 reps)
 const BARBELL_EQUIP = new Set(['barbellPlates']);
 
@@ -125,8 +130,9 @@ async function selectExercisesForDay(
   scheme: RepScheme,
   excludeIds: Set<string>,
   musclePriorities: MuscleGroup[] = [],
+  dislikedIds: Set<string> = new Set(),
 ): Promise<PlannedExercise[]> {
-  const selected = await selectExercisesForDayByMuscle(dayType, equipment, isGym, counts, excludeIds, musclePriorities);
+  const selected = await selectExercisesForDayByMuscle(dayType, equipment, isGym, counts, excludeIds, musclePriorities, dislikedIds);
   const compounds  = selected.filter(s => s.isCompound).map(s => s.exercise);
   const isolations = selected.filter(s => !s.isCompound).map(s => s.exercise);
 
@@ -166,6 +172,7 @@ export async function generatePlan(profile: {
   // bloquea la generación. Hoy nadie las fija todavía (sin UI), así que esto
   // es [] para todos los usuarios y la generación resulta idéntica a la anterior.
   const musclePriorities = parseMusclePriorities(profile.musclePriorities).slice(0, 6);
+  const dislikedIds = await getDislikedIds();
 
   // Secuencial (no en paralelo): cada día necesita conocer los ejercicios ya
   // elegidos por los días anteriores de ESTA generación, vía excludeIds.
@@ -173,9 +180,9 @@ export async function generatePlan(profile: {
   const cardioCycle = createCardioCycleState();
   const days: PlanDayData[] = [];
   for (const [i, dayType] of split.entries()) {
-    const exercises = await selectExercisesForDay(dayType, equipment, isGym, reducedCounts, scheme, usedThisWeek, musclePriorities);
+    const exercises = await selectExercisesForDay(dayType, equipment, isGym, reducedCounts, scheme, usedThisWeek, musclePriorities, dislikedIds);
     for (const ex of exercises) usedThisWeek.add(ex.exerciseId);
-    const cardio = selectCardio(cardioSlots, equipment, isGym, usedThisWeek, cardioCycle);
+    const cardio = selectCardio(cardioSlots, equipment, isGym, usedThisWeek, cardioCycle, dislikedIds);
     for (const c of cardio.gym) usedThisWeek.add(c.exerciseId);
     for (const session of cardio.homeSessions) {
       for (const c of session.blocks) usedThisWeek.add(c.exerciseId);

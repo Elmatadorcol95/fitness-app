@@ -1,7 +1,7 @@
 import { EXERCISES, type Exercise, type MuscleGroup } from './exercises';
 import { findTargetByKey, getTargetsForDayType, targetIsPrioritized, type MuscleTarget } from './muscleTargets';
 import { getUsedExerciseIds, resetMuscleCycle } from './muscleUsage';
-import { canDoExercise, type DayType } from './plan-generator';
+import { isExerciseUsable, type DayType } from './plan-generator';
 
 export interface MuscleSelectedExercise {
   exercise: Exercise;
@@ -57,9 +57,10 @@ export async function selectExercisesForDayByMuscle(
   counts: { compounds: number; isolations: number },
   excludeIds: Set<string>,
   musclePriorities: MuscleGroup[] = [],
+  dislikedIds: Set<string> = new Set(),
 ): Promise<MuscleSelectedExercise[]> {
   const targets = [...getTargetsForDayType(dayType)].sort((a, b) => a.bonusPriority - b.bonusPriority);
-  const available = EXERCISES.filter(e => ALLOWED_CATEGORIES.has(e.category) && canDoExercise(e, equipment, isGym));
+  const available = EXERCISES.filter(e => ALLOWED_CATEGORIES.has(e.category) && isExerciseUsable(e, equipment, isGym, dislikedIds));
 
   // Reordenación por prioridad muscular (Fase 0-B-1): los targets priorizados
   // pasan al frente, preservando el orden relativo original entre el resto
