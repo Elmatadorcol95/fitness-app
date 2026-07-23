@@ -1,7 +1,7 @@
 import { parseMusclePriorities, type Exercise, type MuscleGroup } from './exercises';
 import { selectExercisesForDayByMuscle } from './muscleBasedSelection';
 import { selectCardio, createCardioCycleState, type CardioPlan } from './cardioSelection';
-import { getDislikedIds } from './exercisePreferences';
+import { getDislikedIds, getLikedIds } from './exercisePreferences';
 
 export type DayType = 'full_body' | 'push' | 'pull' | 'legs' | 'upper' | 'lower';
 export type GoalKey  = 'strength' | 'hypertrophy' | 'fat_loss';
@@ -131,8 +131,9 @@ async function selectExercisesForDay(
   excludeIds: Set<string>,
   musclePriorities: MuscleGroup[] = [],
   dislikedIds: Set<string> = new Set(),
+  likedIds: Set<string> = new Set(),
 ): Promise<PlannedExercise[]> {
-  const selected = await selectExercisesForDayByMuscle(dayType, equipment, isGym, counts, excludeIds, musclePriorities, dislikedIds);
+  const selected = await selectExercisesForDayByMuscle(dayType, equipment, isGym, counts, excludeIds, musclePriorities, dislikedIds, likedIds);
   const compounds  = selected.filter(s => s.isCompound).map(s => s.exercise);
   const isolations = selected.filter(s => !s.isCompound).map(s => s.exercise);
 
@@ -173,6 +174,7 @@ export async function generatePlan(profile: {
   // es [] para todos los usuarios y la generación resulta idéntica a la anterior.
   const musclePriorities = parseMusclePriorities(profile.musclePriorities).slice(0, 6);
   const dislikedIds = await getDislikedIds();
+  const likedIds = await getLikedIds();
 
   // Secuencial (no en paralelo): cada día necesita conocer los ejercicios ya
   // elegidos por los días anteriores de ESTA generación, vía excludeIds.
@@ -180,7 +182,7 @@ export async function generatePlan(profile: {
   const cardioCycle = createCardioCycleState();
   const days: PlanDayData[] = [];
   for (const [i, dayType] of split.entries()) {
-    const exercises = await selectExercisesForDay(dayType, equipment, isGym, reducedCounts, scheme, usedThisWeek, musclePriorities, dislikedIds);
+    const exercises = await selectExercisesForDay(dayType, equipment, isGym, reducedCounts, scheme, usedThisWeek, musclePriorities, dislikedIds, likedIds);
     for (const ex of exercises) usedThisWeek.add(ex.exerciseId);
     const cardio = selectCardio(cardioSlots, equipment, isGym, usedThisWeek, cardioCycle, dislikedIds);
     for (const c of cardio.gym) usedThisWeek.add(c.exerciseId);

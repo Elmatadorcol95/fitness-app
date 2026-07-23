@@ -58,6 +58,7 @@ export async function selectExercisesForDayByMuscle(
   excludeIds: Set<string>,
   musclePriorities: MuscleGroup[] = [],
   dislikedIds: Set<string> = new Set(),
+  likedIds: Set<string> = new Set(),
 ): Promise<MuscleSelectedExercise[]> {
   const targets = [...getTargetsForDayType(dayType)].sort((a, b) => a.bonusPriority - b.bonusPriority);
   const available = EXERCISES.filter(e => ALLOWED_CATEGORIES.has(e.category) && isExerciseUsable(e, equipment, isGym, dislikedIds));
@@ -140,11 +141,18 @@ export async function selectExercisesForDayByMuscle(
   }
 
   function pickBest(candidates: Exercise[]): Exercise {
-    let best = candidates[0];
+    // Si alguno de los candidatos ya elegibles para este hueco tiene like,
+    // el desempate de siempre (cobertura incidental, luego orden de
+    // catálogo) se aplica SOLO entre los favoritos. Sin favoritos entre los
+    // candidatos, se comporta exactamente igual que antes.
+    const likedCandidates = candidates.filter(c => likedIds.has(c.id));
+    const pool = likedCandidates.length > 0 ? likedCandidates : candidates;
+
+    let best = pool[0];
     let bestScore = incidentalScore(best);
     let bestIdx = declOrder.get(best.id)!;
-    for (let i = 1; i < candidates.length; i++) {
-      const c = candidates[i];
+    for (let i = 1; i < pool.length; i++) {
+      const c = pool[i];
       const score = incidentalScore(c);
       const idx = declOrder.get(c.id)!;
       if (score > bestScore || (score === bestScore && idx < bestIdx)) {
