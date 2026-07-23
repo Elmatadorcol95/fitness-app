@@ -154,6 +154,7 @@
       "physicalSection": "Physical data",
       "equipmentSection": "Equipment",
       "musclePrioritiesSection": "Muscle priority",
+      "exercisePreferencesSection": "Exercise preferences",
       "signOut": "Sign out / reset",
       "signOutMsg": "Local data will be cleared. You will return to the start screen.",
       "signOutConfirm": "Confirm",
@@ -500,5 +501,13 @@
       "core_abdomen": "Core/Abs", "back": "Back", "triceps": "Triceps",
       "glutes": "Glutes", "hamstrings": "Hamstrings", "calves": "Calves"
     }
+  },
+  "exercisePreferences": {
+    "title": "Exercise preferences",
+    "editBtn": "Edit",
+    "summary": "Manage your favorite and disliked exercises.",
+    "empty": "You haven't marked any exercise as liked or disliked yet. You can do so from any exercise in your plan or when swapping it.",
+    "likedSection": "Favorites",
+    "dislikedSection": "Disliked"
   }
 }

@@ -21,6 +21,7 @@ import AppTabs            from '@/components/app-tabs';
 import SessionScreen      from '@/app/session';
 import EquipmentScreen    from '@/app/equipment';
 import MusclePrioritiesScreen from '@/app/musclePriorities';
+import ExercisePreferencesScreen from '@/app/exercisePreferences';
 import WarmupScreen       from '@/app/warmup';
 import CooldownScreen     from '@/app/cooldown';
 import { useSessionStore } from '@/store/session.store';
@@ -167,6 +168,7 @@ export default function RootLayout() {
   const isSessionActive    = useSessionStore(s => s.isActive);
   const isEquipmentVisible = useProfileStore(s => s.equipmentVisible);
   const isMusclePrioritiesVisible = useProfileStore(s => s.musclePrioritiesVisible);
+  const isExercisePreferencesVisible = useProfileStore(s => s.exercisePreferencesVisible);
   const isWarmupActive     = useWarmupStore(s => s.active);
   const isCooldownActive   = useCooldownStore(s => s.active);
   const stillLoading   = !migrationsReady || isProfileLoading || isAuthLoading;
@@ -217,6 +219,12 @@ export default function RootLayout() {
       {isMusclePrioritiesVisible && (
         <View style={StyleSheet.absoluteFill}>
           <MusclePrioritiesScreen />
+        </View>
+      )}
+      {/* Pantalla de preferencias de ejercicios — overlay sobre las tabs */}
+      {isExercisePreferencesVisible && (
+        <View style={StyleSheet.absoluteFill}>
+          <ExercisePreferencesScreen />
         </View>
       )}
       {/* Pantalla de calentamiento — overlay sobre las tabs */}

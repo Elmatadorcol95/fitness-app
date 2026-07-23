@@ -154,6 +154,7 @@
       "physicalSection": "Datos físicos",
       "equipmentSection": "Equipamiento",
       "musclePrioritiesSection": "Prioridad muscular",
+      "exercisePreferencesSection": "Preferencias de ejercicios",
       "signOut": "Cerrar sesión / reiniciar",
       "signOutMsg": "Se borrarán los datos locales. Volverás a la pantalla de inicio.",
       "signOutConfirm": "Confirmar",
@@ -500,5 +501,13 @@
       "core_abdomen": "Core/Abdomen", "back": "Espalda", "triceps": "Tríceps",
       "glutes": "Glúteos", "hamstrings": "Isquiotibiales", "calves": "Gemelos"
     }
+  },
+  "exercisePreferences": {
+    "title": "Preferencias de ejercicios",
+    "editBtn": "Editar",
+    "summary": "Gestiona tus ejercicios favoritos y rechazados.",
+    "empty": "Aún no has marcado ningún ejercicio como favorito o rechazado. Puedes hacerlo desde cualquier ejercicio en tu plan o al cambiarlo.",
+    "likedSection": "Favoritos",
+    "dislikedSection": "Rechazados"
   }
 }

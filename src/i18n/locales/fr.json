@@ -154,6 +154,7 @@
       "physicalSection": "Données physiques",
       "equipmentSection": "Équipement",
       "musclePrioritiesSection": "Priorité musculaire",
+      "exercisePreferencesSection": "Préférences d'exercices",
       "signOut": "Se déconnecter / réinitialiser",
       "signOutMsg": "Les données locales seront effacées. Vous reviendrez à l'écran de départ.",
       "signOutConfirm": "Confirmer",
@@ -500,5 +501,13 @@
       "core_abdomen": "Core/Abdominaux", "back": "Dos", "triceps": "Triceps",
       "glutes": "Fessiers", "hamstrings": "Ischio-jambiers", "calves": "Mollets"
     }
+  },
+  "exercisePreferences": {
+    "title": "Préférences d'exercices",
+    "editBtn": "Modifier",
+    "summary": "Gérez vos exercices favoris et rejetés.",
+    "empty": "Vous n'avez encore marqué aucun exercice comme favori ou rejeté. Vous pouvez le faire depuis n'importe quel exercice de votre plan ou lors d'un changement.",
+    "likedSection": "Favoris",
+    "dislikedSection": "Rejetés"
   }
 }

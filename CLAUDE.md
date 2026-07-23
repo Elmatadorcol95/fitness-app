@@ -1574,6 +1574,66 @@ Bucle ~1.3 s sobre fondo #141A17:
     en una nota anterior, no se construyó — quedó superado por el diseño
     final (duración editable en minutos + cuenta regresiva homogénea con
     el descanso de series).
+- Hecho: sesión 2026-07-23 — **Feature completo: preferencias de ejercicios
+  (like/dislike), capas 1a a 7b**, construido en pasos pequeños con
+  verificación "Paso 0" (`npx tsc --noEmit` + `git diff` literal en cada
+  turno) y comiteado por Juan directamente fuera de la conversación en
+  varios puntos (`7ec800f` a `1ff60d9`, detectado por `git log` a mitad de
+  sesión — mismo patrón que en sesiones anteriores):
+  * **Capa 1 (paso 1a)** — cimientos: tabla `exercise_preferences`
+    (`exercise_id` PK, `preference: 'liked'|'disliked'`, `updated_at`) vía
+    migración manual `0012_exercise_preferences.sql` (timestamp real
+    `1784799311803`, verificado > máximo anterior `1784623620008` de la
+    entrada idx 11); `src/lib/exercisePreferences.ts` — `togglePreference`
+    (alterna, sin estado "neutral" explícito: ausencia de fila = neutral),
+    `getDislikedIds`/`getLikedIds`/`getAllPreferences`. Verificación en frío
+    con `node:sqlite`, cadena 0000→0012, instalación limpia y datos ya
+    existentes.
+  * **Capa 2a** — `isExerciseUsable()` (nueva, en `plan-generator.ts`:
+    `canDoExercise(...) && !dislikedIds.has(ex.id)`) enganchada en el camino
+    de generación de fuerza (`muscleBasedSelection.ts`, filtro `available`)
+    y cardio (`cardioSelection.ts`, gimnasio y casa). `dislikedIds` se carga
+    UNA VEZ en `generatePlan()` y baja por parámetro — mismo patrón que
+    `musclePriorities`/`usedThisWeek`.
+  * **Capa 2b** — mismo filtro enganchado en calentamiento
+    (`warmupGenerator.ts`) y estiramiento (`cooldownGenerator.ts`);
+    `dislikedIds` añadido al estado de `warmup.store.ts`/`cooldown.store.ts`
+    (se carga al iniciar cada flujo — `cooldown.store.ts` vía
+    `chooseMinutes` ahora async, `training.tsx` vía `handleWarmupMinutes`
+    ahora async).
+  * **Capa 3** — el *like* desempata dentro de `pickBest()`
+    (`muscleBasedSelection.ts`): si algún candidato ya elegible tiene like,
+    el desempate de siempre (cobertura incidental → orden de catálogo) se
+    aplica SOLO entre los favoritos; sin favoritos, comportamiento idéntico
+    al anterior. `likedIds` cargado una vez en `generatePlan()` (NO aplica a
+    cardio, según lo acordado).
+  * **Capa 4** — botones 👍/👎 (Ionicons `thumbs-up`/`thumbs-down`, no
+    emoji) + mensaje explicativo en `ChangeExerciseModal.tsx`, cargando/
+    alternando preferencias por su cuenta (`getAllPreferences`/
+    `togglePreference` al abrirse). Confirmado que el `Pressable` anidado no
+    dispara el `onSelect` del `Pressable` padre de la fila (mismo patrón ya
+    en uso en `ExerciseCard.tsx` con `menuBtn`).
+  * **Capa 5** — mismos botones en `ExerciseCard.tsx` (pantalla Entreno),
+    con `preferencesMap` cargado una sola vez en `training.tsx` (mismo
+    patrón que `targetMap` de progresión) y pasado por prop
+    (`preference`/`onTogglePreference`).
+  * **Sesión en vivo** — mismos botones + mismo mensaje explicativo en
+    `session.tsx`, justo debajo de la tabla de series y antes de la
+    navegación entre ejercicios; `preferencesMap` propio del componente,
+    cargado una vez al montar (`useEffect` sin dependencias).
+  * **Capa 7a/7b** — pantalla completa `src/app/exercisePreferences.tsx`
+    (lista Favoritos/Rechazados con nombre + botones, estado vacío con
+    copy propio) montada como overlay en `_layout.tsx` (mismo patrón que
+    `EquipmentScreen`/`MusclePrioritiesScreen`, flags
+    `exercisePreferencesVisible`/`openExercisePreferences`/
+    `closeExercisePreferences` en `profile.store.ts`); nueva sección
+    "Preferencias de ejercicios" en `profile.tsx` (clon visual exacto de la
+    sección "Prioridad muscular", resumen de texto fijo — sin conteo
+    dinámico); i18n `exercisePreferencesSection` (dentro de `tabs.profile`)
+    + bloque raíz `exercisePreferences.*` completo en es/en/fr.
+  * Todo JS puro — sin módulos nativos, solo recarga. `npx tsc --noEmit`
+    limpio verificado en cada paso.
+  * Sin trabajo pendiente conocido en este feature.
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
@@ -1610,9 +1670,12 @@ Bucle ~1.3 s sobre fondo #141A17:
 - ~~FASE 3 — Cardio según objetivo (pasos 3-A a 3-K)~~ ✓ Completado (JS,
   recarga). Pendiente sin fecha: intercambio (swap) de bloques de cardio,
   hoy deshabilitado a propósito.
-- FASE 0-B-1 — Motor de priorización muscular: Pasos 1-2 completos (datos +
-  conectado al generador, sin UI). Paso 3 (pantalla) EN EXPLORACIÓN — Opción
-  A (SVG) vs Opción B (foto + calibración), pendiente decisión de Juan.
+- ~~FASE 0-B-1 — Motor de priorización muscular~~ ✓ Completado (Pasos 1-3:
+  datos + generador + pantalla real en Perfil y onboarding, Opción B foto+
+  etiquetas ganó la exploración).
+- ~~Preferencias de ejercicios (like/dislike)~~ ✓ Completado (capas 1a-7b:
+  motor de generación + UI en ChangeExerciseModal/ExerciseCard/session.tsx
+  + pantalla dedicada en Perfil, JS, recarga).
 - FASE D — Deloads automáticos, gráfica de fuerza (1RM) en pestaña Progreso.
 
 ## IMPORTANTE
