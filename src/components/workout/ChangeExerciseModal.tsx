@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -7,6 +8,7 @@ import { EXERCISES, getAlternatives, getExerciseName } from '@/lib/exercises';
 import { muscleLabel, equipmentLabel } from '@/components/workout/ExerciseCard';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/theme';
+import { getAllPreferences, togglePreference, type Preference } from '@/lib/exercisePreferences';
 
 const GREEN = '#3FBF7F';
 const MUTED = '#9DA89F';
@@ -45,6 +47,26 @@ export function ChangeExerciseModal({
   const normalizedLang = (lang.startsWith('fr') ? 'fr' : lang.startsWith('es') ? 'es' : 'en') as 'es' | 'en' | 'fr';
   const alternatives = getAlternatives(currentExerciseId, userEquipment, isGym);
 
+  const [preferences, setPreferences] = useState<Map<string, Preference>>(new Map());
+
+  useEffect(() => {
+    if (!visible) return;
+    getAllPreferences().then(setPreferences);
+  }, [visible]);
+
+  async function handleTogglePreference(exerciseId: string, preference: Preference) {
+    await togglePreference(exerciseId, preference);
+    setPreferences(prev => {
+      const next = new Map(prev);
+      if (next.get(exerciseId) === preference) {
+        next.delete(exerciseId);
+      } else {
+        next.set(exerciseId, preference);
+      }
+      return next;
+    });
+  }
+
   return (
     <Modal
       visible={visible}
@@ -60,6 +82,10 @@ export function ChangeExerciseModal({
             <Ionicons name="close" size={24} color={theme.textSecondary} />
           </Pressable>
         </View>
+
+        <ThemedText themeColor="textSecondary" style={styles.prefHint}>
+          👍 tus favoritos aparecerán con más frecuencia. 👎 no volverán a aparecer en tu plan — puedes deshacerlo cuando quieras desde tu perfil.
+        </ThemedText>
 
         {alternatives.length === 0 ? (
           <View style={styles.empty}>
@@ -105,6 +131,22 @@ export function ChangeExerciseModal({
                       {equipStr}
                     </ThemedText>
                   </View>
+                  <View style={styles.prefRow}>
+                    <Pressable onPress={() => handleTogglePreference(item.id, 'liked')} hitSlop={8} style={styles.prefBtn}>
+                      <Ionicons
+                        name={preferences.get(item.id) === 'liked' ? 'thumbs-up' : 'thumbs-up-outline'}
+                        size={18}
+                        color={preferences.get(item.id) === 'liked' ? GREEN : MUTED}
+                      />
+                    </Pressable>
+                    <Pressable onPress={() => handleTogglePreference(item.id, 'disliked')} hitSlop={8} style={styles.prefBtn}>
+                      <Ionicons
+                        name={preferences.get(item.id) === 'disliked' ? 'thumbs-down' : 'thumbs-down-outline'}
+                        size={18}
+                        color={preferences.get(item.id) === 'disliked' ? AMBER : MUTED}
+                      />
+                    </Pressable>
+                  </View>
                   <Ionicons name="chevron-forward" size={20} color={GREEN} />
                 </Pressable>
               );
@@ -141,6 +183,9 @@ const styles = StyleSheet.create({
   itemName:     { fontSize: 15 },
   itemMuscles:  { fontSize: 12 },
   itemEquip:    { fontSize: 11, color: MUTED },
+  prefHint: { fontSize: 12, textAlign: 'center', paddingHorizontal: Spacing.four, paddingBottom: Spacing.two, lineHeight: 18 },
+  prefRow:  { flexDirection: 'row', gap: 4 },
+  prefBtn:  { padding: 4 },
   empty:        {
     flex: 1,
     alignItems: 'center',
