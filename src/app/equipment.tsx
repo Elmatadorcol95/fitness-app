@@ -62,6 +62,8 @@ export default function EquipmentScreen() {
   const [equipment, setEquipment] = useState<string[]>(initialEquipment);
   const [saving, setSaving] = useState(false);
   const [regenOpen, setRegenOpen] = useState(false);
+  const [saveErrorMsg, setSaveErrorMsg] = useState('');
+  const [regenErrorMsg, setRegenErrorMsg] = useState('');
   const pendingProfile = useRef<typeof profile>(null);
 
   const isGym = location === 'gym';
@@ -96,6 +98,9 @@ export default function EquipmentScreen() {
       await updateEquipmentAndLocation(location, equipment);
       pendingProfile.current = { ...profile, location, equipment: JSON.stringify(equipment) };
       setRegenOpen(true);
+    } catch (err) {
+      console.error('[Equipment] Error al guardar equipamiento:', err);
+      setSaveErrorMsg(t('equipment.saveErrorMsg'));
     } finally {
       setSaving(false);
     }
@@ -223,10 +228,31 @@ export default function EquipmentScreen() {
               await generateAndSavePlan(pendingProfile.current);
             } catch (err) {
               console.error('[Equipment] Error al regenerar plan:', err);
+              setRegenErrorMsg(t('equipment.regenErrorMsg'));
             }
           }
           useProfileStore.getState().closeEquipment();
         }}
+      />
+
+      <VulcanDialog
+        visible={saveErrorMsg !== ''}
+        onClose={() => setSaveErrorMsg('')}
+        title={t('equipment.saveErrorTitle')}
+        message={saveErrorMsg}
+        confirmLabel="OK"
+        onConfirm={() => setSaveErrorMsg('')}
+        hideCancel
+      />
+
+      <VulcanDialog
+        visible={regenErrorMsg !== ''}
+        onClose={() => setRegenErrorMsg('')}
+        title={t('equipment.regenErrorTitle')}
+        message={regenErrorMsg}
+        confirmLabel="OK"
+        onConfirm={() => setRegenErrorMsg('')}
+        hideCancel
       />
     </ThemedView>
   );

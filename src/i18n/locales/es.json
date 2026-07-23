@@ -478,7 +478,11 @@
     "regenTitle": "Equipamiento actualizado",
     "regenMsg": "Tu equipamiento ha cambiado. ¿Quieres regenerar el plan de entrenamiento con los nuevos datos?",
     "regenYes": "Sí, regenerar",
-    "regenNo": "Mantener plan actual"
+    "regenNo": "Mantener plan actual",
+    "saveErrorTitle": "No se pudo guardar",
+    "saveErrorMsg": "Hubo un problema al guardar tu equipamiento. Inténtalo de nuevo.",
+    "regenErrorTitle": "Equipamiento guardado, plan no actualizado",
+    "regenErrorMsg": "Tu equipamiento se guardó, pero no se pudo regenerar el plan. Puedes intentarlo de nuevo más tarde desde Perfil."
   },
   "musclePriorities": {
     "title": "Prioridad muscular",

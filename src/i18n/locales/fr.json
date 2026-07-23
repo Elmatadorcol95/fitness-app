@@ -478,7 +478,11 @@
     "regenTitle": "Équipement mis à jour",
     "regenMsg": "Votre équipement a changé. Voulez-vous régénérer le plan d'entraînement avec les nouveaux paramètres ?",
     "regenYes": "Oui, régénérer",
-    "regenNo": "Garder le plan actuel"
+    "regenNo": "Garder le plan actuel",
+    "saveErrorTitle": "Impossible d'enregistrer",
+    "saveErrorMsg": "Un problème est survenu en enregistrant votre équipement. Veuillez réessayer.",
+    "regenErrorTitle": "Équipement enregistré, plan non mis à jour",
+    "regenErrorMsg": "Votre équipement a été enregistré, mais le plan n'a pas pu être régénéré. Vous pouvez réessayer plus tard depuis Profil."
   },
   "musclePriorities": {
     "title": "Priorité musculaire",

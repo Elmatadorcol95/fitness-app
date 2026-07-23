@@ -478,7 +478,11 @@
     "regenTitle": "Equipment updated",
     "regenMsg": "Your equipment has changed. Do you want to regenerate the workout plan with the new settings?",
     "regenYes": "Yes, regenerate",
-    "regenNo": "Keep current plan"
+    "regenNo": "Keep current plan",
+    "saveErrorTitle": "Couldn't save",
+    "saveErrorMsg": "There was a problem saving your equipment. Please try again.",
+    "regenErrorTitle": "Equipment saved, plan not updated",
+    "regenErrorMsg": "Your equipment was saved, but the plan couldn't be regenerated. You can try again later from Profile."
   },
   "musclePriorities": {
     "title": "Muscle priority",
