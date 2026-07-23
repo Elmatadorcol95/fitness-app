@@ -323,10 +323,10 @@
       "gym": "Salle de sport",
       "both": "Les deux",
       "gymNote": "✓ Équipement complet de salle disponible. Parfait !",
-      "noBackVarietyNote": "Sans barre de traction, TRX ou bandes de résistance, ton programme aura moins de variété d'exercices de dos.",
-      "noBicepWorkNote": "Sans haltères, barre avec disques ou bandes de résistance, ton programme n'inclura pas d'exercices de biceps.",
-      "noBackVarietyOrBicepNote": "Sans barre de traction, TRX, haltères, barre avec disques ou bandes de résistance, ton programme aura moins de variété de dos et pas d'exercices de biceps.",
-      "homeDaysQualifier": "Cela ne concerne que tes journées d'entraînement à domicile.",
+      "noBackVarietyNote": "Sans barre de traction, TRX ou bandes de résistance, votre programme aura moins de variété d'exercices de dos.",
+      "noBicepWorkNote": "Sans haltères, barre avec disques ou bandes de résistance, votre programme n'inclura pas d'exercices de biceps.",
+      "noBackVarietyOrBicepNote": "Sans barre de traction, TRX, haltères, barre avec disques ou bandes de résistance, votre programme aura moins de variété de dos et pas d'exercices de biceps.",
+      "homeDaysQualifier": "Cela ne concerne que vos journées d'entraînement à domicile.",
       "equipment": "Quel équipement avez-vous ?",
       "equipmentItems": {
         "bodyweight": "Poids du corps",
@@ -374,8 +374,8 @@
   },
   "workout": {
     "noplan": {
-      "title": "Ton programme d'entraînement",
-      "subtitle": "Génère ton programme personnalisé selon ton objectif et ton équipement",
+      "title": "Votre programme d'entraînement",
+      "subtitle": "Générez votre programme personnalisé selon votre objectif et votre équipement",
       "button": "Générer mon programme"
     },
     "days": {
@@ -396,7 +396,7 @@
       "noBackVariety": "Cette journée offre peu de variété d'exercices de dos faute d'équipement (barre de traction, TRX ou bandes de résistance).",
       "noBicepWork": "Cette journée n'inclut pas d'exercices de biceps faute d'équipement (haltères, barre avec disques ou bandes de résistance).",
       "noBackVarietyOrBicep": "Cette journée offre peu de variété de dos et pas d'exercices de biceps faute d'équipement.",
-      "homeEmptyDay": "Aucun exercice de cette journée n'a d'équivalent avec ton équipement à domicile. Ajoute de l'équipement ou entraîne-toi en salle pour compléter cette journée."
+      "homeEmptyDay": "Aucun exercice de cette journée n'a d'équivalent avec votre équipement à domicile. Ajoutez de l'équipement ou entraînez-vous en salle pour compléter cette journée."
     },
     "session": {
       "guide": "Guide",
