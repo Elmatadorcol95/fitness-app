@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { generateCooldown, type CooldownItem } from '@/lib/cooldownGenerator';
 import type { DayType } from '@/lib/plan-generator';
 import type { Exercise } from '@/lib/exercises';
+import { getDislikedIds } from '@/lib/exercisePreferences';
 
 interface PendingCooldownContext {
   dayType: DayType;
@@ -17,7 +18,8 @@ interface CooldownState {
   dayType: DayType | null;
   equipment: string[];
   isGym: boolean;
-  start: (items: CooldownItem[], dayType: DayType, equipment: string[], isGym: boolean) => void;
+  dislikedIds: Set<string>;
+  start: (items: CooldownItem[], dayType: DayType, equipment: string[], isGym: boolean, dislikedIds: Set<string>) => void;
   end: () => void;
   replaceAt: (index: number, exercise: Exercise, durationSeconds: number) => void;
 
@@ -28,7 +30,7 @@ interface CooldownState {
   promptAfterSession: (dayType: DayType, equipment: string[], isGym: boolean) => void;
   declinePrompt: () => void;
   acceptPrompt: () => void;
-  chooseMinutes: (minutes: 3 | 5 | 10 | 15) => void;
+  chooseMinutes: (minutes: 3 | 5 | 10 | 15) => Promise<void>;
   dismissAll: () => void;
 }
 
@@ -40,13 +42,14 @@ export const useCooldownStore = create<CooldownState>((set, get) => ({
   dayType: null,
   equipment: [],
   isGym: false,
+  dislikedIds: new Set(),
   promptOpen: false,
   minutesOpen: false,
   pending: null,
 
-  start: (items, dayType, equipment, isGym) =>
-    set({ items, active: true, dayType, equipment, isGym }),
-  end: () => set({ items: [], active: false, dayType: null, equipment: [], isGym: false }),
+  start: (items, dayType, equipment, isGym, dislikedIds) =>
+    set({ items, active: true, dayType, equipment, isGym, dislikedIds }),
+  end: () => set({ items: [], active: false, dayType: null, equipment: [], isGym: false, dislikedIds: new Set() }),
   replaceAt: (index, exercise, durationSeconds) => {
     const { items } = get();
     if (!items[index]) return;
@@ -59,12 +62,13 @@ export const useCooldownStore = create<CooldownState>((set, get) => ({
     set({ pending: { dayType, equipment, isGym }, promptOpen: true }),
   declinePrompt: () => set({ promptOpen: false, pending: null }),
   acceptPrompt: () => set({ promptOpen: false, minutesOpen: true }),
-  chooseMinutes: (minutes) => {
+  chooseMinutes: async (minutes) => {
     const { pending, start } = get();
     if (!pending) { set({ minutesOpen: false }); return; }
-    const items = generateCooldown(pending.dayType, pending.equipment, pending.isGym, minutes);
+    const dislikedIds = await getDislikedIds();
+    const items = generateCooldown(pending.dayType, pending.equipment, pending.isGym, minutes, dislikedIds);
     set({ minutesOpen: false, pending: null });
-    start(items, pending.dayType, pending.equipment, pending.isGym);
+    start(items, pending.dayType, pending.equipment, pending.isGym, dislikedIds);
   },
   dismissAll: () => set({ promptOpen: false, minutesOpen: false, pending: null }),
 }));

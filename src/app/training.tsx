@@ -22,6 +22,7 @@ import { getExerciseName, getAlternatives, canDoAtHome, EXERCISES, type Exercise
 import { getExerciseTargetsForPlan } from '@/lib/progression';
 import { generateWarmup } from '@/lib/warmupGenerator';
 import type { PlannedExercise } from '@/lib/plan-generator';
+import { getDislikedIds } from '@/lib/exercisePreferences';
 
 const GREEN = '#3FBF7F';
 const AMBER = '#F2B450';
@@ -271,15 +272,16 @@ export default function TrainingScreen() {
     setWarmupMinutesOpen(true);
   }
 
-  function handleWarmupMinutes(minutes: 5 | 10 | 15) {
+  async function handleWarmupMinutes(minutes: 5 | 10 | 15) {
     setWarmupMinutesOpen(false);
     if (!currentPlan) return;
     const activeIdx = currentPlan.activeDayIndex % currentPlan.days.length;
     const dayType    = currentPlan.days[activeIdx].dayType;
     // pendingContext: 'home' = casa; 'gym' o null (perfil solo-gym) = gimnasio.
     const warmupIsGym = pendingContext !== 'home';
-    const items = generateWarmup(dayType, equipment, warmupIsGym, minutes);
-    startWarmup(items, dayType, equipment, warmupIsGym);
+    const dislikedIds = await getDislikedIds();
+    const items = generateWarmup(dayType, equipment, warmupIsGym, minutes, dislikedIds);
+    startWarmup(items, dayType, equipment, warmupIsGym, dislikedIds);
   }
 
   // ── Fase 1b Paso 3: puente de finalización del calentamiento ────────────────

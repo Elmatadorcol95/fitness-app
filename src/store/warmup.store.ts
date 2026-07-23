@@ -13,7 +13,8 @@ interface WarmupState {
   dayType: DayType | null;
   equipment: string[];
   isGym: boolean;
-  start: (items: WarmupItem[], dayType: DayType, equipment: string[], isGym: boolean) => void;
+  dislikedIds: Set<string>;
+  start: (items: WarmupItem[], dayType: DayType, equipment: string[], isGym: boolean, dislikedIds: Set<string>) => void;
   end: () => void;
   // Reemplaza el ejercicio (y su duración) del ítem en `index` — usado por el
   // botón "Intercambiar" de cada tarjeta de la lista. La duración se decide
@@ -30,9 +31,10 @@ export const useWarmupStore = create<WarmupState>((set, get) => ({
   dayType: null,
   equipment: [],
   isGym: false,
-  start: (items, dayType, equipment, isGym) =>
-    set({ items, active: true, dayType, equipment, isGym }),
-  end: () => set({ items: [], active: false, dayType: null, equipment: [], isGym: false }),
+  dislikedIds: new Set(),
+  start: (items, dayType, equipment, isGym, dislikedIds) =>
+    set({ items, active: true, dayType, equipment, isGym, dislikedIds }),
+  end: () => set({ items: [], active: false, dayType: null, equipment: [], isGym: false, dislikedIds: new Set() }),
   replaceAt: (index, exercise, durationSeconds) => {
     const { items } = get();
     if (!items[index]) return;

@@ -1,5 +1,5 @@
 import { EXERCISES, type Exercise } from './exercises';
-import { canDoExercise, type DayType } from './plan-generator';
+import { isExerciseUsable, type DayType } from './plan-generator';
 
 export interface CooldownItem {
   exercise: Exercise;
@@ -30,13 +30,13 @@ function targetKeysFor(dayType: DayType): Array<'push' | 'pull' | 'legs'> {
   }
 }
 
-function getCooldownPool(dayType: DayType, equipment: string[], isGym: boolean): Exercise[] {
+function getCooldownPool(dayType: DayType, equipment: string[], isGym: boolean, dislikedIds: Set<string>): Exercise[] {
   const targets = targetKeysFor(dayType);
   return EXERCISES.filter(e => {
     if (e.category !== 'mobility') return false;
     // Acepta 'cooldown' y 'both' (dead_hang, etc.); excluye los solo-warmup.
     if (e.movementPhase !== 'cooldown' && e.movementPhase !== 'both') return false;
-    if (!canDoExercise(e, equipment, isGym)) return false;
+    if (!isExerciseUsable(e, equipment, isGym, dislikedIds)) return false;
 
     const isGeneral = !e.relevantDayTypes || e.relevantDayTypes.length === 0;
     if (isGeneral) return true;
@@ -70,9 +70,10 @@ export function generateCooldown(
   equipment: string[],
   isGym: boolean,
   totalMinutes: 3 | 5 | 10 | 15,
+  dislikedIds: Set<string> = new Set(),
 ): CooldownItem[] {
   const totalSeconds = totalMinutes * 60;
-  const pool = shuffle(getCooldownPool(dayType, equipment, isGym));
+  const pool = shuffle(getCooldownPool(dayType, equipment, isGym, dislikedIds));
   return fillCooldown(pool, totalSeconds);
 }
 
@@ -86,9 +87,10 @@ export function getCooldownAlternative(
   dayType: DayType,
   equipment: string[],
   isGym: boolean,
+  dislikedIds: Set<string> = new Set(),
 ): Exercise | null {
   if (currentItem.exercise.category !== 'mobility') return null;
 
-  const pool = getCooldownPool(dayType, equipment, isGym);
+  const pool = getCooldownPool(dayType, equipment, isGym, dislikedIds);
   return pool.find(e => !alreadyShownIds.includes(e.id)) ?? null;
 }

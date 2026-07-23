@@ -25,10 +25,11 @@ const DEFAULT_STRETCH_SECONDS = 30;
 export default function CooldownScreen() {
   const { t } = useTranslation();
 
-  const items      = useCooldownStore(s => s.items);
+  const items       = useCooldownStore(s => s.items);
   const dayType     = useCooldownStore(s => s.dayType);
   const equipment   = useCooldownStore(s => s.equipment);
   const isGym       = useCooldownStore(s => s.isGym);
+  const dislikedIds = useCooldownStore(s => s.dislikedIds);
   const end         = useCooldownStore(s => s.end);
   const replaceAt   = useCooldownStore(s => s.replaceAt);
 
@@ -68,7 +69,7 @@ export default function CooldownScreen() {
 
   const excludeIds = items.map(it => it.exercise.id);
   const alternatives = dayType
-    ? items.map(it => getCooldownAlternative(it, excludeIds, dayType, equipment, isGym))
+    ? items.map(it => getCooldownAlternative(it, excludeIds, dayType, equipment, isGym, dislikedIds))
     : items.map(() => null);
 
   function handlePlayPause(i: number) {

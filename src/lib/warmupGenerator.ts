@@ -1,5 +1,5 @@
 import { EXERCISES, type Exercise } from './exercises';
-import { canDoExercise, type DayType } from './plan-generator';
+import { isExerciseUsable, type DayType } from './plan-generator';
 
 export interface WarmupItem {
   exercise: Exercise;
@@ -15,14 +15,14 @@ function pickRandom<T>(items: T[]): T | undefined {
   return items[Math.floor(Math.random() * items.length)];
 }
 
-function getCardioOpenerPool(isGym: boolean): Exercise[] {
+function getCardioOpenerPool(isGym: boolean, dislikedIds: Set<string>): Exercise[] {
   return isGym
-    ? EXERCISES.filter(e => e.category === 'cardio' && e.equipment.includes('cardioMachine'))
-    : EXERCISES.filter(e => e.category === 'cardio' && e.equipment.length === 0);
+    ? EXERCISES.filter(e => e.category === 'cardio' && e.equipment.includes('cardioMachine') && !dislikedIds.has(e.id))
+    : EXERCISES.filter(e => e.category === 'cardio' && e.equipment.length === 0 && !dislikedIds.has(e.id));
 }
 
-function pickCardioOpener(isGym: boolean): WarmupItem | null {
-  const pool = getCardioOpenerPool(isGym);
+function pickCardioOpener(isGym: boolean, dislikedIds: Set<string>): WarmupItem | null {
+  const pool = getCardioOpenerPool(isGym, dislikedIds);
   const exercise = pickRandom(pool);
   if (!exercise) return null;
   return { exercise, durationSeconds: isGym ? GYM_CARDIO_OPEN_SECONDS : HOME_CARDIO_OPEN_SECONDS };
@@ -41,13 +41,13 @@ function targetKeysFor(dayType: DayType): Array<'push' | 'pull' | 'legs'> {
   }
 }
 
-function getWarmupMobilityPool(dayType: DayType, equipment: string[], isGym: boolean): Exercise[] {
+function getWarmupMobilityPool(dayType: DayType, equipment: string[], isGym: boolean, dislikedIds: Set<string>): Exercise[] {
   const targets = targetKeysFor(dayType);
   return EXERCISES.filter(e => {
     if (e.category !== 'mobility') return false;
     // Excluye explícitamente los ítems solo de enfriamiento (movementPhase 'cooldown').
     if (e.movementPhase !== 'warmup' && e.movementPhase !== 'both') return false;
-    if (!canDoExercise(e, equipment, isGym)) return false;
+    if (!isExerciseUsable(e, equipment, isGym, dislikedIds)) return false;
 
     const isGeneral = !e.relevantDayTypes || e.relevantDayTypes.length === 0;
     if (isGeneral) return true;
@@ -79,12 +79,13 @@ export function generateWarmup(
   equipment: string[],
   isGym: boolean,
   totalMinutes: 5 | 10 | 15,
+  dislikedIds: Set<string> = new Set(),
 ): WarmupItem[] {
   const totalSeconds = totalMinutes * 60;
-  const opener = pickCardioOpener(isGym);
+  const opener = pickCardioOpener(isGym, dislikedIds);
   const remainingSeconds = totalSeconds - (opener?.durationSeconds ?? 0);
 
-  const pool = getWarmupMobilityPool(dayType, equipment, isGym);
+  const pool = getWarmupMobilityPool(dayType, equipment, isGym, dislikedIds);
   const mobilityItems = fillMobility(pool, remainingSeconds);
 
   return opener ? [opener, ...mobilityItems] : mobilityItems;
@@ -100,15 +101,16 @@ export function getWarmupAlternative(
   equipment: string[],
   isGym: boolean,
   excludeIds: string[],
+  dislikedIds: Set<string> = new Set(),
 ): Exercise | null {
   const current = EXERCISES.find(e => e.id === currentExerciseId);
   if (!current) return null;
 
   let pool: Exercise[];
   if (current.category === 'cardio') {
-    pool = getCardioOpenerPool(isGym);
+    pool = getCardioOpenerPool(isGym, dislikedIds);
   } else if (current.category === 'mobility') {
-    pool = getWarmupMobilityPool(dayType, equipment, isGym);
+    pool = getWarmupMobilityPool(dayType, equipment, isGym, dislikedIds);
   } else {
     return null;
   }

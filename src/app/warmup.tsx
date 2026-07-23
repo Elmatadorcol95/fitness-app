@@ -26,12 +26,13 @@ const DEFAULT_MOBILITY_SECONDS = 30;
 export default function WarmupScreen() {
   const { t } = useTranslation();
 
-  const items      = useWarmupStore(s => s.items);
-  const dayType    = useWarmupStore(s => s.dayType);
-  const equipment  = useWarmupStore(s => s.equipment);
-  const isGym      = useWarmupStore(s => s.isGym);
-  const end        = useWarmupStore(s => s.end);
-  const replaceAt  = useWarmupStore(s => s.replaceAt);
+  const items       = useWarmupStore(s => s.items);
+  const dayType     = useWarmupStore(s => s.dayType);
+  const equipment   = useWarmupStore(s => s.equipment);
+  const isGym       = useWarmupStore(s => s.isGym);
+  const dislikedIds = useWarmupStore(s => s.dislikedIds);
+  const end         = useWarmupStore(s => s.end);
+  const replaceAt   = useWarmupStore(s => s.replaceAt);
 
   const [runningIndex, setRunningIndex] = useState<number | null>(null);
   const [remaining, setRemaining] = useState<number[]>(() => items.map(i => i.durationSeconds));
@@ -69,7 +70,7 @@ export default function WarmupScreen() {
 
   const excludeIds = items.map(it => it.exercise.id);
   const alternatives = dayType
-    ? items.map(it => getWarmupAlternative(it.exercise.id, dayType, equipment, isGym, excludeIds))
+    ? items.map(it => getWarmupAlternative(it.exercise.id, dayType, equipment, isGym, excludeIds, dislikedIds))
     : items.map(() => null);
 
   function handlePlayPause(i: number) {
