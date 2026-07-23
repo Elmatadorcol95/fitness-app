@@ -85,6 +85,13 @@
       "when": 1784623620008,
       "tag": "0011_plan_days_cardio",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1784799311803,
+      "tag": "0012_exercise_preferences",
+      "breakpoints": true
     }
   ]
 }

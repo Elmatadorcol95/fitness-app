@@ -159,6 +159,14 @@ export const exerciseRestPrefs = sqliteTable('exercise_rest_prefs', {
   updatedAt: integer('updated_at').notNull(),
 });
 
+export const exercisePreferences = sqliteTable('exercise_preferences', {
+  exerciseId: text('exercise_id').primaryKey().notNull(),
+  preference: text('preference').notNull(), // 'liked' | 'disliked'
+  updatedAt: integer('updated_at').notNull(),
+});
+
+export type ExercisePreference = typeof exercisePreferences.$inferSelect;
+
 // ── Objetivos musculares — rotación de ejercicios ya usados por músculo ──────
 
 export const muscleExerciseUsage = sqliteTable('muscle_exercise_usage', {
