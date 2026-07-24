@@ -17,6 +17,7 @@ export const profile = sqliteTable('profile', {
   musclePriorities: text('muscle_priorities').notNull().default('[]'),
   injuries: text('injuries').default(''),
   units: text('units').notNull().default('metric'),
+  planMode: text('plan_mode').notNull().default('auto'), // 'auto' | 'manual'
   createdAt: integer('created_at').notNull(),
 });
 
@@ -178,3 +179,36 @@ export const muscleExerciseUsage = sqliteTable('muscle_exercise_usage', {
 ]);
 
 export type MuscleExerciseUsage = typeof muscleExerciseUsage.$inferSelect;
+
+// ── Plan propio (constructor manual) — Fase B ─────────────────────────────────
+// Un plan propio coexiste con el automático vía profile.planMode ('auto'|'manual').
+// Cada fila de routine_templates es UN DÍA de la plantilla (mismo patrón que
+// plan_days para el plan automático); context distingue gym/casa — un usuario
+// location:'both' tiene DOS plantillas independientes (dos tandas de filas,
+// nunca compartidas), una por context.
+
+export const routineTemplates = sqliteTable('routine_templates', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  context: text('context').notNull(), // 'gym' | 'home'
+  dayIndex: integer('day_index').notNull(),
+  dayType: text('day_type').notNull(), // DayType — solo push/pull/legs/full_body en el constructor
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+export type RoutineTemplate = typeof routineTemplates.$inferSelect;
+
+export const routineTemplateSlots = sqliteTable('routine_template_slots', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  templateId: integer('template_id').notNull(),
+  slotIndex: integer('slot_index').notNull(),
+  muscleGroup: text('muscle_group').notNull(), // MuscleGroup
+  exerciseId: text('exercise_id'), // null = slot aún sin elegir
+  sets: integer('sets'),
+  repRangeMin: integer('rep_range_min'),
+  repRangeMax: integer('rep_range_max'),
+  restSeconds: integer('rest_seconds'),
+  notes: text('notes'),
+});
+
+export type RoutineTemplateSlot = typeof routineTemplateSlots.$inferSelect;

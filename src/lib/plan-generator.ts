@@ -56,7 +56,7 @@ function getRepScheme(primary: GoalKey, secondary?: GoalKey | null): RepScheme {
     : { compoundSets: 3, compoundReps: '12-15', compoundRest: 60, isolationSets: 3, isolationReps: '15-20', isolationRest: 45 };
 }
 
-function getExerciseCounts(minutes: number): { compounds: number; isolations: number } {
+export function getExerciseCounts(minutes: number): { compounds: number; isolations: number } {
   if (minutes <= 20) return { compounds: 2, isolations: 1 };
   if (minutes <= 30) return { compounds: 2, isolations: 2 };
   if (minutes <= 45) return { compounds: 3, isolations: 2 };
