@@ -1637,6 +1637,78 @@ Bucle ~1.3 s sobre fondo #141A17:
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
+## Constructor de rutina propia — EN PROGRESO (backend completo, sin UI)
+
+Arquitectura de 8 fases (A-H). Completadas A, B, B-bis, C1, C2. Pendientes
+D, E, F, G, H — nada de esto está conectado a ninguna pantalla todavía.
+
+**Decisiones de producto ya cerradas (no reabrir):**
+- Exclusividad total con el modo automático — nunca ambos corriendo a la vez.
+  Botón "generar mi plan" se divide en "...automáticamente" / "crear mi
+  propio plan" en el estado vacío de Entreno.
+- El plan propio se repite igual cada semana (no varía como el automático).
+- Slots SIN prerelleno — el usuario elige cada ejercicio, nunca se le
+  propone uno por defecto (decisión UX explícita: debe sentirse como
+  "construir", no como "editar una rutina ya hecha").
+- Días del constructor: solo push/pull/legs/full_body. Upper/lower quedan
+  dormidos — "legs" puede mostrarse en UI futura como "Piernas/Core" pero
+  sigue siendo el mismo dayType 'legs', nunca un valor nuevo.
+- Usuarios location:'both' tienen DOS plantillas independientes (contexto
+  gym/home), nunca una compartida.
+- Series/reps editables por el usuario: pendiente para más adelante, no v1
+  (columnas ya existen en el esquema, nullable, sin usar).
+- Cardio se añade (nunca resta huecos de fuerza) y se muestra de solo
+  lectura en el constructor.
+- Día con slots sin elegir: se entrena solo con lo ya elegido, sin bloquear
+  nada. Día con TODOS los slots vacíos: crea igual su fila en plan_days con
+  exercises:[], el botón "Iniciar" ya existente lo bloquea (mensaje i18n
+  workout.today.emptyDay).
+
+**Arquitectura backend (Fases A-C2, todas comiteadas):**
+- Migración 0013: profile.planMode ('auto'|'manual'), routine_templates
+  (una fila por día, contexto gym/home), routine_template_slots
+  (muscleGroup NOT NULL, exerciseId nullable, sets/repRange/restSeconds/
+  notes nullables sin uso v1). Sin columna role — compound/isolation
+  siempre se deriva de isCompound del catálogo.
+- src/lib/routineTemplates.ts: createTemplate/getTemplate/setSlotExercise/
+  addSlot/removeSlot/deleteTemplate. createTemplate reutiliza
+  selectExercisesForDayByMuscle (el mismo motor del generador automático)
+  para recomendar el muscleGroup correcto por slot vía targetKey→
+  findTargetByKey — nunca un round-robin ciego. usedThisWeek se enhebra
+  entre días igual que en generatePlan().
+- src/lib/routineMaterializer.ts: materializeTemplate(context, profile,
+  equipment, dislikedIds) + hasSessionForPlanDay(planDayId). Nunca reescribe
+  un día con sesión ya registrada. workoutPlans.id se mantiene ESTABLE
+  (nunca crea uno nuevo si ya hay uno activo) — evita el bug de reseteo de
+  progresión que sí sufre hoy el modo automático. Cardio: centinela
+  cardio==='[]' significa "aún no calculado"; se calcula una sola vez por
+  día y se preserva después (nunca se recalcula solo porque se edita un
+  ejercicio de fuerza); pase previo siembra variedad entre días ya
+  materializados antes de recalcular los que hagan falta.
+- REGLA PENDIENTE PARA FASE G: la búsqueda de "plan activo" en
+  materializeTemplate es GLOBAL, no filtrada por contexto — antes de
+  construir el interruptor de modos, decidir cómo se activa un solo
+  contexto (gym O home) a la vez para usuarios location:'both', y si el
+  plan se reutiliza al desactivar/reactivar el modo manual (hoy no
+  resuelto, aparcado a propósito para esa fase).
+
+**Bug de arranque encontrado y corregido en esta sesión (no relacionado con
+el constructor, pero descubierto validándolo):** condición de carrera —
+varias pantallas (training.tsx, progress.tsx, exercisePreferences.tsx,
+ChangeExerciseModal.tsx, RecapModal.tsx) consultaban la base de datos sin
+esperar el flag isDbReady, causando "no such table" en instalaciones
+limpias. Corregido en los 5 archivos + try/catch añadido a
+exercisePreferences.ts. Lección: al añadir una guarda de flag a un
+useEffect, el flag SIEMPRE debe entrar también en las dependencias, o el
+efecto puede quedar bloqueado para siempre.
+
+**Backlog anotado, sin resolver, no bloquea nada de esto:** si una migración
+falla, useMigrations() solo hace console.error sin avisar al usuario — la
+app se quedaría en el splash para siempre sin explicación.
+
+**Próximo paso al retomar:** Fase D — la pantalla real del constructor
+(días, slots, elegir ejercicio). Es la primera pieza visible de todo esto.
+
 ## Plan de fases
 
 ### Completadas
