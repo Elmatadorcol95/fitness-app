@@ -120,6 +120,7 @@ function OtherDayCard({ day, index, total, isExpanded, onToggle, onChangeEx, lan
 export default function TrainingScreen() {
   const { t, i18n } = useTranslation();
   const { profile } = useProfileStore();
+  const isDbReady = useProfileStore(s => s.isDbReady);
   const {
     currentPlan, isLoaded, isGenerating,
     loadCurrentPlan, generateAndSavePlan, replaceExercise,
@@ -151,10 +152,14 @@ export default function TrainingScreen() {
 
   const bwLabel = lang === 'es' ? 'Peso corporal' : lang === 'fr' ? 'Poids du corps' : 'Bodyweight';
 
-  useEffect(() => { loadCurrentPlan(); }, []);
+  useEffect(() => {
+    if (!isDbReady) return;
+    loadCurrentPlan();
+  }, [isDbReady]);
 
   // Carga los targets de progresión del plan activo
   useEffect(() => {
+    if (!isDbReady) return;
     if (!currentPlan) return;
     (async () => {
       const targets = await getExerciseTargetsForPlan(currentPlan.id);
@@ -167,11 +172,12 @@ export default function TrainingScreen() {
       }
       setTargetMap(map);
     })();
-  }, [currentPlan?.id, currentPlan?.activeDayIndex]);
+  }, [isDbReady, currentPlan?.id, currentPlan?.activeDayIndex]);
 
   useEffect(() => {
+    if (!isDbReady) return;
     getAllPreferences().then(setPreferencesMap);
-  }, [currentPlan?.id, currentPlan?.activeDayIndex]);
+  }, [isDbReady, currentPlan?.id, currentPlan?.activeDayIndex]);
 
   async function startRealSession(context: 'gym' | 'home' | null) {
     if (!currentPlan) return;

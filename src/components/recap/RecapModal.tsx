@@ -57,18 +57,20 @@ export function RecapModal({ visible, onClose }: Props) {
 
   const { streak, totalWorkouts, unlockedAchievements } = useGamificationStore();
   const { profile } = useProfileStore();
+  const isDbReady = useProfileStore(s => s.isDbReady);
   const isImperial = profile?.units === 'imperial';
   const statsRef = useRef<View>(null);
 
   useEffect(() => {
     if (!visible) return;
+    if (!isDbReady) return;
     const start = period === 'month' ? getMonthStart() : getWeekStart();
     // Peso corporal del período
     db.select()
       .from(weightLog)
       .where(gte(weightLog.date, start))
       .then(rows => setPeriodWeights(rows.sort((a, b) => a.date.localeCompare(b.date))));
-  }, [visible, period]);
+  }, [visible, period, isDbReady]);
 
   const weightChange = periodWeights.length >= 2
     ? periodWeights[periodWeights.length - 1].weightKg - periodWeights[0].weightKg

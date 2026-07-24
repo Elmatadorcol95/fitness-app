@@ -21,11 +21,13 @@ export default function ProgressScreen() {
   const theme = useTheme();
   const { loadAll, isLoading } = useProgressStore();
   const { profile } = useProfileStore();
+  const isDbReady = useProfileStore(s => s.isDbReady);
   const [activeTab, setActiveTab] = useState<Tab>('weight');
 
   useEffect(() => {
+    if (!isDbReady) return;
     loadAll();
-  }, []);
+  }, [isDbReady]);
 
   const units = profile?.units ?? 'metric';
 

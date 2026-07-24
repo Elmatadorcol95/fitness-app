@@ -18,12 +18,14 @@ const MUTED = '#9DA89F';
 export default function ExercisePreferencesScreen() {
   const { t, i18n } = useTranslation();
   const lang = (i18n.language.startsWith('fr') ? 'fr' : i18n.language.startsWith('es') ? 'es' : 'en') as 'es' | 'en' | 'fr';
+  const isDbReady = useProfileStore(s => s.isDbReady);
 
   const [preferences, setPreferences] = useState<Map<string, Preference>>(new Map());
 
   useEffect(() => {
+    if (!isDbReady) return;
     getAllPreferences().then(setPreferences);
-  }, []);
+  }, [isDbReady]);
 
   async function handleToggle(exerciseId: string, preference: Preference) {
     await togglePreference(exerciseId, preference);

@@ -9,6 +9,7 @@ import { muscleLabel, equipmentLabel } from '@/components/workout/ExerciseCard';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/theme';
 import { getAllPreferences, togglePreference, type Preference } from '@/lib/exercisePreferences';
+import { useProfileStore } from '@/store/profile.store';
 
 const GREEN = '#3FBF7F';
 const MUTED = '#9DA89F';
@@ -46,13 +47,15 @@ export function ChangeExerciseModal({
   const theme = useTheme();
   const normalizedLang = (lang.startsWith('fr') ? 'fr' : lang.startsWith('es') ? 'es' : 'en') as 'es' | 'en' | 'fr';
   const alternatives = getAlternatives(currentExerciseId, userEquipment, isGym);
+  const isDbReady = useProfileStore(s => s.isDbReady);
 
   const [preferences, setPreferences] = useState<Map<string, Preference>>(new Map());
 
   useEffect(() => {
     if (!visible) return;
+    if (!isDbReady) return;
     getAllPreferences().then(setPreferences);
-  }, [visible]);
+  }, [visible, isDbReady]);
 
   async function handleTogglePreference(exerciseId: string, preference: Preference) {
     await togglePreference(exerciseId, preference);
