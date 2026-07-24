@@ -39,7 +39,7 @@ interface RepScheme {
   isolationRest: number;
 }
 
-function getRepScheme(primary: GoalKey, secondary?: GoalKey | null): RepScheme {
+export function getRepScheme(primary: GoalKey, secondary?: GoalKey | null): RepScheme {
   if (primary === 'strength') {
     return secondary === 'hypertrophy'
       ? { compoundSets: 4, compoundReps: '4-6', compoundRest: 150, isolationSets: 3, isolationReps: '8-10', isolationRest: 90 }
@@ -118,7 +118,7 @@ function getEffectiveReps(exercise: Exercise, planReps: string): string {
   return planReps;
 }
 
-function buildPlanned(exs: Exercise[], sets: number, reps: string, rest: number, isCompound: boolean): PlannedExercise[] {
+export function buildPlanned(exs: Exercise[], sets: number, reps: string, rest: number, isCompound: boolean): PlannedExercise[] {
   return exs.map(e => ({ exerciseId: e.id, sets, reps: getEffectiveReps(e, reps), restSeconds: rest, isCompound }));
 }
 

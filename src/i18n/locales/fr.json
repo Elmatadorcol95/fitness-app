@@ -397,7 +397,8 @@
       "noBackVariety": "Cette journée offre peu de variété d'exercices de dos faute d'équipement (barre de traction, TRX ou bandes de résistance).",
       "noBicepWork": "Cette journée n'inclut pas d'exercices de biceps faute d'équipement (haltères, barre avec disques ou bandes de résistance).",
       "noBackVarietyOrBicep": "Cette journée offre peu de variété de dos et pas d'exercices de biceps faute d'équipement.",
-      "homeEmptyDay": "Aucun exercice de cette journée n'a d'équivalent avec votre équipement à domicile. Ajoutez de l'équipement ou entraînez-vous en salle pour compléter cette journée."
+      "homeEmptyDay": "Aucun exercice de cette journée n'a d'équivalent avec votre équipement à domicile. Ajoutez de l'équipement ou entraînez-vous en salle pour compléter cette journée.",
+      "emptyDay": "Cette journée n'a pas encore d'exercices choisis. Ajoutez-en avant de commencer votre entraînement."
     },
     "session": {
       "guide": "Guide",

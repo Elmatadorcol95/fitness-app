@@ -397,7 +397,8 @@
       "noBackVariety": "This day has limited back exercise variety due to missing equipment (pull-up bar, TRX, or resistance bands).",
       "noBicepWork": "This day doesn't include biceps exercises due to missing equipment (dumbbells, barbell plates, or resistance bands).",
       "noBackVarietyOrBicep": "This day has limited back variety and no biceps exercises due to missing equipment.",
-      "homeEmptyDay": "None of this day's exercises have a home equivalent with your equipment. Add equipment or train at the gym to complete this day."
+      "homeEmptyDay": "None of this day's exercises have a home equivalent with your equipment. Add equipment or train at the gym to complete this day.",
+      "emptyDay": "This day doesn't have any exercises chosen yet. Add some before starting your workout."
     },
     "session": {
       "guide": "Guide",

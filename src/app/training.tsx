@@ -183,6 +183,10 @@ export default function TrainingScreen() {
     if (!currentPlan) return;
     const activeIdx  = currentPlan.activeDayIndex % currentPlan.days.length;
     let   sessionDay = currentPlan.days[activeIdx];
+    // El día ya nacía sin ejercicios ANTES de tocar el filtro de casa (p. ej.
+    // un día materializado desde una plantilla sin slots elegidos) — distinto
+    // de quedarse vacío POR el filtro E-3 de abajo. Determina qué mensaje usar.
+    const wasEmptyBeforeFilter = sessionDay.exercises.length === 0;
 
     // ── E-3: Filtro ligero para contexto de casa ─────────────────────────────
     // Solo si el usuario eligió "En casa" en el Alert de E-2.
@@ -240,11 +244,14 @@ export default function TrainingScreen() {
       sessionDay = { ...sessionDay, exercises: filteredExercises };
     }
 
-    // Salvaguarda: si tras filtrar no queda ningún ejercicio realizable en casa,
+    // Salvaguarda: si no queda ningún ejercicio (ya sea porque el día nacía
+    // vacío desde el origen, o porque el filtro E-3 de casa dejó todo fuera),
     // no arrancamos la sesión (se vería como una pantalla de "Cargando…" sin
-    // salida) — avisamos y el usuario se queda en esta pantalla.
+    // salida) — avisamos y el usuario se queda en esta pantalla. El mensaje
+    // distingue ambos casos: homeEmptyDay está escrito para el escenario del
+    // filtro de equipamiento, no para un día genuinamente sin ejercicios.
     if (sessionDay.exercises.length === 0) {
-      setStartError(t('workout.today.homeEmptyDay'));
+      setStartError(t(wasEmptyBeforeFilter ? 'workout.today.emptyDay' : 'workout.today.homeEmptyDay'));
       return;
     }
 

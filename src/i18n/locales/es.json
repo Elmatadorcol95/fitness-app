@@ -397,7 +397,8 @@
       "noBackVariety": "Este día tiene poca variedad de ejercicios de espalda por falta de equipamiento (barra de dominadas, TRX o bandas de resistencia).",
       "noBicepWork": "Este día no incluye ejercicios de bíceps por falta de equipamiento (mancuernas, barra con discos o bandas de resistencia).",
       "noBackVarietyOrBicep": "Este día tiene poca variedad de espalda y no incluye ejercicios de bíceps por falta de equipamiento.",
-      "homeEmptyDay": "Ninguno de los ejercicios de este día tiene equivalente con tu equipamiento en casa. Añade equipamiento o entrena en el gimnasio para completar este día."
+      "homeEmptyDay": "Ninguno de los ejercicios de este día tiene equivalente con tu equipamiento en casa. Añade equipamiento o entrena en el gimnasio para completar este día.",
+      "emptyDay": "Este día todavía no tiene ejercicios elegidos. Añádelos antes de empezar a entrenar."
     },
     "session": {
       "guide": "Guía",
