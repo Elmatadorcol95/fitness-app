@@ -3,7 +3,8 @@ import { db } from '@/db';
 import { workoutPlans, planDays, workoutSessions } from '@/db/schema';
 import type { Profile } from '@/db/schema';
 import { EXERCISES } from './exercises';
-import { getRepScheme, buildPlanned, type GoalKey, type PlannedExercise } from './plan-generator';
+import { getRepScheme, buildPlanned, getExerciseCounts, getCardioSlots, type GoalKey, type PlannedExercise } from './plan-generator';
+import { selectCardio, createCardioCycleState, type CardioPlan } from './cardioSelection';
 import { getTemplate, type TemplateContext } from './routineTemplates';
 
 // ¿Este día del plan (plan_days.id) tiene ya alguna sesión real registrada?
@@ -24,9 +25,21 @@ export async function hasSessionForPlanDay(planDayId: number): Promise<boolean> 
 // reutilizando el plan activo (o creándolo si no existe). Nunca toca un día
 // que ya tiene una sesión registrada (hasSessionForPlanDay). Un día con
 // todos sus slots vacíos SIGUE creando/actualizando su fila con
-// exercises: '[]' — no se omite. cardio no se toca en esta fase: '[]' en
-// filas nuevas, intacto en filas ya existentes (Fase C2).
-export async function materializeTemplate(context: TemplateContext, profile: Profile): Promise<void> {
+// exercises: '[]' — no se omite.
+//
+// Cardio (Fase C2): '[]' (el string literal, no un CardioPlan vacío) es el
+// centinela de "cardio aún no calculado" para una fila ya existente. Solo se
+// calcula cardio si el día tiene al menos un ejercicio de fuerza elegido Y
+// (la fila es nueva O su cardio actual sigue siendo el centinela '[]') — en
+// cualquier otro caso (día sin ejercicios, o fila existente con cardio ya
+// calculado/editado por el usuario) cardio no se toca en absoluto: en el
+// UPDATE queda fuera del .set() por completo, no se sobrescribe con nada.
+export async function materializeTemplate(
+  context: TemplateContext,
+  profile: Profile,
+  equipment: string[],
+  dislikedIds: Set<string>,
+): Promise<void> {
   const templateDays = await getTemplate(context);
   // Plantilla inexistente (aún sin crear para este contexto) — nada que
   // materializar. Salir aquí evita crear un workoutPlans "zombie" con
@@ -62,9 +75,39 @@ export async function materializeTemplate(context: TemplateContext, profile: Pro
 
   const scheme = getRepScheme(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null);
 
-  // 3. Un día a la vez — mismo estilo secuencial que generatePlan() (cada
-  // operación de DB espera a la anterior; no hay estado compartido entre
-  // días aquí, pero se mantiene la consistencia de estilo del archivo hermano).
+  // Cardio: mismo patrón que generatePlan() — un único CardioCycleState y un
+  // único Set de ids ya usados, creados ANTES del bucle y mutados después de
+  // cada día, para que la rotación/variedad persista a través de todos los
+  // días de este materialize (no se reinicia por día).
+  const cardioCycle   = createCardioCycleState();
+  const usedCardioIds = new Set<string>();
+  const isGym         = context === 'gym';
+  const counts        = getExerciseCounts(profile.minutesPerSession);
+  const totalSlots    = counts.compounds + counts.isolations;
+
+  // Pase previo — no toca ninguna fila, solo siembra usedCardioIds con el
+  // cardio que YA está persistido en días que esta llamada no va a
+  // recalcular (fila existente con cardio distinto del centinela '[]'), para
+  // que los días que SÍ se recalculen en el bucle de abajo no repitan un
+  // cardio que otro día del mismo materialize ya tiene guardado.
+  for (const day of templateDays) {
+    const [existingForSeed] = await db
+      .select()
+      .from(planDays)
+      .where(and(eq(planDays.planId, activePlan.id), eq(planDays.dayIndex, day.dayIndex)))
+      .limit(1);
+    if (existingForSeed && existingForSeed.cardio !== '[]') {
+      const seedCardio = JSON.parse(existingForSeed.cardio) as CardioPlan;
+      for (const c of seedCardio.gym) usedCardioIds.add(c.exerciseId);
+      for (const session of seedCardio.homeSessions) {
+        for (const c of session.blocks) usedCardioIds.add(c.exerciseId);
+      }
+    }
+  }
+
+  // Un día a la vez — mismo estilo secuencial que generatePlan() (cada
+  // operación de DB espera a la anterior; el estado de cardio SÍ se comparte
+  // entre iteraciones, igual que usedThisWeek en el generador automático).
   for (const day of templateDays) {
     const [existingDay] = await db
       .select()
@@ -73,7 +116,7 @@ export async function materializeTemplate(context: TemplateContext, profile: Pro
       .limit(1);
 
     if (existingDay && await hasSessionForPlanDay(existingDay.id)) {
-      continue; // día ya entrenado — nunca se toca
+      continue; // día ya entrenado — nunca se toca (cardio incluido)
     }
 
     const filledSlots = day.slots.filter(s => s.exerciseId !== null);
@@ -90,10 +133,26 @@ export async function materializeTemplate(context: TemplateContext, profile: Pro
       ));
     }
 
+    const needsCardio = filledSlots.length > 0 && (!existingDay || existingDay.cardio === '[]');
+    let cardioPlan: CardioPlan | null = null;
+    if (needsCardio) {
+      const cardioSlots = getCardioSlots(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null, totalSlots);
+      cardioPlan = selectCardio(cardioSlots, equipment, isGym, usedCardioIds, cardioCycle, dislikedIds);
+      for (const c of cardioPlan.gym) usedCardioIds.add(c.exerciseId);
+      for (const session of cardioPlan.homeSessions) {
+        for (const c of session.blocks) usedCardioIds.add(c.exerciseId);
+      }
+    }
+
     if (existingDay) {
+      const updateValues: { exercises: string; dayType: string; cardio?: string } = {
+        exercises: JSON.stringify(exercises),
+        dayType:   day.dayType,
+      };
+      if (needsCardio) updateValues.cardio = JSON.stringify(cardioPlan);
       await db
         .update(planDays)
-        .set({ exercises: JSON.stringify(exercises), dayType: day.dayType })
+        .set(updateValues)
         .where(eq(planDays.id, existingDay.id));
     } else {
       await db.insert(planDays).values({
@@ -101,7 +160,7 @@ export async function materializeTemplate(context: TemplateContext, profile: Pro
         dayIndex:  day.dayIndex,
         dayType:   day.dayType,
         exercises: JSON.stringify(exercises),
-        cardio:    '[]',
+        cardio:    needsCardio ? JSON.stringify(cardioPlan) : '[]',
       });
     }
   }

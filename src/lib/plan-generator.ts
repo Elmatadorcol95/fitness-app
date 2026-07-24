@@ -66,7 +66,7 @@ export function getExerciseCounts(minutes: number): { compounds: number; isolati
   return { compounds: 5, isolations: 4 };
 }
 
-function getCardioSlots(goalPrimary: GoalKey, goalSecondary: GoalKey | null, totalSlots: number): number {
+export function getCardioSlots(goalPrimary: GoalKey, goalSecondary: GoalKey | null, totalSlots: number): number {
   const raw = goalPrimary === 'fat_loss' ? 2 : goalSecondary === 'fat_loss' ? 1 : 0;
   return Math.min(raw, Math.floor(totalSlots / 2));
 }
