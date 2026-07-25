@@ -1706,8 +1706,39 @@ efecto puede quedar bloqueado para siempre.
 falla, useMigrations() solo hace console.error sin avisar al usuario — la
 app se quedaría en el splash para siempre sin explicación.
 
-**Próximo paso al retomar:** Fase D — la pantalla real del constructor
-(días, slots, elegir ejercicio). Es la primera pieza visible de todo esto.
+**Próximo paso al retomar:** Fase D — la pantalla real del constructor. El
+diseño de alcance ya se discutió (plantilla se crea sola desde
+profile.daysPerWeek/minutesPerSession sin asistente nuevo; selector
+Gimnasio/Casa para location:'both'; v1 de solo lectura — mostrar
+días/slots/muscleGroup recomendado, sin elegir ejercicio todavía; entrada
+nueva en Perfil mismo patrón overlay que Equipamiento/Preferencias). Ya se
+envió un audit de 8 preguntas (patrón de overlay en profile.store.ts/
+_layout.tsx, estructura de exercisePreferences.tsx a calcar, dónde viven
+los enlaces en Perfil, i18n de DayType y MuscleGroup, export de getSplit,
+ensamblaje de equipment/isGym/musclePriorities/dislikedIds/likedIds desde
+profile) pero AÚN NO SE CORRIÓ — pídele ese audit a Claude en el chat al
+retomar, no hace falta redactarlo de nuevo.
+
+## Despliegue — variantes de app EAS
+
+Tres variantes conviven en el teléfono de Juan vía app.config.js +
+APP_VARIANT (ya no hay app.json estático):
+- producción: com.elmatadorcol95.vulcan ("Vulcan")
+- preview: com.elmatadorcol95.vulcan.preview ("Vulcan Preview") — build
+  independiente para uso diario, sin necesidad del host/Metro
+- development: com.elmatadorcol95.vulcan.dev ("Vulcan Dev") — dev client
+  de siempre
+
+eas.json enlaza cada perfil a su entorno EAS correspondiente vía
+"environment", además de "env":{"APP_VARIANT"} para el identificador.
+
+LECCIÓN IMPORTANTE, no repetir el error: crear variables de entorno en EAS
+SIEMPRE con --value "..." --non-interactive, NUNCA con el prompt
+interactivo de eas env:create — se detectó (con evidencia a nivel de
+bytes, xxd) que el prompt interactivo puede colar un byte de control
+invisible (0x02) al inicio del valor pegado, lo que rompe validaciones de
+formato (URLs, keys) de forma indetectable a simple vista o incluso con
+eas env:get. Costó una sesión entera de diagnóstico la primera vez.
 
 ## Plan de fases
 
