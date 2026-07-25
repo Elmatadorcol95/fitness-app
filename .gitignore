@@ -33,6 +33,7 @@ yarn-error.*
 # local env files
 .env
 .env*.local
+.env.verify
 
 # typescript
 *.tsbuildinfo
@@ -42,6 +43,10 @@ example
 # generated native folders
 /ios
 /android
+/dist-plain
+
+# APKs pulled locally for debugging (adb pull)
+*.apk
 
 # SQLite local database files (datos del usuario, nunca al repo)
 *.db
