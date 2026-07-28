@@ -22,6 +22,7 @@ import SessionScreen      from '@/app/session';
 import EquipmentScreen    from '@/app/equipment';
 import MusclePrioritiesScreen from '@/app/musclePriorities';
 import ExercisePreferencesScreen from '@/app/exercisePreferences';
+import RoutineBuilderScreen from '@/app/routineBuilder';
 import WarmupScreen       from '@/app/warmup';
 import CooldownScreen     from '@/app/cooldown';
 import { useSessionStore } from '@/store/session.store';
@@ -169,6 +170,7 @@ export default function RootLayout() {
   const isEquipmentVisible = useProfileStore(s => s.equipmentVisible);
   const isMusclePrioritiesVisible = useProfileStore(s => s.musclePrioritiesVisible);
   const isExercisePreferencesVisible = useProfileStore(s => s.exercisePreferencesVisible);
+  const isRoutineBuilderVisible = useProfileStore(s => s.routineBuilderVisible);
   const isWarmupActive     = useWarmupStore(s => s.active);
   const isCooldownActive   = useCooldownStore(s => s.active);
   const stillLoading   = !migrationsReady || isProfileLoading || isAuthLoading;
@@ -225,6 +227,12 @@ export default function RootLayout() {
       {isExercisePreferencesVisible && (
         <View style={StyleSheet.absoluteFill}>
           <ExercisePreferencesScreen />
+        </View>
+      )}
+      {/* Pantalla del constructor de rutina propia — overlay sobre las tabs */}
+      {isRoutineBuilderVisible && (
+        <View style={StyleSheet.absoluteFill}>
+          <RoutineBuilderScreen />
         </View>
       )}
       {/* Pantalla de calentamiento — overlay sobre las tabs */}

@@ -81,7 +81,7 @@ function subtractCardioSlots(counts: { compounds: number; isolations: number }, 
   };
 }
 
-function getSplit(daysPerWeek: number): DayType[] {
+export function getSplit(daysPerWeek: number): DayType[] {
   switch (daysPerWeek) {
     case 1: return ['full_body'];
     case 2: return ['full_body', 'full_body'];
@@ -143,6 +143,39 @@ async function selectExercisesForDay(
   ];
 }
 
+// Deriva las 5 señales que dependen del perfil (equipamiento parseado, si es
+// gimnasio, prioridades musculares, y preferencias de like/dislike) y que
+// tanto generatePlan() (plan automático) como createTemplate() (constructor
+// propio, Fase D) necesitan por igual. Único punto de obtención — antes vivía
+// inline dentro de generatePlan(); extraído sin cambiar el orden relativo de
+// los awaits (dislikedIds antes que likedIds) ni el resultado de ningún valor.
+//
+// slice(0,6) en musclePriorities es defensa de corrupción de datos, NO la
+// regla de negocio real (esa vive en la pantalla de prioridades, contando
+// ZONAS seleccionadas — máx. 2 — no valores del array). Una zona puede
+// agrupar varios MuscleGroup (ej. Core/Abdomen = ['core','abs']), así que 2
+// zonas legítimas pueden superar 2 valores.
+export async function getProfileSignals(profile: {
+  location: string;
+  equipment: string;
+  musclePriorities?: string;
+}): Promise<{
+  equipment: string[];
+  isGym: boolean;
+  musclePriorities: MuscleGroup[];
+  dislikedIds: Set<string>;
+  likedIds: Set<string>;
+}> {
+  const equipment: string[] = (() => {
+    try { return JSON.parse(profile.equipment) as string[]; } catch { return []; }
+  })();
+  const isGym = profile.location === 'gym' || profile.location === 'both';
+  const musclePriorities = parseMusclePriorities(profile.musclePriorities).slice(0, 6);
+  const dislikedIds = await getDislikedIds();
+  const likedIds = await getLikedIds();
+  return { equipment, isGym, musclePriorities, dislikedIds, likedIds };
+}
+
 export async function generatePlan(profile: {
   goalPrimary: string;
   goalSecondary?: string | null;
@@ -152,10 +185,8 @@ export async function generatePlan(profile: {
   equipment: string;
   musclePriorities?: string;
 }): Promise<GeneratedPlan> {
-  const equipment: string[] = (() => {
-    try { return JSON.parse(profile.equipment) as string[]; } catch { return []; }
-  })();
-  const isGym  = profile.location === 'gym' || profile.location === 'both';
+  const { equipment, isGym, musclePriorities, dislikedIds, likedIds } = await getProfileSignals(profile);
+
   const scheme = getRepScheme(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null);
   const counts = getExerciseCounts(profile.minutesPerSession);
   const split  = getSplit(profile.daysPerWeek);
@@ -163,18 +194,6 @@ export async function generatePlan(profile: {
   const totalSlotsPerDay = counts.compounds + counts.isolations;
   const cardioSlots = getCardioSlots(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null, totalSlotsPerDay);
   const reducedCounts = subtractCardioSlots(counts, cardioSlots);
-
-  // Prioridades musculares del usuario (Fase 0-B-1). Punto único de obtención.
-  // Defensa de corrupción de datos, NO la regla de negocio real (esa vive en la
-  // pantalla de prioridades, contando ZONAS seleccionadas — máx. 2 — no valores
-  // del array). Una zona puede agrupar varios MuscleGroup (ej. Core/Abdomen =
-  // ['core','abs']), así que 2 zonas legítimas pueden superar 2 valores.
-  // slice(0,6) es un tope generoso solo para datos corruptos; nunca lanza ni
-  // bloquea la generación. Hoy nadie las fija todavía (sin UI), así que esto
-  // es [] para todos los usuarios y la generación resulta idéntica a la anterior.
-  const musclePriorities = parseMusclePriorities(profile.musclePriorities).slice(0, 6);
-  const dislikedIds = await getDislikedIds();
-  const likedIds = await getLikedIds();
 
   // Secuencial (no en paralelo): cada día necesita conocer los ejercicios ya
   // elegidos por los días anteriores de ESTA generación, vía excludeIds.

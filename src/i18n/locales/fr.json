@@ -155,6 +155,7 @@
       "equipmentSection": "Équipement",
       "musclePrioritiesSection": "Priorité musculaire",
       "exercisePreferencesSection": "Préférences d'exercices",
+      "routineBuilderSection": "Ma routine",
       "signOut": "Se déconnecter / réinitialiser",
       "signOutMsg": "Les données locales seront effacées. Vous reviendrez à l'écran de départ.",
       "signOutConfirm": "Confirmer",
@@ -510,5 +511,13 @@
     "empty": "Vous n'avez encore marqué aucun exercice comme favori ou rejeté. Vous pouvez le faire depuis n'importe quel exercice de votre plan ou lors d'un changement.",
     "likedSection": "Favoris",
     "dislikedSection": "Rejetés"
+  },
+  "routineBuilder": {
+    "title": "Ma routine",
+    "editBtn": "Voir",
+    "summary": "Construisez votre propre routine en choisissant chaque exercice, jour par jour.",
+    "contextPrompt": "Où vous entraînez-vous ?",
+    "emptySlots": "Aucun exercice recommandé pour ce jour.",
+    "slotEmpty": "Pas encore choisi"
   }
 }

@@ -48,6 +48,7 @@ interface ProfileState {
   equipmentVisible: boolean;
   musclePrioritiesVisible: boolean;
   exercisePreferencesVisible: boolean;
+  routineBuilderVisible: boolean;
   setProfile: (p: Profile | null) => void;
   setLoading: (v: boolean) => void;
   setDbReady: (v: boolean) => void;
@@ -61,6 +62,8 @@ interface ProfileState {
   closeMusclePriorities: () => void;
   openExercisePreferences: () => void;
   closeExercisePreferences: () => void;
+  openRoutineBuilder: () => void;
+  closeRoutineBuilder: () => void;
 }
 
 export const useProfileStore = create<ProfileState>((set, get) => ({
@@ -71,6 +74,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   equipmentVisible: false,
   musclePrioritiesVisible: false,
   exercisePreferencesVisible: false,
+  routineBuilderVisible: false,
   setProfile: (profile) => set({ profile }),
   setLoading: (isLoading) => set({ isLoading }),
   setDbReady: (isDbReady) => set({ isDbReady }),
@@ -82,6 +86,8 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   closeMusclePriorities: () => set({ musclePrioritiesVisible: false }),
   openExercisePreferences:  () => set({ exercisePreferencesVisible: true }),
   closeExercisePreferences: () => set({ exercisePreferencesVisible: false }),
+  openRoutineBuilder:  () => set({ routineBuilderVisible: true }),
+  closeRoutineBuilder: () => set({ routineBuilderVisible: false }),
   updateEquipmentAndLocation: async (location, equipment) => {
     const current = get().profile;
     if (!current) return;

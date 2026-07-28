@@ -276,6 +276,28 @@ export default function ProfileScreen() {
             </ThemedView>
           </View>
 
+          {/* ── Rutina propia ── */}
+          <View style={sectionStyles.wrap}>
+            <View style={styles.equipHeader}>
+              <ThemedText style={sectionStyles.title}>
+                {t('tabs.profile.routineBuilderSection')}
+              </ThemedText>
+              <Pressable
+                onPress={() => useProfileStore.getState().openRoutineBuilder()}
+                style={styles.editEquipBtn}
+                hitSlop={8}
+              >
+                <Ionicons name="create-outline" size={15} color="#3FBF7F" />
+                <ThemedText style={styles.editEquipText}>{t('routineBuilder.editBtn')}</ThemedText>
+              </Pressable>
+            </View>
+            <ThemedView type="backgroundElement" style={sectionStyles.card}>
+              <ThemedText themeColor="textSecondary" style={styles.gymEquipNote}>
+                {t('routineBuilder.summary')}
+              </ThemedText>
+            </ThemedView>
+          </View>
+
           {/* ── Lesiones ── */}
           {profile.injuries ? (
             <Section title={t('onboarding.injuries.title')}>
