@@ -44,7 +44,7 @@ function parseEquipment(raw?: string): string[] {
   try { return JSON.parse(raw ?? '[]') as string[]; } catch { return []; }
 }
 
-function estimateDuration(exercises: PlannedExercise[]): number {
+export function estimateDuration(exercises: PlannedExercise[]): number {
   return Math.round(exercises.reduce((sum, ex) => sum + ex.sets * (45 + ex.restSeconds), 0) / 60);
 }
 

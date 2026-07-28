@@ -518,6 +518,7 @@
     "summary": "Construisez votre propre routine en choisissant chaque exercice, jour par jour.",
     "contextPrompt": "Où vous entraînez-vous ?",
     "emptySlots": "Aucun exercice recommandé pour ce jour.",
-    "slotEmpty": "Pas encore choisi"
+    "slotEmpty": "Pas encore choisi",
+    "addSlotPickerTitle": "Choisissez un muscle"
   }
 }

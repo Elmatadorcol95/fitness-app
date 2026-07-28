@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -8,20 +8,33 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useProfileStore } from '@/store/profile.store';
 import { Spacing } from '@/constants/theme';
-import { getExerciseName, type MuscleGroup } from '@/lib/exercises';
+import { EXERCISES, getExerciseName, type MuscleGroup } from '@/lib/exercises';
+import type { Profile } from '@/db/schema';
 import { muscleLabel } from '@/components/workout/ExerciseCard';
 import { ChangeExerciseModal } from '@/components/workout/ChangeExerciseModal';
-import { getSplit, getProfileSignals, type DayType } from '@/lib/plan-generator';
+import { estimateDuration } from '@/app/training';
+import {
+  getSplit,
+  getProfileSignals,
+  getRepScheme,
+  buildPlanned,
+  type DayType,
+  type GoalKey,
+  type PlannedExercise,
+} from '@/lib/plan-generator';
 import {
   getTemplate,
   createTemplate,
   setSlotExercise,
+  addSlot,
+  removeSlot,
   type TemplateContext,
   type BuilderDayType,
   type RoutineTemplateDay,
 } from '@/lib/routineTemplates';
 
 const GREEN = '#3FBF7F';
+const AMBER = '#F2B450';
 
 // Días que el constructor manual admite hoy — upper/lower quedan dormidos
 // (mismo DayType del generador automático, ver CLAUDE.md "Constructor de
@@ -30,6 +43,75 @@ const GREEN = '#3FBF7F';
 const BUILDER_DAY_TYPES = new Set<BuilderDayType>(['push', 'pull', 'legs', 'full_body']);
 function toBuilderDayType(d: DayType): BuilderDayType {
   return BUILDER_DAY_TYPES.has(d as BuilderDayType) ? (d as BuilderDayType) : 'full_body';
+}
+
+// Orden A — mismo orden ya repetido en exercises.ts (MuscleGroup /
+// MUSCLE_GROUP_VALUES) y en ExerciseCard.tsx (MUSCLE_LABELS). Cubre los 15
+// valores, sin restricción por tipo de día — libertad total al añadir un slot.
+const ALL_MUSCLE_GROUPS: MuscleGroup[] = [
+  'chest', 'back', 'shoulders', 'biceps', 'triceps',
+  'quads', 'hamstrings', 'glutes', 'calves', 'core',
+  'lats', 'traps', 'forearms', 'abs', 'adductors',
+];
+
+// Mismo criterio que routineMaterializer.ts: solo slots con exerciseId ya
+// asignado aportan al cálculo; sets/reps/descanso salen de getRepScheme()
+// según el objetivo del perfil + isCompound del ejercicio real, igual que la
+// materialización real. Slots vacíos no aportan nada todavía.
+function estimateDayDuration(day: RoutineTemplateDay, profile: Profile | null): number {
+  if (!profile) return 0;
+  const scheme = getRepScheme(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null);
+  const exercises: PlannedExercise[] = [];
+  for (const slot of day.slots) {
+    if (slot.exerciseId === null) continue;
+    const exercise = EXERCISES.find(e => e.id === slot.exerciseId);
+    if (!exercise) continue;
+    exercises.push(...buildPlanned(
+      [exercise],
+      exercise.isCompound ? scheme.compoundSets  : scheme.isolationSets,
+      exercise.isCompound ? scheme.compoundReps  : scheme.isolationReps,
+      exercise.isCompound ? scheme.compoundRest  : scheme.isolationRest,
+      exercise.isCompound,
+    ));
+  }
+  return estimateDuration(exercises);
+}
+
+// Picker de músculo para un slot nuevo (Fase F) — modal ligero, sin estado
+// propio más allá de lo que le pasan por props.
+function MusclePickerModal({
+  visible,
+  title,
+  lang,
+  onClose,
+  onSelect,
+}: {
+  visible: boolean;
+  title: string;
+  lang: 'es' | 'en' | 'fr';
+  onClose: () => void;
+  onSelect: (m: MuscleGroup) => void;
+}) {
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <ThemedView style={styles.pickerRoot}>
+        <View style={styles.pickerHeader}>
+          <ThemedText type="subtitle" style={styles.pickerHeaderTitle}>{title}</ThemedText>
+          <Pressable onPress={onClose} hitSlop={16}>
+            <Ionicons name="close" size={24} color="#9DA89F" />
+          </Pressable>
+        </View>
+        <ScrollView contentContainerStyle={styles.pickerList}>
+          {ALL_MUSCLE_GROUPS.map((m) => (
+            <Pressable key={m} style={styles.pickerRow} onPress={() => onSelect(m)}>
+              <ThemedText style={styles.pickerRowText}>{muscleLabel(m, lang)}</ThemedText>
+              <Ionicons name="chevron-forward" size={18} color={GREEN} />
+            </Pressable>
+          ))}
+        </ScrollView>
+      </ThemedView>
+    </Modal>
+  );
 }
 
 export default function RoutineBuilderScreen() {
@@ -48,6 +130,7 @@ export default function RoutineBuilderScreen() {
     currentExerciseId: string | null;
     muscleGroup: MuscleGroup | undefined;
   }>({ visible: false, slotId: 0, currentExerciseId: null, muscleGroup: undefined });
+  const [addSlotDay, setAddSlotDay] = useState<RoutineTemplateDay | null>(null);
 
   // Mismo parseo que getProfileSignals(), pero solo lo que el picker necesita
   // (sin dislikedIds/likedIds — getExercisesByMuscleGroup/getAlternatives no
@@ -144,43 +227,58 @@ export default function RoutineBuilderScreen() {
               {t('routineBuilder.emptySlots')}
             </ThemedText>
           ) : (
-            days.map((day, dayIdx) => (
-              <View key={day.id} style={styles.dayBlock}>
-                <ThemedText type="defaultSemiBold" style={styles.dayTitle}>
-                  {dayIdx + 1}. {t(`workout.days.${day.dayType}`)}
-                </ThemedText>
-                <ThemedView type="backgroundElement" style={styles.dayCard}>
-                  {day.slots.length === 0 ? (
-                    <ThemedText themeColor="textSecondary" style={styles.emptySlotsText}>
-                      {t('routineBuilder.emptySlots')}
-                    </ThemedText>
-                  ) : (
-                    day.slots.map((slot) => (
-                      <Pressable
-                        key={slot.id}
-                        style={styles.slotRow}
-                        onPress={() => setSlotModal({
-                          visible: true,
-                          slotId: slot.id,
-                          currentExerciseId: slot.exerciseId,
-                          muscleGroup: slot.exerciseId ? undefined : (slot.muscleGroup as MuscleGroup),
-                        })}
-                      >
-                        <View style={styles.slotTextWrap}>
-                          <ThemedText style={styles.slotMuscle}>
-                            {muscleLabel(slot.muscleGroup, lang)}
-                          </ThemedText>
-                          <ThemedText themeColor="textSecondary" style={styles.slotExercise}>
-                            {slot.exerciseId ? getExerciseName(slot.exerciseId, lang) : t('routineBuilder.slotEmpty')}
-                          </ThemedText>
+            days.map((day, dayIdx) => {
+              const estMin = estimateDayDuration(day, profile);
+              return (
+                <View key={day.id} style={styles.dayBlock}>
+                  <ThemedText type="defaultSemiBold" style={styles.dayTitle}>
+                    {dayIdx + 1}. {t(`workout.days.${day.dayType}`)}
+                    {estMin > 0 ? ` · ~${estMin} ${t('workout.session.minutesAbbrev')}` : ''}
+                  </ThemedText>
+                  <ThemedView type="backgroundElement" style={styles.dayCard}>
+                    {day.slots.length === 0 ? (
+                      <ThemedText themeColor="textSecondary" style={styles.emptySlotsText}>
+                        {t('routineBuilder.emptySlots')}
+                      </ThemedText>
+                    ) : (
+                      day.slots.map((slot) => (
+                        <View key={slot.id} style={styles.slotRow}>
+                          <Pressable
+                            style={styles.slotMainPressable}
+                            onPress={() => setSlotModal({
+                              visible: true,
+                              slotId: slot.id,
+                              currentExerciseId: slot.exerciseId,
+                              muscleGroup: slot.exerciseId ? undefined : (slot.muscleGroup as MuscleGroup),
+                            })}
+                          >
+                            <View style={styles.slotTextWrap}>
+                              <ThemedText style={styles.slotMuscle}>
+                                {muscleLabel(slot.muscleGroup, lang)}
+                              </ThemedText>
+                              <ThemedText themeColor="textSecondary" style={styles.slotExercise}>
+                                {slot.exerciseId ? getExerciseName(slot.exerciseId, lang) : t('routineBuilder.slotEmpty')}
+                              </ThemedText>
+                            </View>
+                            <Ionicons name="chevron-forward" size={18} color={GREEN} />
+                          </Pressable>
+                          <Pressable
+                            style={styles.slotDeleteBtn}
+                            hitSlop={8}
+                            onPress={async () => { await removeSlot(slot.id); await reloadTemplate(); }}
+                          >
+                            <Ionicons name="trash-outline" size={18} color={AMBER} />
+                          </Pressable>
                         </View>
-                        <Ionicons name="chevron-forward" size={18} color={GREEN} />
-                      </Pressable>
-                    ))
-                  )}
-                </ThemedView>
-              </View>
-            ))
+                      ))
+                    )}
+                    <Pressable style={styles.addSlotRow} onPress={() => setAddSlotDay(day)} hitSlop={8}>
+                      <Ionicons name="add-circle-outline" size={22} color={GREEN} />
+                    </Pressable>
+                  </ThemedView>
+                </View>
+              );
+            })
           )}
         </ScrollView>
       </SafeAreaView>
@@ -203,6 +301,20 @@ export default function RoutineBuilderScreen() {
         }}
         onRemove={async () => {
           await setSlotExercise(slotModal.slotId, null);
+          await reloadTemplate();
+        }}
+      />
+
+      {/* Picker de músculo para slot nuevo (Fase F) */}
+      <MusclePickerModal
+        visible={addSlotDay !== null}
+        title={t('routineBuilder.addSlotPickerTitle')}
+        lang={lang}
+        onClose={() => setAddSlotDay(null)}
+        onSelect={async (muscleGroup) => {
+          if (!addSlotDay) return;
+          await addSlot(addSlotDay.id, addSlotDay.dayIndex, muscleGroup);
+          setAddSlotDay(null);
           await reloadTemplate();
         }}
       />
@@ -246,7 +358,36 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#FFFFFF12',
   },
+  slotMainPressable: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   slotTextWrap: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginRight: Spacing.one },
   slotMuscle: { fontSize: 14 },
   slotExercise: { fontSize: 13 },
+  slotDeleteBtn: { paddingLeft: Spacing.two, paddingVertical: Spacing.one },
+  addSlotRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.two,
+    marginTop: Spacing.one,
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+    borderColor: GREEN + '33',
+    borderStyle: 'dashed',
+  },
+  pickerRoot: { flex: 1 },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: Spacing.four,
+    paddingBottom: Spacing.three,
+  },
+  pickerHeaderTitle: { fontSize: 18 },
+  pickerList: { paddingBottom: Spacing.four },
+  pickerRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: Spacing.four, paddingVertical: Spacing.three,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#FFFFFF12',
+  },
+  pickerRowText: { fontSize: 15 },
 });

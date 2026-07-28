@@ -518,6 +518,7 @@
     "summary": "Construye tu propia rutina eligiendo cada ejercicio, día por día.",
     "contextPrompt": "¿Dónde entrenas?",
     "emptySlots": "Sin ejercicios recomendados para este día.",
-    "slotEmpty": "Sin elegir"
+    "slotEmpty": "Sin elegir",
+    "addSlotPickerTitle": "Elige un músculo"
   }
 }
