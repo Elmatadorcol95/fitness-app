@@ -22,7 +22,7 @@ const MAX_EXERCISES_PER_TARGET = 3;
 // sistema viejo permitía efectivamente en plan-generator.ts (cats/allIso solo
 // usan 'push'|'pull'|'legs'|'core'; 'cardio' y 'mobility' quedan fuera, tal
 // como estuvo garantizado siempre por el sistema anterior).
-const ALLOWED_CATEGORIES = new Set(['push', 'pull', 'legs', 'core']);
+export const ALLOWED_CATEGORIES = new Set(['push', 'pull', 'legs', 'core']);
 
 // Alineación por categoría — mismo criterio que `cats` en el sistema viejo
 // de plan-generator.ts: un target solo puede elegir ejercicios cuya
@@ -256,4 +256,24 @@ export async function selectExercisesForDayByMuscle(
   }
 
   return results;
+}
+
+// Candidatos para el picker de un slot vacío del constructor propio (Fase E)
+// — filtra por categoría admitida + equipamiento, igual que el motor real,
+// pero por MuscleGroup directo (no por target/día) porque el slot ya sabe su
+// muscleGroup desde que se creó. Sin sort especial (orden de declaración del
+// catálogo) ni dislikedIds — mismo comportamiento que getAlternatives hoy.
+export function getExercisesByMuscleGroup(
+  muscleGroup: MuscleGroup,
+  equipment: string[],
+  isGym: boolean,
+): Exercise[] {
+  return EXERCISES.filter(ex => {
+    if (!ALLOWED_CATEGORIES.has(ex.category)) return false;
+    const canDo = isGym
+      ? true
+      : ex.equipment.length === 0 || ex.equipment.every(eq => equipment.includes(eq));
+    if (!canDo) return false;
+    return ex.primaryMuscles.includes(muscleGroup);
+  });
 }

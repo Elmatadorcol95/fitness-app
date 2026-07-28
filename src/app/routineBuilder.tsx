@@ -8,12 +8,14 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useProfileStore } from '@/store/profile.store';
 import { Spacing } from '@/constants/theme';
-import { getExerciseName } from '@/lib/exercises';
+import { getExerciseName, type MuscleGroup } from '@/lib/exercises';
 import { muscleLabel } from '@/components/workout/ExerciseCard';
+import { ChangeExerciseModal } from '@/components/workout/ChangeExerciseModal';
 import { getSplit, getProfileSignals, type DayType } from '@/lib/plan-generator';
 import {
   getTemplate,
   createTemplate,
+  setSlotExercise,
   type TemplateContext,
   type BuilderDayType,
   type RoutineTemplateDay,
@@ -40,6 +42,26 @@ export default function RoutineBuilderScreen() {
   const initialContext: TemplateContext = profile?.location === 'home' ? 'home' : 'gym';
   const [context, setContext] = useState<TemplateContext>(initialContext);
   const [days, setDays] = useState<RoutineTemplateDay[] | null>(null);
+  const [slotModal, setSlotModal] = useState<{
+    visible: boolean;
+    slotId: number;
+    currentExerciseId: string | null;
+    muscleGroup: MuscleGroup | undefined;
+  }>({ visible: false, slotId: 0, currentExerciseId: null, muscleGroup: undefined });
+
+  // Mismo parseo que getProfileSignals(), pero solo lo que el picker necesita
+  // (sin dislikedIds/likedIds — getExercisesByMuscleGroup/getAlternatives no
+  // los usan). isGym por CONTEXTO elegido, no por profile.location — mismo
+  // motivo que en la creación de la plantilla más abajo.
+  const equipmentForModal: string[] = (() => {
+    try { return JSON.parse(profile?.equipment ?? '[]') as string[]; } catch { return []; }
+  })();
+  const isGymForModal = context === 'gym';
+
+  async function reloadTemplate() {
+    const template = await getTemplate(context);
+    setDays(template);
+  }
 
   useEffect(() => {
     if (!isDbReady || !profile) return;
@@ -134,14 +156,26 @@ export default function RoutineBuilderScreen() {
                     </ThemedText>
                   ) : (
                     day.slots.map((slot) => (
-                      <View key={slot.id} style={styles.slotRow}>
-                        <ThemedText style={styles.slotMuscle}>
-                          {muscleLabel(slot.muscleGroup, lang)}
-                        </ThemedText>
-                        <ThemedText themeColor="textSecondary" style={styles.slotExercise}>
-                          {slot.exerciseId ? getExerciseName(slot.exerciseId, lang) : t('routineBuilder.slotEmpty')}
-                        </ThemedText>
-                      </View>
+                      <Pressable
+                        key={slot.id}
+                        style={styles.slotRow}
+                        onPress={() => setSlotModal({
+                          visible: true,
+                          slotId: slot.id,
+                          currentExerciseId: slot.exerciseId,
+                          muscleGroup: slot.exerciseId ? undefined : (slot.muscleGroup as MuscleGroup),
+                        })}
+                      >
+                        <View style={styles.slotTextWrap}>
+                          <ThemedText style={styles.slotMuscle}>
+                            {muscleLabel(slot.muscleGroup, lang)}
+                          </ThemedText>
+                          <ThemedText themeColor="textSecondary" style={styles.slotExercise}>
+                            {slot.exerciseId ? getExerciseName(slot.exerciseId, lang) : t('routineBuilder.slotEmpty')}
+                          </ThemedText>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color={GREEN} />
+                      </Pressable>
                     ))
                   )}
                 </ThemedView>
@@ -150,6 +184,28 @@ export default function RoutineBuilderScreen() {
           )}
         </ScrollView>
       </SafeAreaView>
+
+      {/* Picker de ejercicio por slot (Fase E) */}
+      <ChangeExerciseModal
+        visible={slotModal.visible}
+        currentExerciseId={slotModal.currentExerciseId}
+        muscleGroup={slotModal.muscleGroup}
+        userEquipment={equipmentForModal}
+        isGym={isGymForModal}
+        lang={lang}
+        changeExTitle={t('tabs.training.changeExTitle')}
+        noAlternativesText={t('tabs.training.noAlternatives')}
+        onClose={() => setSlotModal(m => ({ ...m, visible: false }))}
+        onSelect={async (newId) => {
+          await setSlotExercise(slotModal.slotId, newId);
+          setSlotModal(m => ({ ...m, visible: false }));
+          await reloadTemplate();
+        }}
+        onRemove={async () => {
+          await setSlotExercise(slotModal.slotId, null);
+          await reloadTemplate();
+        }}
+      />
     </ThemedView>
   );
 }
@@ -190,6 +246,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#FFFFFF12',
   },
+  slotTextWrap: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginRight: Spacing.one },
   slotMuscle: { fontSize: 14 },
   slotExercise: { fontSize: 13 },
 });

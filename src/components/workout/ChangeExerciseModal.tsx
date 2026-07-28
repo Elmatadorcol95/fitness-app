@@ -4,7 +4,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { EXERCISES, getAlternatives, getExerciseName } from '@/lib/exercises';
+import { EXERCISES, getAlternatives, getExerciseName, type MuscleGroup } from '@/lib/exercises';
+import { getExercisesByMuscleGroup } from '@/lib/muscleBasedSelection';
 import { muscleLabel, equipmentLabel } from '@/components/workout/ExerciseCard';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/theme';
@@ -23,7 +24,10 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 interface Props {
   visible: boolean;
-  currentExerciseId: string;
+  // null = slot vacío del constructor propio (Fase E) — en ese caso hace
+  // falta muscleGroup para recomendar candidatos por músculo en vez de por
+  // solapamiento con un ejercicio existente.
+  currentExerciseId: string | null;
   userEquipment: string[];
   isGym: boolean;
   onClose: () => void;
@@ -31,6 +35,8 @@ interface Props {
   lang?: string;
   changeExTitle: string;
   noAlternativesText: string;
+  muscleGroup?: MuscleGroup;
+  onRemove?: () => void;
 }
 
 export function ChangeExerciseModal({
@@ -43,10 +49,14 @@ export function ChangeExerciseModal({
   lang = 'es',
   changeExTitle,
   noAlternativesText,
+  muscleGroup,
+  onRemove,
 }: Props) {
   const theme = useTheme();
   const normalizedLang = (lang.startsWith('fr') ? 'fr' : lang.startsWith('es') ? 'es' : 'en') as 'es' | 'en' | 'fr';
-  const alternatives = getAlternatives(currentExerciseId, userEquipment, isGym);
+  const alternatives = currentExerciseId === null
+    ? getExercisesByMuscleGroup(muscleGroup!, userEquipment, isGym)
+    : getAlternatives(currentExerciseId, userEquipment, isGym);
   const isDbReady = useProfileStore(s => s.isDbReady);
 
   const [preferences, setPreferences] = useState<Map<string, Preference>>(new Map());
@@ -89,6 +99,25 @@ export function ChangeExerciseModal({
         <ThemedText themeColor="textSecondary" style={styles.prefHint}>
           <Ionicons name="thumbs-up" size={13} color={GREEN} /> tus favoritos aparecerán con más frecuencia. <Ionicons name="thumbs-down" size={13} color={AMBER} /> no volverán a aparecer en tu plan — puedes deshacerlo cuando quieras desde tu perfil.
         </ThemedText>
+
+        {onRemove && currentExerciseId !== null && (
+          <>
+            <Pressable
+              style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
+              onPress={() => { onRemove(); onClose(); }}
+            >
+              <View style={[styles.catDot, { backgroundColor: AMBER + '22' }]}>
+                <Ionicons name="trash-outline" size={18} color={AMBER} />
+              </View>
+              <View style={styles.itemContent}>
+                <ThemedText type="defaultSemiBold" style={styles.itemName}>
+                  {normalizedLang === 'es' ? 'Quitar ejercicio' : normalizedLang === 'fr' ? "Retirer l'exercice" : 'Remove exercise'}
+                </ThemedText>
+              </View>
+            </Pressable>
+            <View style={[styles.separator, { backgroundColor: theme.background }]} />
+          </>
+        )}
 
         {alternatives.length === 0 ? (
           <View style={styles.empty}>
