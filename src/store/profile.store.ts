@@ -56,6 +56,7 @@ interface ProfileState {
   resetDraft: () => void;
   updateEquipmentAndLocation: (location: Location, equipment: string[]) => Promise<void>;
   updateMusclePriorities: (priorities: MuscleGroup[]) => Promise<void>;
+  setPlanMode: (mode: 'auto' | 'manual') => Promise<void>;
   openEquipment: () => void;
   closeEquipment: () => void;
   openMusclePriorities: () => void;
@@ -107,5 +108,14 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
       .set({ musclePriorities: musclePrioritiesJson })
       .where(eq(profileTable.id, current.id));
     set({ profile: { ...current, musclePriorities: musclePrioritiesJson } });
+  },
+  setPlanMode: async (mode) => {
+    const current = get().profile;
+    if (!current) return;
+    await db
+      .update(profileTable)
+      .set({ planMode: mode })
+      .where(eq(profileTable.id, current.id));
+    set({ profile: { ...current, planMode: mode } });
   },
 }));

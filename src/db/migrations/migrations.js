@@ -15,6 +15,7 @@ import m0010 from './0010_muscle_priorities.sql';
 import m0011 from './0011_plan_days_cardio.sql';
 import m0012 from './0012_exercise_preferences.sql';
 import m0013 from './0013_routine_templates.sql';
+import m0014 from './0014_plan_source_context.sql';
 
   export default {
     journal,
@@ -32,6 +33,7 @@ import m0013 from './0013_routine_templates.sql';
       m0010,
       m0011,
       m0012,
-      m0013
+      m0013,
+      m0014
     }
   }

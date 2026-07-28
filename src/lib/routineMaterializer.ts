@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '@/db';
 import { workoutPlans, planDays, workoutSessions } from '@/db/schema';
 import type { Profile } from '@/db/schema';
@@ -7,25 +7,34 @@ import { getRepScheme, buildPlanned, getExerciseCounts, getCardioSlots, type Goa
 import { selectCardio, createCardioCycleState, type CardioPlan } from './cardioSelection';
 import { getTemplate, type TemplateContext } from './routineTemplates';
 
-// ¿Este día del plan (plan_days.id) tiene ya alguna sesión real registrada?
-// No existía ninguna consulta así en el proyecto — se escribe de cero.
+// ¿Este día del plan (plan_days.id) tiene ya alguna sesión real registrada
+// DESDE sinceTimestamp? (Fase G1: antes era "alguna vez, para siempre" —
+// ahora un día puede volver a contar como "sin entrenar" tras activar/
+// reactivar un plan o pasar de semana, comparando contra el generatedAt del
+// ciclo vigente en vez de contra todo el historial.)
 // workout_sessions.completed está siempre en 1 en la práctica (hardcodeado
 // en finishSession()), así que filtrar por plan_day_id ya es equivalente a
 // filtrar por "completada" — no hace falta comprobar completed aquí.
-export async function hasSessionForPlanDay(planDayId: number): Promise<boolean> {
+export async function hasSessionForPlanDay(planDayId: number, sinceTimestamp: number): Promise<boolean> {
   const rows = await db
     .select({ id: workoutSessions.id })
     .from(workoutSessions)
-    .where(eq(workoutSessions.planDayId, planDayId))
+    .where(and(eq(workoutSessions.planDayId, planDayId), gte(workoutSessions.createdAt, sinceTimestamp)))
     .limit(1);
   return rows.length > 0;
 }
 
-// Materializa la plantilla de un contexto (gym/casa) sobre plan_days reales,
-// reutilizando el plan activo (o creándolo si no existe). Nunca toca un día
-// que ya tiene una sesión registrada (hasSessionForPlanDay). Un día con
-// todos sus slots vacíos SIGUE creando/actualizando su fila con
-// exercises: '[]' — no se omite.
+// Materializa la plantilla de un contexto (gym/casa) sobre plan_days reales
+// del plan YA IDENTIFICADO por planId — esta función ya NO busca ni crea el
+// plan activo por su cuenta (Fase G1: ese trabajo pasa a las 3 acciones de
+// workout.store.ts, únicas capaces de resolver qué contexto es "el activo"
+// para un usuario location:'both'). cycleStart es el generatedAt del ciclo
+// vigente: un día solo se considera "ya entrenado" (y por tanto intocable)
+// si tiene una sesión con createdAt >= cycleStart.
+//
+// Nunca toca un día que ya tiene una sesión registrada DENTRO del ciclo
+// vigente (hasSessionForPlanDay). Un día con todos sus slots vacíos SIGUE
+// creando/actualizando su fila con exercises: '[]' — no se omite.
 //
 // Cardio (Fase C2): '[]' (el string literal, no un CardioPlan vacío) es el
 // centinela de "cardio aún no calculado" para una fila ya existente. Solo se
@@ -39,39 +48,13 @@ export async function materializeTemplate(
   profile: Profile,
   equipment: string[],
   dislikedIds: Set<string>,
+  planId: number,
+  cycleStart: number,
 ): Promise<void> {
   const templateDays = await getTemplate(context);
   // Plantilla inexistente (aún sin crear para este contexto) — nada que
-  // materializar. Salir aquí evita crear un workoutPlans "zombie" con
-  // daysPerWeek: 0 y ningún plan_days.
+  // materializar.
   if (templateDays.length === 0) return;
-
-  // 1. Plan activo — mismo patrón de re-lectura tras insertar que ya usa
-  // generateAndSavePlan() en workout.store.ts.
-  let [activePlan] = await db
-    .select()
-    .from(workoutPlans)
-    .where(eq(workoutPlans.isActive, 1))
-    .orderBy(desc(workoutPlans.id))
-    .limit(1);
-
-  if (!activePlan) {
-    await db.insert(workoutPlans).values({
-      goalPrimary:       profile.goalPrimary,
-      goalSecondary:     profile.goalSecondary,
-      daysPerWeek:       templateDays.length,
-      minutesPerSession: profile.minutesPerSession,
-      isActive:          1,
-      generatedAt:       Date.now(),
-    });
-    [activePlan] = await db
-      .select()
-      .from(workoutPlans)
-      .where(eq(workoutPlans.isActive, 1))
-      .orderBy(desc(workoutPlans.id))
-      .limit(1);
-  }
-  if (!activePlan) throw new Error('materializeTemplate: no se pudo crear/leer el plan activo');
 
   const scheme = getRepScheme(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null);
 
@@ -94,7 +77,7 @@ export async function materializeTemplate(
     const [existingForSeed] = await db
       .select()
       .from(planDays)
-      .where(and(eq(planDays.planId, activePlan.id), eq(planDays.dayIndex, day.dayIndex)))
+      .where(and(eq(planDays.planId, planId), eq(planDays.dayIndex, day.dayIndex)))
       .limit(1);
     if (existingForSeed && existingForSeed.cardio !== '[]') {
       const seedCardio = JSON.parse(existingForSeed.cardio) as CardioPlan;
@@ -112,11 +95,11 @@ export async function materializeTemplate(
     const [existingDay] = await db
       .select()
       .from(planDays)
-      .where(and(eq(planDays.planId, activePlan.id), eq(planDays.dayIndex, day.dayIndex)))
+      .where(and(eq(planDays.planId, planId), eq(planDays.dayIndex, day.dayIndex)))
       .limit(1);
 
-    if (existingDay && await hasSessionForPlanDay(existingDay.id)) {
-      continue; // día ya entrenado — nunca se toca (cardio incluido)
+    if (existingDay && await hasSessionForPlanDay(existingDay.id, cycleStart)) {
+      continue; // día ya entrenado en ESTE ciclo — nunca se toca (cardio incluido)
     }
 
     const filledSlots = day.slots.filter(s => s.exerciseId !== null);
@@ -156,7 +139,7 @@ export async function materializeTemplate(
         .where(eq(planDays.id, existingDay.id));
     } else {
       await db.insert(planDays).values({
-        planId:    activePlan.id,
+        planId,
         dayIndex:  day.dayIndex,
         dayType:   day.dayType,
         exercises: JSON.stringify(exercises),
@@ -164,4 +147,20 @@ export async function materializeTemplate(
       });
     }
   }
+}
+
+// Busca la fila más reciente de workoutPlans para el constructor propio de
+// un contexto dado (source='manual' AND context=el dado) — SIN filtrar por
+// isActive, porque puede existir (creada antes) y estar inactiva en este
+// momento (el usuario cambió a otro modo/contexto) y aun así ser "la
+// plantilla materializada de este contexto" que activateManualPlan debe
+// reactivar en vez de duplicar.
+export async function findManualPlan(context: TemplateContext): Promise<typeof workoutPlans.$inferSelect | null> {
+  const [row] = await db
+    .select()
+    .from(workoutPlans)
+    .where(and(eq(workoutPlans.source, 'manual'), eq(workoutPlans.context, context)))
+    .orderBy(desc(workoutPlans.id))
+    .limit(1);
+  return row ?? null;
 }

@@ -89,6 +89,8 @@ export const workoutPlans = sqliteTable('workout_plans', {
   minutesPerSession: integer('minutes_per_session').notNull(),
   isActive: integer('is_active').notNull().default(1),
   generatedAt: integer('generated_at').notNull(),
+  source: text('source').notNull().default('auto'), // 'auto' | 'manual'
+  context: text('context'), // 'gym' | 'home' | null — solo relevante si source='manual'
 });
 
 export const planDays = sqliteTable('plan_days', {
