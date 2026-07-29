@@ -378,7 +378,13 @@
     "noplan": {
       "title": "Votre programme d'entraînement",
       "subtitle": "Générez votre programme personnalisé selon votre objectif et votre équipement",
-      "button": "Générer mon programme"
+      "buttonAuto": "Générer mon programme automatiquement",
+      "buttonManual": "Créer mon propre programme"
+    },
+    "noTrainableDays": {
+      "title": "Votre routine est vide",
+      "subtitle": "Choisissez au moins un exercice dans le constructeur pour pouvoir vous entraîner",
+      "button": "Aller au constructeur"
     },
     "days": {
       "full_body": "Corps complet",
@@ -519,6 +525,13 @@
     "contextPrompt": "Où vous entraînez-vous ?",
     "emptySlots": "Aucun exercice recommandé pour ce jour.",
     "slotEmpty": "Pas encore choisi",
-    "addSlotPickerTitle": "Choisissez un muscle"
+    "addSlotPickerTitle": "Choisissez un muscle",
+    "activateBtn": "Activer cette routine",
+    "activeBadge": "Déjà active",
+    "backToAutoLink": "Revenir au programme automatique",
+    "backToAutoTitle": "Revenir au programme automatique ?",
+    "backToAutoMsg": "Un programme automatique sera généré selon votre profil. Votre routine propre n'est pas supprimée : vous pourrez la réactiver quand vous voulez.",
+    "backToAutoConfirm": "Oui, revenir",
+    "dayAlreadyTrainedWarning": "Vous avez déjà entraîné ce jour cette semaine — votre changement s'appliquera au prochain cycle"
   }
 }

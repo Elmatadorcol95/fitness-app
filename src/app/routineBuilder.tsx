@@ -7,6 +7,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useProfileStore } from '@/store/profile.store';
+import { useWorkoutStore } from '@/store/workout.store';
 import { Spacing } from '@/constants/theme';
 import { EXERCISES, getExerciseName, type MuscleGroup } from '@/lib/exercises';
 import type { Profile } from '@/db/schema';
@@ -119,6 +120,8 @@ export default function RoutineBuilderScreen() {
   const lang = (i18n.language.startsWith('fr') ? 'fr' : i18n.language.startsWith('es') ? 'es' : 'en') as 'es' | 'en' | 'fr';
   const isDbReady = useProfileStore(s => s.isDbReady);
   const profile = useProfileStore(s => s.profile);
+  const currentPlan = useWorkoutStore(s => s.currentPlan);
+  const isGenerating = useWorkoutStore(s => s.isGenerating);
 
   const showSelector = profile?.location === 'both';
   const initialContext: TemplateContext = profile?.location === 'home' ? 'home' : 'gym';
@@ -131,6 +134,11 @@ export default function RoutineBuilderScreen() {
     muscleGroup: MuscleGroup | undefined;
   }>({ visible: false, slotId: 0, currentExerciseId: null, muscleGroup: undefined });
   const [addSlotDay, setAddSlotDay] = useState<RoutineTemplateDay | null>(null);
+  // dayIndex → true si el último intento de sincronizar ese día se saltó por
+  // ya tener una sesión registrada este ciclo (bug 2). Solo en memoria, no se
+  // persiste — se recalcula en cada syncIfActive() y se limpia sola si un
+  // día deja de estar saltado (ej. tras activar un ciclo nuevo).
+  const [skippedWarningDays, setSkippedWarningDays] = useState<Set<number>>(new Set());
 
   // Mismo parseo que getProfileSignals(), pero solo lo que el picker necesita
   // (sin dislikedIds/likedIds — getExercisesByMuscleGroup/getAlternatives no
@@ -144,6 +152,42 @@ export default function RoutineBuilderScreen() {
   async function reloadTemplate() {
     const template = await getTemplate(context);
     setDays(template);
+  }
+
+  // Sincroniza el plan manual de este contexto (Fase G2) — solo tiene efecto
+  // real si ya está activo (syncManualPlanIfActive lo comprueba internamente);
+  // si el usuario está editando un contexto que no está corriendo, es un
+  // no-op silencioso. Señales frescas en cada llamada, sin cachear en estado
+  // del componente (mismo criterio que activateManualPlan más abajo).
+  // dayIndex: el día cuyo slot se acaba de editar — si viene en
+  // skippedDayIndexes, ese día ya se entrenó este ciclo y el cambio no se
+  // reflejará hasta el próximo (bug 2); se avisa con un banner local.
+  async function syncIfActive(dayIndex: number) {
+    if (!profile) return;
+    const signals = await getProfileSignals(profile);
+    const result = await useWorkoutStore.getState().syncManualPlanIfActive(context, profile, signals.equipment, signals.dislikedIds);
+    setSkippedWarningDays(prev => {
+      const next = new Set(prev);
+      if (result.skippedDayIndexes.includes(dayIndex)) next.add(dayIndex);
+      else next.delete(dayIndex);
+      return next;
+    });
+  }
+
+  // Resuelve a qué día pertenece un slot ya existente (para el modal de
+  // cambiar/quitar ejercicio, que solo conoce el slotId, no el día).
+  function findDayIndexForSlot(slotId: number): number | null {
+    const day = days?.find(d => d.slots.some(s => s.id === slotId));
+    return day ? day.dayIndex : null;
+  }
+
+  const isActiveForContext = currentPlan?.source === 'manual' && currentPlan?.context === context;
+
+  async function handleActivate() {
+    if (!profile) return;
+    const signals = await getProfileSignals(profile);
+    await useWorkoutStore.getState().activateManualPlan(context, profile, signals.equipment, signals.dislikedIds);
+    await useProfileStore.getState().setPlanMode('manual');
   }
 
   useEffect(() => {
@@ -220,6 +264,28 @@ export default function RoutineBuilderScreen() {
             </>
           )}
 
+          {days !== null && days.length > 0 && (
+            <View style={styles.activateRow}>
+              {isActiveForContext ? (
+                <View style={styles.activeBadge}>
+                  <Ionicons name="checkmark-circle" size={16} color={GREEN} />
+                  <ThemedText style={styles.activeBadgeText}>{t('routineBuilder.activeBadge')}</ThemedText>
+                </View>
+              ) : (
+                <Pressable
+                  style={[styles.activateBtn, isGenerating && styles.activateBtnDisabled]}
+                  onPress={handleActivate}
+                  disabled={isGenerating}
+                >
+                  {isGenerating
+                    ? <ActivityIndicator size="small" color="#04261A" />
+                    : <ThemedText style={styles.activateBtnText}>{t('routineBuilder.activateBtn')}</ThemedText>
+                  }
+                </Pressable>
+              )}
+            </View>
+          )}
+
           {days === null ? (
             <ActivityIndicator color={GREEN} style={styles.loading} />
           ) : days.length === 0 ? (
@@ -265,7 +331,7 @@ export default function RoutineBuilderScreen() {
                           <Pressable
                             style={styles.slotDeleteBtn}
                             hitSlop={8}
-                            onPress={async () => { await removeSlot(slot.id); await reloadTemplate(); }}
+                            onPress={async () => { await removeSlot(slot.id); await reloadTemplate(); await syncIfActive(day.dayIndex); }}
                           >
                             <Ionicons name="trash-outline" size={18} color={AMBER} />
                           </Pressable>
@@ -276,6 +342,14 @@ export default function RoutineBuilderScreen() {
                       <Ionicons name="add-circle-outline" size={22} color={GREEN} />
                     </Pressable>
                   </ThemedView>
+                  {skippedWarningDays.has(day.dayIndex) && (
+                    <View style={styles.skippedWarning}>
+                      <Ionicons name="information-circle-outline" size={14} color={AMBER} />
+                      <ThemedText style={styles.skippedWarningText}>
+                        {t('routineBuilder.dayAlreadyTrainedWarning')}
+                      </ThemedText>
+                    </View>
+                  )}
                 </View>
               );
             })
@@ -295,13 +369,17 @@ export default function RoutineBuilderScreen() {
         noAlternativesText={t('tabs.training.noAlternatives')}
         onClose={() => setSlotModal(m => ({ ...m, visible: false }))}
         onSelect={async (newId) => {
+          const dayIndex = findDayIndexForSlot(slotModal.slotId);
           await setSlotExercise(slotModal.slotId, newId);
           setSlotModal(m => ({ ...m, visible: false }));
           await reloadTemplate();
+          if (dayIndex !== null) await syncIfActive(dayIndex);
         }}
         onRemove={async () => {
+          const dayIndex = findDayIndexForSlot(slotModal.slotId);
           await setSlotExercise(slotModal.slotId, null);
           await reloadTemplate();
+          if (dayIndex !== null) await syncIfActive(dayIndex);
         }}
       />
 
@@ -313,9 +391,11 @@ export default function RoutineBuilderScreen() {
         onClose={() => setAddSlotDay(null)}
         onSelect={async (muscleGroup) => {
           if (!addSlotDay) return;
-          await addSlot(addSlotDay.id, addSlotDay.dayIndex, muscleGroup);
+          const dayIndex = addSlotDay.dayIndex;
+          await addSlot(addSlotDay.id, dayIndex, muscleGroup);
           setAddSlotDay(null);
           await reloadTemplate();
+          await syncIfActive(dayIndex);
         }}
       />
     </ThemedView>
@@ -347,11 +427,32 @@ const styles = StyleSheet.create({
   },
   contextChipActive: { borderColor: '#3FBF7F33' },
   contextChipText: { fontSize: 14 },
+  activateRow: { alignItems: 'center' },
+  activateBtn: {
+    backgroundColor: GREEN, borderRadius: Spacing.three,
+    paddingHorizontal: Spacing.four, paddingVertical: Spacing.two + 4,
+    minWidth: 200, alignItems: 'center',
+  },
+  activateBtnDisabled: { opacity: 0.6 },
+  activateBtnText: { color: '#04261A', fontSize: 15, fontWeight: '700' },
+  activeBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderRadius: Spacing.three, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two,
+    borderWidth: 1, borderColor: GREEN + '55', backgroundColor: GREEN + '18',
+  },
+  activeBadgeText: { fontSize: 13, color: GREEN, fontWeight: '600' },
   loading: { marginTop: Spacing.five },
   emptyText: { fontSize: 14, textAlign: 'center', marginTop: Spacing.five, lineHeight: 20 },
   dayBlock: { gap: Spacing.one },
   dayTitle: { fontSize: 15 },
   dayCard: { borderRadius: Spacing.two, padding: Spacing.three, gap: Spacing.two },
+  skippedWarning: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
+    backgroundColor: AMBER + '14', borderRadius: Spacing.two,
+    borderLeftWidth: 3, borderLeftColor: AMBER,
+    paddingHorizontal: Spacing.two, paddingVertical: Spacing.one + 2,
+  },
+  skippedWarningText: { flex: 1, fontSize: 12, color: AMBER, lineHeight: 17 },
   emptySlotsText: { fontSize: 13 },
   slotRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

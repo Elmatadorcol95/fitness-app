@@ -29,6 +29,8 @@ export interface StoredPlan {
   minutesPerSession: number;
   days: StoredPlanDay[];
   activeDayIndex: number;
+  source: 'auto' | 'manual';
+  context: 'gym' | 'home' | null;
 }
 
 interface WorkoutState {
@@ -41,7 +43,7 @@ interface WorkoutState {
   advanceDayIndex: () => Promise<void>;
   resetAll: () => Promise<void>;
   activateManualPlan: (context: TemplateContext, profile: Profile, equipment: string[], dislikedIds: Set<string>) => Promise<void>;
-  syncManualPlanIfActive: (context: TemplateContext, profile: Profile, equipment: string[], dislikedIds: Set<string>) => Promise<void>;
+  syncManualPlanIfActive: (context: TemplateContext, profile: Profile, equipment: string[], dislikedIds: Set<string>) => Promise<{ skippedDayIndexes: number[] }>;
   startNextManualCycle: (context: TemplateContext, profile: Profile, equipment: string[], dislikedIds: Set<string>) => Promise<void>;
 }
 
@@ -106,6 +108,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           minutesPerSession: plan.minutesPerSession,
           activeDayIndex,
           days: mapDayRows(dayRows),
+          source: plan.source as 'auto' | 'manual',
+          context: plan.context as 'gym' | 'home' | null,
         },
         isLoaded: true,
       });
@@ -186,6 +190,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
 
       await saveActiveDayIndex(0);
       await useGamificationStore.getState().resetDaysTrainedThisWeek();
+      await useGamificationStore.getState().resetDaysFinishedThisWeek();
 
       set({
         currentPlan: {
@@ -196,6 +201,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           minutesPerSession: plan.minutesPerSession,
           activeDayIndex:    0,
           days: mapDayRows(savedDayRows),
+          source: savedPlan.source as 'auto' | 'manual',
+          context: savedPlan.context as 'gym' | 'home' | null,
         },
       });
     } finally {
@@ -291,6 +298,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
 
       await saveActiveDayIndex(0);
       await useGamificationStore.getState().resetDaysTrainedThisWeek();
+      await useGamificationStore.getState().resetDaysFinishedThisWeek();
 
       const dayRows = await db.select().from(planDays).where(eq(planDays.planId, targetPlan.id));
       set({
@@ -302,6 +310,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           minutesPerSession: targetPlan.minutesPerSession,
           activeDayIndex:    0,
           days: mapDayRows(dayRows),
+          source: targetPlan.source as 'auto' | 'manual',
+          context: targetPlan.context as 'gym' | 'home' | null,
         },
       });
     } finally {
@@ -326,9 +336,10 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         .orderBy(desc(workoutPlans.id))
         .limit(1);
 
-      if (!activePlan || activePlan.source !== 'manual' || activePlan.context !== context) return;
+      if (!activePlan) return { skippedDayIndexes: [] };
+      if (activePlan.source !== 'manual' || activePlan.context !== context) return { skippedDayIndexes: [] };
 
-      await materializeTemplate(context, profile, equipment, dislikedIds, activePlan.id, activePlan.generatedAt);
+      const { skippedDayIndexes } = await materializeTemplate(context, profile, equipment, dislikedIds, activePlan.id, activePlan.generatedAt);
 
       const dayRows = await db.select().from(planDays).where(eq(planDays.planId, activePlan.id));
       set(state => ({
@@ -336,6 +347,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           ? { ...state.currentPlan, days: mapDayRows(dayRows) }
           : state.currentPlan,
       }));
+
+      return { skippedDayIndexes };
     } finally {
       set({ isGenerating: false });
     }
@@ -366,6 +379,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
 
       await saveActiveDayIndex(0);
       await useGamificationStore.getState().resetDaysTrainedThisWeek();
+      await useGamificationStore.getState().resetDaysFinishedThisWeek();
 
       const dayRows = await db.select().from(planDays).where(eq(planDays.planId, activePlan.id));
       set({
@@ -377,6 +391,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           minutesPerSession: activePlan.minutesPerSession,
           activeDayIndex:    0,
           days: mapDayRows(dayRows),
+          source: activePlan.source as 'auto' | 'manual',
+          context: activePlan.context as 'gym' | 'home' | null,
         },
       });
     } finally {

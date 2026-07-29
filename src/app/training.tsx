@@ -21,7 +21,7 @@ import { BottomTabInset, Spacing } from '@/constants/theme';
 import { getExerciseName, getAlternatives, canDoAtHome, EXERCISES, type Exercise } from '@/lib/exercises';
 import { getExerciseTargetsForPlan } from '@/lib/progression';
 import { generateWarmup } from '@/lib/warmupGenerator';
-import type { PlannedExercise } from '@/lib/plan-generator';
+import { getProfileSignals, type PlannedExercise } from '@/lib/plan-generator';
 import { getDislikedIds, getAllPreferences, togglePreference, type Preference } from '@/lib/exercisePreferences';
 
 const GREEN = '#3FBF7F';
@@ -125,9 +125,15 @@ export default function TrainingScreen() {
     currentPlan, isLoaded, isGenerating,
     loadCurrentPlan, generateAndSavePlan, replaceExercise,
   } = useWorkoutStore();
+  // Bug 3a: días sin ejercicios nunca son "hoy" ni cuentan para el ciclo.
+  // Se calcula aquí arriba (no más abajo, junto al resto de "Plan activo")
+  // para que startRealSession/handleWarmupMinutes usen la MISMA base que el
+  // render — si no, "hoy" en pantalla y el día que de verdad arranca la
+  // sesión podrían desincronizarse en cuanto hubiera algún día vacío.
+  const trainableDays = currentPlan ? currentPlan.days.filter(d => d.exercises.length > 0) : [];
   const startSession       = useSessionStore(s => s.startSession);
   const setTrainingContext = useSessionStore(s => s.setTrainingContext);
-  const daysTrainedThisWeek = useGamificationStore(s => s.daysTrainedThisWeek);
+  const daysFinishedThisWeek = useGamificationStore(s => s.daysFinishedThisWeek);
   const startWarmup         = useWarmupStore(s => s.start);
   const isWarmupActive      = useWarmupStore(s => s.active);
 
@@ -181,8 +187,8 @@ export default function TrainingScreen() {
 
   async function startRealSession(context: 'gym' | 'home' | null) {
     if (!currentPlan) return;
-    const activeIdx  = currentPlan.activeDayIndex % currentPlan.days.length;
-    let   sessionDay = currentPlan.days[activeIdx];
+    const activeIdx  = currentPlan.activeDayIndex % trainableDays.length;
+    let   sessionDay = trainableDays[activeIdx];
     // El día ya nacía sin ejercicios ANTES de tocar el filtro de casa (p. ej.
     // un día materializado desde una plantilla sin slots elegidos) — distinto
     // de quedarse vacío POR el filtro E-3 de abajo. Determina qué mensaje usar.
@@ -293,8 +299,8 @@ export default function TrainingScreen() {
   async function handleWarmupMinutes(minutes: 5 | 10 | 15) {
     setWarmupMinutesOpen(false);
     if (!currentPlan) return;
-    const activeIdx = currentPlan.activeDayIndex % currentPlan.days.length;
-    const dayType    = currentPlan.days[activeIdx].dayType;
+    const activeIdx = currentPlan.activeDayIndex % trainableDays.length;
+    const dayType    = trainableDays[activeIdx].dayType;
     // pendingContext: 'home' = casa; 'gym' o null (perfil solo-gym) = gimnasio.
     const warmupIsGym = pendingContext !== 'home';
     const dislikedIds = await getDislikedIds();
@@ -325,6 +331,18 @@ export default function TrainingScreen() {
       void doStartSession('home');
     } else {
       void doStartSession(null);
+    }
+  }
+
+  // "Semana completada" — modo manual reactiva el mismo plan (nuevo ciclo,
+  // sin regenerar ejercicios); modo automático sigue generando un plan nuevo.
+  async function handleGenerateNextWeek() {
+    if (!profile) return;
+    if (currentPlan?.source === 'manual' && currentPlan.context) {
+      const signals = await getProfileSignals(profile);
+      await useWorkoutStore.getState().startNextManualCycle(currentPlan.context, profile, signals.equipment, signals.dislikedIds);
+    } else {
+      await generateAndSavePlan(profile);
     }
   }
 
@@ -367,8 +385,33 @@ export default function TrainingScreen() {
           >
             {isGenerating
               ? <ActivityIndicator size="small" color="#04261A" />
-              : <ThemedText style={styles.genBtnText}>{t('workout.noplan.button')}</ThemedText>
+              : <ThemedText style={styles.genBtnText}>{t('workout.noplan.buttonAuto')}</ThemedText>
             }
+          </Pressable>
+          <Pressable
+            style={styles.genBtnSecondary}
+            onPress={() => useProfileStore.getState().openRoutineBuilder()}
+          >
+            <ThemedText style={styles.genBtnSecondaryText}>{t('workout.noplan.buttonManual')}</ThemedText>
+          </Pressable>
+        </SafeAreaView>
+      </ThemedView>
+    );
+  }
+
+  // ── Sin días entrenables (bug 3a) ────────────────────────────────────────────
+  if (trainableDays.length === 0) {
+    return (
+      <ThemedView style={styles.root}>
+        <SafeAreaView style={[styles.safe, styles.centered]}>
+          <VulcanSymbol size={80} />
+          <ThemedText type="subtitle" style={styles.noPlanTitle}>{t('workout.noTrainableDays.title')}</ThemedText>
+          <ThemedText themeColor="textSecondary" style={styles.noPlanSub}>{t('workout.noTrainableDays.subtitle')}</ThemedText>
+          <Pressable
+            style={styles.genBtn}
+            onPress={() => useProfileStore.getState().openRoutineBuilder()}
+          >
+            <ThemedText style={styles.genBtnText}>{t('workout.noTrainableDays.button')}</ThemedText>
           </Pressable>
         </SafeAreaView>
       </ThemedView>
@@ -376,9 +419,9 @@ export default function TrainingScreen() {
   }
 
   // ── Plan activo ──────────────────────────────────────────────────────────────
-  const activeIdx  = currentPlan.activeDayIndex % currentPlan.days.length;
-  const today      = currentPlan.days[activeIdx];
-  const otherDays  = currentPlan.days.filter((_, i) => i !== activeIdx);
+  const activeIdx  = currentPlan.activeDayIndex % trainableDays.length;
+  const today      = trainableDays[activeIdx];
+  const otherDays  = trainableDays.filter((_, i) => i !== activeIdx);
   const estMin     = estimateDuration(today.exercises);
   const totalSets_ = countSets(today.exercises);
   const isPullRelevantDay = today.dayType === 'pull' || today.dayType === 'upper';
@@ -396,7 +439,7 @@ export default function TrainingScreen() {
     !hasBackVariety                   ? 'workout.today.noBackVariety' :
     'workout.today.noBicepWork';
 
-  const weekComplete = daysTrainedThisWeek >= currentPlan.days.length;
+  const weekComplete = daysFinishedThisWeek >= trainableDays.length;
 
   return (
     <ThemedView style={styles.root}>
@@ -413,11 +456,11 @@ export default function TrainingScreen() {
                 {t('tabs.training.weekComplete.title')}
               </ThemedText>
               <ThemedText themeColor="textSecondary" style={styles.weekCompleteSubtitle}>
-                {t('tabs.training.weekComplete.subtitle', { days: currentPlan.daysPerWeek })}
+                {t('tabs.training.weekComplete.subtitle', { days: trainableDays.length })}
               </ThemedText>
               <Pressable
                 style={[styles.genBtn, isGenerating && styles.genBtnDisabled]}
-                onPress={() => profile && generateAndSavePlan(profile)}
+                onPress={handleGenerateNextWeek}
                 disabled={isGenerating || !profile}
               >
                 {isGenerating
@@ -451,7 +494,7 @@ export default function TrainingScreen() {
                 {t(`workout.days.${today.dayType}`)}
               </ThemedText>
               <ThemedText themeColor="textSecondary" style={styles.dayCounter}>
-                {t('workout.planDay', { current: activeIdx + 1, total: currentPlan.days.length })}
+                {t('workout.planDay', { current: activeIdx + 1, total: trainableDays.length })}
               </ThemedText>
             </View>
             <View style={styles.dayStats}>
@@ -545,7 +588,7 @@ export default function TrainingScreen() {
                 <View style={styles.divLine} />
               </View>
 
-              {currentPlan.days.map((day, rawIdx) => {
+              {trainableDays.map((day, rawIdx) => {
                 if (rawIdx === activeIdx) return null;
                 const isExpanded = expandedOtherDay === rawIdx;
                 return (
@@ -553,7 +596,7 @@ export default function TrainingScreen() {
                     key={day.dbId}
                     day={day}
                     index={rawIdx}
-                    total={currentPlan.days.length}
+                    total={trainableDays.length}
                     isExpanded={isExpanded}
                     onToggle={() => setExpandedOtherDay(isExpanded ? null : rawIdx)}
                     onChangeEx={(exIdx) => setChangeModal({
@@ -582,17 +625,19 @@ export default function TrainingScreen() {
           </>
           )}
 
-          {/* ── Enlace discreto: generar semana nueva desde cero (siempre visible) ── */}
-          <Pressable
-            onPress={() => setResetWeekOpen(true)}
-            style={[styles.resetWeekLink, isGenerating && styles.resetWeekLinkDisabled]}
-            disabled={isGenerating}
-            hitSlop={8}
-          >
-            <ThemedText themeColor="textSecondary" style={styles.resetWeekLinkText}>
-              {t('tabs.training.resetWeek.link')}
-            </ThemedText>
-          </Pressable>
+          {/* ── Enlace discreto: generar semana nueva desde cero (oculto en modo manual) ── */}
+          {currentPlan.source !== 'manual' && (
+            <Pressable
+              onPress={() => setResetWeekOpen(true)}
+              style={[styles.resetWeekLink, isGenerating && styles.resetWeekLinkDisabled]}
+              disabled={isGenerating}
+              hitSlop={8}
+            >
+              <ThemedText themeColor="textSecondary" style={styles.resetWeekLinkText}>
+                {t('tabs.training.resetWeek.link')}
+              </ThemedText>
+            </Pressable>
+          )}
         </ScrollView>
       </SafeAreaView>
 
@@ -676,27 +721,29 @@ export default function TrainingScreen() {
         hideCancel
       />
 
-      {/* ── ¿Generar semana nueva desde cero? ── */}
-      <VulcanDialog
-        visible={resetWeekOpen}
-        onClose={() => setResetWeekOpen(false)}
-        title={t('tabs.training.resetWeek.title')}
-        message={t('tabs.training.resetWeek.msg')}
-        confirmLabel={t('tabs.training.resetWeek.confirm')}
-        cancelLabel={t('common.cancel')}
-        destructive
-        onConfirm={async () => {
-          if (isGenerating) return;
-          setResetWeekOpen(false);
-          if (profile) {
-            try {
-              await generateAndSavePlan(profile);
-            } catch (err) {
-              console.error('[Training] Error al generar semana nueva:', err);
+      {/* ── ¿Generar semana nueva desde cero? (oculto en modo manual) ── */}
+      {currentPlan.source !== 'manual' && (
+        <VulcanDialog
+          visible={resetWeekOpen}
+          onClose={() => setResetWeekOpen(false)}
+          title={t('tabs.training.resetWeek.title')}
+          message={t('tabs.training.resetWeek.msg')}
+          confirmLabel={t('tabs.training.resetWeek.confirm')}
+          cancelLabel={t('common.cancel')}
+          destructive
+          onConfirm={async () => {
+            if (isGenerating) return;
+            setResetWeekOpen(false);
+            if (profile) {
+              try {
+                await generateAndSavePlan(profile);
+              } catch (err) {
+                console.error('[Training] Error al generar semana nueva:', err);
+              }
             }
-          }
-        }}
-      />
+          }}
+        />
+      )}
     </ThemedView>
   );
 }
@@ -725,6 +772,12 @@ const styles = StyleSheet.create({
   },
   genBtnDisabled: { opacity: 0.6 },
   genBtnText:     { color: '#04261A', fontSize: 16, fontWeight: '700' },
+  genBtnSecondary: {
+    borderRadius: Spacing.three, borderWidth: 1, borderColor: GREEN + '55',
+    paddingHorizontal: Spacing.four, paddingVertical: Spacing.three,
+    minWidth: 200, alignItems: 'center',
+  },
+  genBtnSecondaryText: { color: GREEN, fontSize: 15, fontWeight: '600' },
 
   // Plan header
   planHeader: {

@@ -36,6 +36,10 @@ export async function hasSessionForPlanDay(planDayId: number, sinceTimestamp: nu
 // vigente (hasSessionForPlanDay). Un día con todos sus slots vacíos SIGUE
 // creando/actualizando su fila con exercises: '[]' — no se omite.
 //
+// Devuelve skippedDayIndexes: los dayIndex saltados por hasSessionForPlanDay
+// (Fase G2 — bug 2), para que el llamador pueda avisar de una edición que no
+// se reflejará hasta el próximo ciclo.
+//
 // Cardio (Fase C2): '[]' (el string literal, no un CardioPlan vacío) es el
 // centinela de "cardio aún no calculado" para una fila ya existente. Solo se
 // calcula cardio si el día tiene al menos un ejercicio de fuerza elegido Y
@@ -50,11 +54,13 @@ export async function materializeTemplate(
   dislikedIds: Set<string>,
   planId: number,
   cycleStart: number,
-): Promise<void> {
+): Promise<{ skippedDayIndexes: number[] }> {
   const templateDays = await getTemplate(context);
   // Plantilla inexistente (aún sin crear para este contexto) — nada que
   // materializar.
-  if (templateDays.length === 0) return;
+  if (templateDays.length === 0) return { skippedDayIndexes: [] };
+
+  const skippedDayIndexes: number[] = [];
 
   const scheme = getRepScheme(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null);
 
@@ -99,6 +105,7 @@ export async function materializeTemplate(
       .limit(1);
 
     if (existingDay && await hasSessionForPlanDay(existingDay.id, cycleStart)) {
+      skippedDayIndexes.push(day.dayIndex);
       continue; // día ya entrenado en ESTE ciclo — nunca se toca (cardio incluido)
     }
 
@@ -147,6 +154,8 @@ export async function materializeTemplate(
       });
     }
   }
+
+  return { skippedDayIndexes };
 }
 
 // Busca la fila más reciente de workoutPlans para el constructor propio de

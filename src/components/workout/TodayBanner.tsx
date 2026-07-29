@@ -43,7 +43,7 @@ export function TodayBanner() {
           <View style={styles.texts}>
             <ThemedText style={styles.prefix}>{t('workout.todayBanner.prefix')}</ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.dayName}>
-              {t('workout.noplan.button')}
+              {t('workout.noplan.buttonAuto')}
             </ThemedText>
           </View>
           <Ionicons name="chevron-forward" size={18} color={GREEN} />

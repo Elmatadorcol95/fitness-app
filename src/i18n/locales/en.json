@@ -378,7 +378,13 @@
     "noplan": {
       "title": "Your workout plan",
       "subtitle": "Generate your personalized plan based on your goal and available equipment",
-      "button": "Generate my plan"
+      "buttonAuto": "Generate my plan automatically",
+      "buttonManual": "Create my own plan"
+    },
+    "noTrainableDays": {
+      "title": "Your routine is empty",
+      "subtitle": "Choose at least one exercise in the builder before you can train",
+      "button": "Go to the builder"
     },
     "days": {
       "full_body": "Full body",
@@ -519,6 +525,13 @@
     "contextPrompt": "Where do you train?",
     "emptySlots": "No recommended exercises for this day.",
     "slotEmpty": "Not chosen yet",
-    "addSlotPickerTitle": "Choose a muscle"
+    "addSlotPickerTitle": "Choose a muscle",
+    "activateBtn": "Activate this routine",
+    "activeBadge": "Already active",
+    "backToAutoLink": "Switch back to automatic plan",
+    "backToAutoTitle": "Switch back to the automatic plan?",
+    "backToAutoMsg": "An automatic plan will be generated based on your profile. Your own routine won't be deleted — you can activate it again anytime.",
+    "backToAutoConfirm": "Yes, switch back",
+    "dayAlreadyTrainedWarning": "You already trained this day this week — your change will apply starting next cycle"
   }
 }

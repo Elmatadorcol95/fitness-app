@@ -191,7 +191,7 @@ export default function SessionScreen() {
   } = useSessionStore();
 
   const { currentPlan, advanceDayIndex } = useWorkoutStore();
-  const { recordWorkout, unlockAchievement, incrementDaysTrainedThisWeek } = useGamificationStore();
+  const { recordWorkout, unlockAchievement, incrementDaysTrainedThisWeek, incrementDaysFinishedThisWeek } = useGamificationStore();
   const { profile }           = useProfileStore();
   const equipment = parseEquipment(profile?.equipment);
   const isGym     = profile?.location === 'gym' || profile?.location === 'both';
@@ -436,8 +436,13 @@ export default function SessionScreen() {
       incrementDaysTrainedThisWeek();
     }
 
+    // Cierra la semana por "día finalizado", no por el gate de logros/racha
+    // de arriba — se incrementa siempre, sin importar cuántas series se
+    // completaron (a diferencia de incrementDaysTrainedThisWeek).
+    incrementDaysFinishedThisWeek();
+
     await advanceDayIndex();
-  }, [finishSession, unlockAchievement, recordWorkout, incrementDaysTrainedThisWeek, advanceDayIndex, sessionDayType, equipment, trainingContext]);
+  }, [finishSession, unlockAchievement, recordWorkout, incrementDaysTrainedThisWeek, incrementDaysFinishedThisWeek, advanceDayIndex, sessionDayType, equipment, trainingContext]);
 
   function handleFinish() {
     const pending = exercises.reduce(

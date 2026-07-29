@@ -35,6 +35,7 @@ interface GamificationState {
   totalWorkouts: number;
   perfectWorkouts: number;
   daysTrainedThisWeek: number;
+  daysFinishedThisWeek: number;
   lastWorkoutDate: string | null;
   unlockedAchievements: AchievementId[];
   isLoaded: boolean;
@@ -45,6 +46,8 @@ interface GamificationState {
   unlockAchievement: (id: AchievementId) => Promise<void>;
   incrementDaysTrainedThisWeek: () => Promise<void>;
   resetDaysTrainedThisWeek: () => Promise<void>;
+  incrementDaysFinishedThisWeek: () => Promise<void>;
+  resetDaysFinishedThisWeek: () => Promise<void>;
   popCelebration: () => void;
   resetAll: () => Promise<void>;
 }
@@ -76,6 +79,7 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
   totalWorkouts: 0,
   perfectWorkouts: 0,
   daysTrainedThisWeek: 0,
+  daysFinishedThisWeek: 0,
   lastWorkoutDate: null,
   unlockedAchievements: [],
   celebrationQueue: [],
@@ -83,12 +87,13 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
 
   loadGamification: async () => {
     if (get().isLoaded) return;
-    const [streak, longest, total, perfectTotal, daysTrained, lastDate] = await Promise.all([
+    const [streak, longest, total, perfectTotal, daysTrained, daysFinished, lastDate] = await Promise.all([
       getMeta('streak'),
       getMeta('longest_streak'),
       getMeta('total_workouts'),
       getMeta('perfect_workouts'),
       getMeta('days_trained_this_week'),
+      getMeta('days_finished_this_week'),
       getMeta('last_workout_date'),
     ]);
     const rows = await db.select().from(achievementsTable);
@@ -98,6 +103,7 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
       totalWorkouts: Number(total ?? 0),
       perfectWorkouts: Number(perfectTotal ?? 0),
       daysTrainedThisWeek: Number(daysTrained ?? 0),
+      daysFinishedThisWeek: Number(daysFinished ?? 0),
       lastWorkoutDate: lastDate,
       unlockedAchievements: rows.map(r => r.id as AchievementId),
       isLoaded: true,
@@ -151,6 +157,17 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
     set({ daysTrainedThisWeek: 0 });
   },
 
+  incrementDaysFinishedThisWeek: async () => {
+    const next = get().daysFinishedThisWeek + 1;
+    await setMeta('days_finished_this_week', String(next));
+    set({ daysFinishedThisWeek: next });
+  },
+
+  resetDaysFinishedThisWeek: async () => {
+    await setMeta('days_finished_this_week', '0');
+    set({ daysFinishedThisWeek: 0 });
+  },
+
   unlockAchievement: async (id: AchievementId) => {
     const { unlockedAchievements, celebrationQueue } = get();
     if (unlockedAchievements.includes(id)) return;
@@ -175,6 +192,6 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
   resetAll: async () => {
     await db.delete(achievementsTable);
     await db.delete(gamificationMeta);
-    set({ streak: 0, longestStreak: 0, totalWorkouts: 0, perfectWorkouts: 0, daysTrainedThisWeek: 0, lastWorkoutDate: null, unlockedAchievements: [], celebrationQueue: [], isLoaded: false });
+    set({ streak: 0, longestStreak: 0, totalWorkouts: 0, perfectWorkouts: 0, daysTrainedThisWeek: 0, daysFinishedThisWeek: 0, lastWorkoutDate: null, unlockedAchievements: [], celebrationQueue: [], isLoaded: false });
   },
 }));
