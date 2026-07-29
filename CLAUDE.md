@@ -1637,6 +1637,37 @@ Bucle ~1.3 s sobre fondo #141A17:
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
+## ⚠️ AL RETOMAR — PRIMERO PROBAR, ANTES DE TOCAR NADA MÁS
+
+El último commit (buscar "SIN PROBAR" en el log) se comiteó sin validar en
+dispositivo por necesidad de cambiar de PC. Antes de continuar con
+cualquier fase nueva, correr estos 4 escenarios:
+1. Cerrar una sesión SIN completar series (ratio < 50%) → el día debe
+   contar para "Semana completada" (daysFinishedThisWeek) pero NO
+   desbloquear logro ni sumar racha.
+2. Completar una sesión de verdad → logro/racha se disparan como siempre.
+3. Vaciar todos los slots de un día en el constructor → ese día debe
+   desaparecer de "hoy" y de "Tu ciclo" en Entreno.
+4. Editar un día ya entrenado esta semana en el constructor → debe
+   aparecer un banner ámbar bajo esa tarjeta explicando que el cambio se
+   aplicará el próximo ciclo.
+Si algo falla, NO seguir con la lista de pendientes de abajo — arreglarlo
+primero.
+
+**Pendientes conocidos de Fase G2 (reporte de Juan, puntos 1, 4, 5, 6 —
+los puntos 2 y 3 eran los bugs ya corregidos arriba), retomar solo después
+de validar los 4 escenarios:**
+1. Rediseño de "una sola rutina ancla" para usuarios `location:'both'` —
+   hoy existen dos plantillas independientes por contexto (gym/home);
+   revisar si ese modelo sigue siendo el correcto tras el uso real.
+4. Reubicar el enlace "Volver al plan automático" — hoy vive en Perfil,
+   sección "Rutina propia"; puede que deba estar en otro punto del flujo.
+5. Quitar el botón "Cambiar" de las tarjetas de ejercicio en Entreno
+   cuando el plan activo es de modo manual (la edición real de un plan
+   manual se hace en el constructor, no desde una tarjeta de Entreno).
+6. Fase futura: slots de cardio editables en el constructor propio (hoy
+   el cardio se añade de solo lectura, sin poder elegirlo/cambiarlo ahí).
+
 ## Constructor de rutina propia — EN PROGRESO (UI de construcción D-F
 completa + backend del interruptor de modos G1 cerrado; falta G2, la
 conexión visible)
