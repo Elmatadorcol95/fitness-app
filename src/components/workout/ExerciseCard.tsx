@@ -82,7 +82,7 @@ interface Props {
   /** Razón de progresión calculada por el algoritmo (mostrada debajo del resumen) */
   progressionReason?: string | null;
   lang: 'es' | 'en' | 'fr';
-  onChangeExercise: () => void;
+  onChangeExercise?: () => void;
   bodyweightLabel: string;  // "Peso corporal" / "Bodyweight" / "Poids du corps"
   preference: Preference | null;
   onTogglePreference: (preference: Preference) => void;
@@ -147,9 +147,11 @@ export function ExerciseCard({ plannedEx, lastWeightKg, progressionReason, lang,
                 color={preference === 'disliked' ? AMBER : MUTED}
               />
             </Pressable>
-            <Pressable onPress={onChangeExercise} hitSlop={12} style={styles.menuBtn}>
-              <Ionicons name="ellipsis-horizontal" size={20} color={MUTED} />
-            </Pressable>
+            {onChangeExercise && (
+              <Pressable onPress={onChangeExercise} hitSlop={12} style={styles.menuBtn}>
+                <Ionicons name="ellipsis-horizontal" size={20} color={MUTED} />
+              </Pressable>
+            )}
           </View>
 
           <ThemedText themeColor="textSecondary" style={styles.muscles} numberOfLines={1}>

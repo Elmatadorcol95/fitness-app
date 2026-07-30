@@ -532,6 +532,7 @@
     "backToAutoTitle": "Revenir au programme automatique ?",
     "backToAutoMsg": "Un programme automatique sera généré selon votre profil. Votre routine propre n'est pas supprimée : vous pourrez la réactiver quand vous voulez.",
     "backToAutoConfirm": "Oui, revenir",
-    "dayAlreadyTrainedWarning": "Vous avez déjà entraîné ce jour cette semaine — votre changement s'appliquera au prochain cycle"
+    "dayAlreadyTrainedWarning": "Vous avez déjà entraîné ce jour cette semaine — votre changement s'appliquera au prochain cycle",
+    "autoSubstituteNote": "Sera utilisée automatiquement quand tu t'entraîneras ici"
   }
 }

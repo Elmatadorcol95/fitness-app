@@ -9,7 +9,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useProfileStore } from '@/store/profile.store';
 import { useWorkoutStore } from '@/store/workout.store';
 import { Spacing } from '@/constants/theme';
-import { EXERCISES, getExerciseName, type MuscleGroup } from '@/lib/exercises';
+import { getExerciseName, type MuscleGroup } from '@/lib/exercises';
 import type { Profile } from '@/db/schema';
 import { muscleLabel } from '@/components/workout/ExerciseCard';
 import { ChangeExerciseModal } from '@/components/workout/ChangeExerciseModal';
@@ -17,12 +17,9 @@ import { estimateDuration } from '@/app/training';
 import {
   getSplit,
   getProfileSignals,
-  getRepScheme,
-  buildPlanned,
   type DayType,
-  type GoalKey,
-  type PlannedExercise,
 } from '@/lib/plan-generator';
+import { buildExercisesFromTemplateDay } from '@/lib/routineMaterializer';
 import {
   getTemplate,
   createTemplate,
@@ -55,26 +52,12 @@ const ALL_MUSCLE_GROUPS: MuscleGroup[] = [
   'lats', 'traps', 'forearms', 'abs', 'adductors',
 ];
 
-// Mismo criterio que routineMaterializer.ts: solo slots con exerciseId ya
-// asignado aportan al cálculo; sets/reps/descanso salen de getRepScheme()
-// según el objetivo del perfil + isCompound del ejercicio real, igual que la
-// materialización real. Slots vacíos no aportan nada todavía.
+// Mismo criterio que routineMaterializer.ts (reutiliza buildExercisesFromTemplateDay,
+// ya no duplica la lógica): solo slots con exerciseId ya asignado aportan al
+// cálculo. Slots vacíos no aportan nada todavía.
 function estimateDayDuration(day: RoutineTemplateDay, profile: Profile | null): number {
   if (!profile) return 0;
-  const scheme = getRepScheme(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null);
-  const exercises: PlannedExercise[] = [];
-  for (const slot of day.slots) {
-    if (slot.exerciseId === null) continue;
-    const exercise = EXERCISES.find(e => e.id === slot.exerciseId);
-    if (!exercise) continue;
-    exercises.push(...buildPlanned(
-      [exercise],
-      exercise.isCompound ? scheme.compoundSets  : scheme.isolationSets,
-      exercise.isCompound ? scheme.compoundReps  : scheme.isolationReps,
-      exercise.isCompound ? scheme.compoundRest  : scheme.isolationRest,
-      exercise.isCompound,
-    ));
-  }
+  const exercises = buildExercisesFromTemplateDay(day, profile);
   return estimateDuration(exercises);
 }
 
@@ -271,6 +254,13 @@ export default function RoutineBuilderScreen() {
                   <Ionicons name="checkmark-circle" size={16} color={GREEN} />
                   <ThemedText style={styles.activeBadgeText}>{t('routineBuilder.activeBadge')}</ThemedText>
                 </View>
+              ) : currentPlan?.source === 'manual' ? (
+                // Ya hay un ancla manual activa en el OTRO contexto (Punto 1 —
+                // rutina ancla): esta plantilla se usa como sustituto completo
+                // cuando el usuario entrena aquí, sin necesidad de activarla.
+                <ThemedText themeColor="textSecondary" style={styles.autoSubstituteText}>
+                  {t('routineBuilder.autoSubstituteNote')}
+                </ThemedText>
               ) : (
                 <Pressable
                   style={[styles.activateBtn, isGenerating && styles.activateBtnDisabled]}
@@ -441,6 +431,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: GREEN + '55', backgroundColor: GREEN + '18',
   },
   activeBadgeText: { fontSize: 13, color: GREEN, fontWeight: '600' },
+  autoSubstituteText: { fontSize: 13, textAlign: 'center', fontStyle: 'italic' },
   loading: { marginTop: Spacing.five },
   emptyText: { fontSize: 14, textAlign: 'center', marginTop: Spacing.five, lineHeight: 20 },
   dayBlock: { gap: Spacing.one },

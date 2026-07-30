@@ -21,8 +21,10 @@ import { BottomTabInset, Spacing } from '@/constants/theme';
 import { getExerciseName, getAlternatives, canDoAtHome, EXERCISES, type Exercise } from '@/lib/exercises';
 import { getExerciseTargetsForPlan } from '@/lib/progression';
 import { generateWarmup } from '@/lib/warmupGenerator';
-import { getProfileSignals, type PlannedExercise } from '@/lib/plan-generator';
+import { getProfileSignals, type PlannedExercise, type DayType } from '@/lib/plan-generator';
 import { getDislikedIds, getAllPreferences, togglePreference, type Preference } from '@/lib/exercisePreferences';
+import { getTemplate } from '@/lib/routineTemplates';
+import { buildExercisesFromTemplateDay } from '@/lib/routineMaterializer';
 
 const GREEN = '#3FBF7F';
 const AMBER = '#F2B450';
@@ -60,7 +62,7 @@ interface OtherDayCardProps {
   total: number;
   isExpanded: boolean;
   onToggle: () => void;
-  onChangeEx: (exIdx: number) => void;
+  onChangeEx?: (exIdx: number) => void;
   lang: 'es' | 'en' | 'fr';
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
@@ -89,12 +91,14 @@ function OtherDayCard({ day, index, total, isExpanded, onToggle, onChangeEx, lan
               <ThemedText themeColor="textSecondary" style={styles.otherDayExName} numberOfLines={1}>
                 {ex.sets}× {getExerciseName(ex.exerciseId, lang)}
               </ThemedText>
-              <Pressable
-                onPress={() => onChangeEx(i)}
-                style={({ pressed }) => [styles.miniChangeBtn, pressed && { opacity: 0.6 }]}
-              >
-                <ThemedText style={styles.miniChangeBtnText}>{t('tabs.training.changeEx')}</ThemedText>
-              </Pressable>
+              {onChangeEx && (
+                <Pressable
+                  onPress={() => onChangeEx(i)}
+                  style={({ pressed }) => [styles.miniChangeBtn, pressed && { opacity: 0.6 }]}
+                >
+                  <ThemedText style={styles.miniChangeBtnText}>{t('tabs.training.changeEx')}</ThemedText>
+                </Pressable>
+              )}
             </View>
           ))}
           {(day.cardio.gym.length > 0 || day.cardio.homeSessions.length > 0) && (
@@ -185,19 +189,46 @@ export default function TrainingScreen() {
     getAllPreferences().then(setPreferencesMap);
   }, [isDbReady, currentPlan?.id, currentPlan?.activeDayIndex]);
 
+  // Punto 1 — rutina ancla para location:'both': si el plan activo es
+  // manual y el usuario elige entrenar HOY en el contexto que NO es el
+  // ancla, sustituye el día completo (no ejercicio-por-ejercicio) por el
+  // día correspondiente de la plantilla del otro contexto, emparejado por
+  // ÍNDICE con módulo — mismo criterio que ya usa el ancla para decidir
+  // "qué día toca" (activeDayIndex % length). Puramente en memoria: nunca
+  // escribe en plan_days, nunca resetea el ciclo ni el contador semanal.
+  // Si la plantilla del otro contexto no existe o no tiene ningún día
+  // entrenable, cae al filtro E-3 de siempre (substituted: false).
+  async function resolveEffectiveDay(context: 'gym' | 'home' | null): Promise<{ day: StoredPlanDay; substituted: boolean }> {
+    const activeIdx = currentPlan!.activeDayIndex % trainableDays.length;
+    const anchorDay  = trainableDays[activeIdx];
+    if (currentPlan!.source === 'manual' && context && context !== currentPlan!.context && profile) {
+      const otherTemplateDays = await getTemplate(context);
+      const trainableOtherDays = otherTemplateDays.filter(d => d.slots.some(s => s.exerciseId !== null));
+      if (trainableOtherDays.length > 0) {
+        const substituteIdx = activeIdx % trainableOtherDays.length;
+        const substituteDay = trainableOtherDays[substituteIdx];
+        const substituteExercises = buildExercisesFromTemplateDay(substituteDay, profile);
+        return { day: { ...anchorDay, exercises: substituteExercises, dayType: substituteDay.dayType as DayType }, substituted: true };
+      }
+    }
+    return { day: anchorDay, substituted: false };
+  }
+
   async function startRealSession(context: 'gym' | 'home' | null) {
     if (!currentPlan) return;
-    const activeIdx  = currentPlan.activeDayIndex % trainableDays.length;
-    let   sessionDay = trainableDays[activeIdx];
+    const { day: resolvedDay, substituted } = await resolveEffectiveDay(context);
+    let   sessionDay = resolvedDay;
     // El día ya nacía sin ejercicios ANTES de tocar el filtro de casa (p. ej.
     // un día materializado desde una plantilla sin slots elegidos) — distinto
     // de quedarse vacío POR el filtro E-3 de abajo. Determina qué mensaje usar.
     const wasEmptyBeforeFilter = sessionDay.exercises.length === 0;
 
     // ── E-3: Filtro ligero para contexto de casa ─────────────────────────────
-    // Solo si el usuario eligió "En casa" en el Alert de E-2.
-    // Para gym o sin contexto, el plan queda intacto.
-    if (context === 'home') {
+    // Solo si el usuario eligió "En casa" en el Alert de E-2. Para gym o sin
+    // contexto, el plan queda intacto. Si ya hubo sustitución por rutina
+    // ancla (Punto 1), el día sustituido YA viene de la plantilla de casa —
+    // no hace falta volver a filtrar por equipamiento.
+    if (context === 'home' && !substituted) {
       const homeEquipment = parseEquipment(profile?.equipment);
 
       // Cuenta usos para no repetir el mismo sustituto más de 2 veces.
@@ -299,8 +330,8 @@ export default function TrainingScreen() {
   async function handleWarmupMinutes(minutes: 5 | 10 | 15) {
     setWarmupMinutesOpen(false);
     if (!currentPlan) return;
-    const activeIdx = currentPlan.activeDayIndex % trainableDays.length;
-    const dayType    = trainableDays[activeIdx].dayType;
+    const { day: resolvedDay } = await resolveEffectiveDay(pendingContext);
+    const dayType = resolvedDay.dayType;
     // pendingContext: 'home' = casa; 'gym' o null (perfil solo-gym) = gimnasio.
     const warmupIsGym = pendingContext !== 'home';
     const dislikedIds = await getDislikedIds();
@@ -528,7 +559,7 @@ export default function TrainingScreen() {
               progressionReason={targetMap[ex.exerciseId]?.reason ?? null}
               lang={lang}
               bodyweightLabel={bwLabel}
-              onChangeExercise={() => setChangeModal({
+              onChangeExercise={currentPlan.source === 'manual' ? undefined : () => setChangeModal({
                 visible: true,
                 dayDbId: today.dbId,
                 exIdx:   i,
@@ -599,7 +630,7 @@ export default function TrainingScreen() {
                     total={trainableDays.length}
                     isExpanded={isExpanded}
                     onToggle={() => setExpandedOtherDay(isExpanded ? null : rawIdx)}
-                    onChangeEx={(exIdx) => setChangeModal({
+                    onChangeEx={currentPlan.source === 'manual' ? undefined : (exIdx) => setChangeModal({
                       visible: true,
                       dayDbId: day.dbId,
                       exIdx,

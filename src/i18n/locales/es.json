@@ -532,6 +532,7 @@
     "backToAutoTitle": "¿Volver al plan automático?",
     "backToAutoMsg": "Se generará un plan automático según tu perfil. Tu rutina propia no se borra: podrás volver a activarla cuando quieras.",
     "backToAutoConfirm": "Sí, volver",
-    "dayAlreadyTrainedWarning": "Ya entrenaste este día esta semana — tu cambio se aplicará en el próximo ciclo"
+    "dayAlreadyTrainedWarning": "Ya entrenaste este día esta semana — tu cambio se aplicará en el próximo ciclo",
+    "autoSubstituteNote": "Se usará automáticamente cuando entrenes aquí"
   }
 }

@@ -5,7 +5,7 @@ import type { Profile } from '@/db/schema';
 import { EXERCISES } from './exercises';
 import { getRepScheme, buildPlanned, getExerciseCounts, getCardioSlots, type GoalKey, type PlannedExercise } from './plan-generator';
 import { selectCardio, createCardioCycleState, type CardioPlan } from './cardioSelection';
-import { getTemplate, type TemplateContext } from './routineTemplates';
+import { getTemplate, type TemplateContext, type RoutineTemplateDay } from './routineTemplates';
 
 // ¿Este día del plan (plan_days.id) tiene ya alguna sesión real registrada
 // DESDE sinceTimestamp? (Fase G1: antes era "alguna vez, para siempre" —
@@ -22,6 +22,32 @@ export async function hasSessionForPlanDay(planDayId: number, sinceTimestamp: nu
     .where(and(eq(workoutSessions.planDayId, planDayId), gte(workoutSessions.createdAt, sinceTimestamp)))
     .limit(1);
   return rows.length > 0;
+}
+
+// Convierte los slots ya elegidos de un día de plantilla en PlannedExercise[]
+// SIN tocar la base de datos — misma lógica que antes vivía duplicada dentro
+// de materializeTemplate() y, por separado, en estimateDayDuration()
+// (routineBuilder.tsx). Slots sin exerciseId o con un exerciseId huérfano
+// (catálogo cambió) se omiten en silencio, igual que antes.
+export function buildExercisesFromTemplateDay(
+  day: RoutineTemplateDay,
+  profile: Profile,
+): PlannedExercise[] {
+  const scheme = getRepScheme(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null);
+  const exercises: PlannedExercise[] = [];
+  for (const slot of day.slots) {
+    if (slot.exerciseId === null) continue;
+    const exercise = EXERCISES.find(e => e.id === slot.exerciseId);
+    if (!exercise) continue;
+    exercises.push(...buildPlanned(
+      [exercise],
+      exercise.isCompound ? scheme.compoundSets  : scheme.isolationSets,
+      exercise.isCompound ? scheme.compoundReps  : scheme.isolationReps,
+      exercise.isCompound ? scheme.compoundRest  : scheme.isolationRest,
+      exercise.isCompound,
+    ));
+  }
+  return exercises;
 }
 
 // Materializa la plantilla de un contexto (gym/casa) sobre plan_days reales
@@ -61,8 +87,6 @@ export async function materializeTemplate(
   if (templateDays.length === 0) return { skippedDayIndexes: [] };
 
   const skippedDayIndexes: number[] = [];
-
-  const scheme = getRepScheme(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null);
 
   // Cardio: mismo patrón que generatePlan() — un único CardioCycleState y un
   // único Set de ids ya usados, creados ANTES del bucle y mutados después de
@@ -109,21 +133,9 @@ export async function materializeTemplate(
       continue; // día ya entrenado en ESTE ciclo — nunca se toca (cardio incluido)
     }
 
-    const filledSlots = day.slots.filter(s => s.exerciseId !== null);
-    const exercises: PlannedExercise[] = [];
-    for (const slot of filledSlots) {
-      const exercise = EXERCISES.find(e => e.id === slot.exerciseId);
-      if (!exercise) continue; // exerciseId huérfano (catálogo cambió) — se omite, no rompe
-      exercises.push(...buildPlanned(
-        [exercise],
-        exercise.isCompound ? scheme.compoundSets  : scheme.isolationSets,
-        exercise.isCompound ? scheme.compoundReps  : scheme.isolationReps,
-        exercise.isCompound ? scheme.compoundRest  : scheme.isolationRest,
-        exercise.isCompound,
-      ));
-    }
+    const exercises = buildExercisesFromTemplateDay(day, profile);
 
-    const needsCardio = filledSlots.length > 0 && (!existingDay || existingDay.cardio === '[]');
+    const needsCardio = exercises.length > 0 && (!existingDay || existingDay.cardio === '[]');
     let cardioPlan: CardioPlan | null = null;
     if (needsCardio) {
       const cardioSlots = getCardioSlots(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null, totalSlots);
