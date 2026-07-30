@@ -6,6 +6,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { VulcanDialog } from '@/components/ui/VulcanDialog';
 import { useProfileStore } from '@/store/profile.store';
 import { useWorkoutStore } from '@/store/workout.store';
 import { Spacing } from '@/constants/theme';
@@ -122,6 +123,10 @@ export default function RoutineBuilderScreen() {
   // persiste — se recalcula en cada syncIfActive() y se limpia sola si un
   // día deja de estar saltado (ej. tras activar un ciclo nuevo).
   const [skippedWarningDays, setSkippedWarningDays] = useState<Set<number>>(new Set());
+  // Punto 4 — "Volver al plan automático": antes vivía solo en Perfil, ahora
+  // también aquí (y en Entreno) para que esté visible justo donde el
+  // usuario está gestionando su rutina propia.
+  const [backToAutoOpen, setBackToAutoOpen] = useState(false);
 
   // Mismo parseo que getProfileSignals(), pero solo lo que el picker necesita
   // (sin dislikedIds/likedIds — getExercisesByMuscleGroup/getAlternatives no
@@ -171,6 +176,12 @@ export default function RoutineBuilderScreen() {
     const signals = await getProfileSignals(profile);
     await useWorkoutStore.getState().activateManualPlan(context, profile, signals.equipment, signals.dislikedIds);
     await useProfileStore.getState().setPlanMode('manual');
+  }
+
+  async function handleBackToAuto() {
+    setBackToAutoOpen(false);
+    if (!profile) return;
+    await useWorkoutStore.getState().backToAutoPlan(profile);
   }
 
   useEffect(() => {
@@ -225,6 +236,15 @@ export default function RoutineBuilderScreen() {
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          {profile?.planMode === 'manual' && (
+            <Pressable
+              style={styles.backToAutoBtn}
+              onPress={() => setBackToAutoOpen(true)}
+            >
+              <ThemedText style={styles.backToAutoBtnText}>{t('routineBuilder.backToAutoLink')}</ThemedText>
+            </Pressable>
+          )}
+
           {showSelector && (
             <>
               <ThemedText themeColor="textSecondary" style={styles.contextPrompt}>
@@ -388,6 +408,18 @@ export default function RoutineBuilderScreen() {
           await syncIfActive(dayIndex);
         }}
       />
+
+      {/* ── ¿Volver al plan automático? (Punto 4) ── */}
+      <VulcanDialog
+        visible={backToAutoOpen}
+        onClose={() => setBackToAutoOpen(false)}
+        title={t('routineBuilder.backToAutoTitle')}
+        message={t('routineBuilder.backToAutoMsg')}
+        confirmLabel={t('routineBuilder.backToAutoConfirm')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        onConfirm={handleBackToAuto}
+      />
     </ThemedView>
   );
 }
@@ -432,6 +464,11 @@ const styles = StyleSheet.create({
   },
   activeBadgeText: { fontSize: 13, color: GREEN, fontWeight: '600' },
   autoSubstituteText: { fontSize: 13, textAlign: 'center', fontStyle: 'italic' },
+  backToAutoBtn: {
+    alignSelf: 'center', borderRadius: Spacing.three, borderWidth: 1, borderColor: AMBER + '55',
+    paddingHorizontal: Spacing.three, paddingVertical: Spacing.two,
+  },
+  backToAutoBtnText: { fontSize: 13, color: AMBER, fontWeight: '600' },
   loading: { marginTop: Spacing.five },
   emptyText: { fontSize: 14, textAlign: 'center', marginTop: Spacing.five, lineHeight: 20 },
   dayBlock: { gap: Spacing.one },

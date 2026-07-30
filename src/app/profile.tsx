@@ -8,7 +8,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useProfileStore } from '@/store/profile.store';
-import { useWorkoutStore } from '@/store/workout.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useTheme } from '@/hooks/use-theme';
 import { BottomTabInset, Spacing } from '@/constants/theme';
@@ -66,20 +65,6 @@ export default function ProfileScreen() {
 
   const resetGamification = useGamificationStore(s => s.resetAll);
   const [signOutOpen, setSignOutOpen] = useState(false);
-  const [backToAutoOpen, setBackToAutoOpen] = useState(false);
-
-  const doBackToAuto = async () => {
-    setBackToAutoOpen(false);
-    await useProfileStore.getState().setPlanMode('auto');
-    const p = useProfileStore.getState().profile;
-    if (p) {
-      try {
-        await useWorkoutStore.getState().generateAndSavePlan(p);
-      } catch (err) {
-        console.error('[Profile] Error al volver a plan automático:', err);
-      }
-    }
-  };
 
   const doSignOut = async () => {
     setSignOutOpen(false);
@@ -311,13 +296,6 @@ export default function ProfileScreen() {
                 {t('routineBuilder.summary')}
               </ThemedText>
             </ThemedView>
-            {profile.planMode === 'manual' && (
-              <Pressable onPress={() => setBackToAutoOpen(true)} style={styles.backToAutoLink} hitSlop={8}>
-                <ThemedText themeColor="textSecondary" style={styles.backToAutoLinkText}>
-                  {t('routineBuilder.backToAutoLink')}
-                </ThemedText>
-              </Pressable>
-            )}
           </View>
 
           {/* ── Lesiones ── */}
@@ -349,17 +327,6 @@ export default function ProfileScreen() {
         destructive
         onConfirm={doSignOut}
       />
-
-      <VulcanDialog
-        visible={backToAutoOpen}
-        onClose={() => setBackToAutoOpen(false)}
-        title={t('routineBuilder.backToAutoTitle')}
-        message={t('routineBuilder.backToAutoMsg')}
-        confirmLabel={t('routineBuilder.backToAutoConfirm')}
-        cancelLabel={t('common.cancel')}
-        destructive
-        onConfirm={doBackToAuto}
-      />
     </ThemedView>
   );
 }
@@ -382,8 +349,6 @@ const styles = StyleSheet.create({
   editEquipBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   editEquipText: { fontSize: 13, color: '#3FBF7F' },
   gymEquipNote: { fontSize: 13 },
-  backToAutoLink: { alignItems: 'center', paddingVertical: Spacing.two, marginTop: 2 },
-  backToAutoLinkText: { fontSize: 12, textDecorationLine: 'underline', opacity: 0.8 },
   injuriesText: { fontSize: 14, lineHeight: 20 },
   signOutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: Spacing.three, marginTop: Spacing.two },
   signOutText: { fontSize: 14, color: '#9DA89F' },

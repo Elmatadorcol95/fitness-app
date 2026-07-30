@@ -152,6 +152,7 @@ export default function TrainingScreen() {
   const [whereOpen,    setWhereOpen]   = useState(false);
   const [startError,   setStartError]  = useState('');
   const [resetWeekOpen, setResetWeekOpen] = useState(false);
+  const [backToAutoOpen, setBackToAutoOpen] = useState(false);
   const [warmupPromptOpen,   setWarmupPromptOpen]   = useState(false);
   const [warmupMinutesOpen, setWarmupMinutesOpen] = useState(false);
   const [pendingContext, setPendingContext] = useState<'gym' | 'home' | null>(null);
@@ -669,6 +670,16 @@ export default function TrainingScreen() {
               </ThemedText>
             </Pressable>
           )}
+
+          {/* ── Volver al plan automático (Punto 4 — solo en modo manual) ── */}
+          {currentPlan.source === 'manual' && (
+            <Pressable
+              onPress={() => setBackToAutoOpen(true)}
+              style={styles.genBtnSecondary}
+            >
+              <ThemedText style={styles.genBtnSecondaryText}>{t('routineBuilder.backToAutoLink')}</ThemedText>
+            </Pressable>
+          )}
         </ScrollView>
       </SafeAreaView>
 
@@ -772,6 +783,23 @@ export default function TrainingScreen() {
                 console.error('[Training] Error al generar semana nueva:', err);
               }
             }
+          }}
+        />
+      )}
+
+      {/* ── ¿Volver al plan automático? (Punto 4 — solo en modo manual) ── */}
+      {currentPlan.source === 'manual' && (
+        <VulcanDialog
+          visible={backToAutoOpen}
+          onClose={() => setBackToAutoOpen(false)}
+          title={t('routineBuilder.backToAutoTitle')}
+          message={t('routineBuilder.backToAutoMsg')}
+          confirmLabel={t('routineBuilder.backToAutoConfirm')}
+          cancelLabel={t('common.cancel')}
+          destructive
+          onConfirm={async () => {
+            setBackToAutoOpen(false);
+            if (profile) await useWorkoutStore.getState().backToAutoPlan(profile);
           }}
         />
       )}
