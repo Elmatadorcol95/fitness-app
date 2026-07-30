@@ -1637,188 +1637,36 @@ Bucle ~1.3 s sobre fondo #141A17:
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
-## ⚠️ AL RETOMAR — PRIMERO PROBAR, ANTES DE TOCAR NADA MÁS
+## Constructor de rutina propia — CASI COMPLETO
 
-El último commit (buscar "SIN PROBAR" en el log) se comiteó sin validar en
-dispositivo por necesidad de cambiar de PC. Antes de continuar con
-cualquier fase nueva, correr estos 4 escenarios:
-1. Cerrar una sesión SIN completar series (ratio < 50%) → el día debe
-   contar para "Semana completada" (daysFinishedThisWeek) pero NO
-   desbloquear logro ni sumar racha.
-2. Completar una sesión de verdad → logro/racha se disparan como siempre.
-3. Vaciar todos los slots de un día en el constructor → ese día debe
-   desaparecer de "hoy" y de "Tu ciclo" en Entreno.
-4. Editar un día ya entrenado esta semana en el constructor → debe
-   aparecer un banner ámbar bajo esa tarjeta explicando que el cambio se
-   aplicará el próximo ciclo.
-Si algo falla, NO seguir con la lista de pendientes de abajo — arreglarlo
-primero.
+Fases A-G2 cerradas y validadas en dispositivo. De los 6 puntos de
+refinamiento que Juan reportó tras validar la Fase G2, los 5 primeros ya
+están cerrados y comiteados:
 
-**Pendientes conocidos de Fase G2 (reporte de Juan, puntos 1, 4, 5, 6 —
-los puntos 2 y 3 eran los bugs ya corregidos arriba), retomar solo después
-de validar los 4 escenarios:**
-1. Rediseño de "una sola rutina ancla" para usuarios `location:'both'` —
-   hoy existen dos plantillas independientes por contexto (gym/home);
-   revisar si ese modelo sigue siendo el correcto tras el uso real.
-4. Reubicar el enlace "Volver al plan automático" — hoy vive en Perfil,
-   sección "Rutina propia"; puede que deba estar en otro punto del flujo.
-5. Quitar el botón "Cambiar" de las tarjetas de ejercicio en Entreno
-   cuando el plan activo es de modo manual (la edición real de un plan
-   manual se hace en el constructor, no desde una tarjeta de Entreno).
-6. Fase futura: slots de cardio editables en el constructor propio (hoy
-   el cardio se añade de solo lectura, sin poder elegirlo/cambiarlo ahí).
+1. Redundancia "Activar rutina"/"¿dónde entrenas hoy?" para location:'both'
+   → resuelto con el modelo de "rutina ancla" + sustitución en vivo por
+   índice (no por tipo de día) del contexto que no es el ancla.
+2. Edición de un día ya entrenado esta semana no se reflejaba sin avisar
+   → corregido, ahora avisa con un banner en el constructor.
+3. La semana no cerraba en modo manual (días vacíos bloqueaban el ciclo,
+   o el contador de logros no correspondía a "día finalizado") → nuevo
+   contador daysFinishedThisWeek independiente de logros/racha; días sin
+   ejercicios ya no cuentan ni bloquean.
+4. "Volver al plan automático" reubicado — visible en el constructor y en
+   Entreno, eliminado de Perfil.
+5. Botón "Cambiar ejercicio" quitado de Entreno en modo manual (el
+   constructor es la única fuente de verdad).
 
-## Constructor de rutina propia — EN PROGRESO (UI de construcción D-F
-completa + backend del interruptor de modos G1 cerrado; falta G2, la
-conexión visible)
+**Único pendiente: punto 6** — cardio editable en el constructor (elegir
+el ejercicio de cardio + tiempo, en vez del cardio automático actual).
+Es del tamaño de una fase nueva completa, no un ajuste — necesita su
+propio diseño desde cero (posible esquema nuevo para slots de cardio,
+distinto renderizado según contexto gym/casa) antes de tocar código.
 
-Arquitectura de 8 fases (A-H). Completadas A, B, B-bis, C1, C2, D, E, F,
-G1. Pendientes: G2 (conectar el interruptor de modos a la UI), H.
-
-**Decisiones de producto ya cerradas (no reabrir):**
-- Exclusividad total con el modo automático — nunca ambos corriendo a la vez.
-  Botón "generar mi plan" se divide en "...automáticamente" / "crear mi
-  propio plan" en el estado vacío de Entreno.
-- El plan propio se repite igual cada semana (no varía como el automático).
-- Slots SIN prerelleno — el usuario elige cada ejercicio, nunca se le
-  propone uno por defecto (decisión UX explícita: debe sentirse como
-  "construir", no como "editar una rutina ya hecha").
-- Días del constructor: solo push/pull/legs/full_body. Upper/lower quedan
-  dormidos — "legs" puede mostrarse en UI futura como "Piernas/Core" pero
-  sigue siendo el mismo dayType 'legs', nunca un valor nuevo.
-- Usuarios location:'both' tienen DOS plantillas independientes (contexto
-  gym/home), nunca una compartida.
-- Series/reps editables por el usuario: pendiente para más adelante, no v1
-  (columnas ya existen en el esquema, nullable, sin usar).
-- Cardio se añade (nunca resta huecos de fuerza) y se muestra de solo
-  lectura en el constructor.
-- Día con slots sin elegir: se entrena solo con lo ya elegido, sin bloquear
-  nada. Día con TODOS los slots vacíos: crea igual su fila en plan_days con
-  exercises:[], el botón "Iniciar" ya existente lo bloquea (mensaje i18n
-  workout.today.emptyDay).
-- Quitar un slot (Fase F): sin confirmación — se probó con VulcanDialog
-  primero y se quitó tras validarlo en dispositivo (fricción innecesaria
-  dado lo barato que es rehacer un slot). No reabrir sin motivo nuevo.
-
-**Arquitectura backend — modelo de datos y motor de recomendación (Fases
-A-C2, comiteadas):**
-- Migración 0013: profile.planMode ('auto'|'manual'), routine_templates
-  (una fila por día, contexto gym/home), routine_template_slots
-  (muscleGroup NOT NULL, exerciseId nullable, sets/repRange/restSeconds/
-  notes nullables sin uso v1). Sin columna role — compound/isolation
-  siempre se deriva de isCompound del catálogo.
-- src/lib/routineTemplates.ts: createTemplate/getTemplate/setSlotExercise/
-  addSlot/removeSlot/deleteTemplate. createTemplate reutiliza
-  selectExercisesForDayByMuscle (el mismo motor del generador automático)
-  para recomendar el muscleGroup correcto por slot vía targetKey→
-  findTargetByKey — nunca un round-robin ciego. usedThisWeek se enhebra
-  entre días igual que en generatePlan().
-
-**UI del constructor (Fases D, E, F — comiteadas):**
-- **Fase D**: src/app/routineBuilder.tsx — pantalla overlay (mismo patrón
-  que Equipamiento/Prioridad muscular/Preferencias), abierta desde Perfil >
-  "Rutina propia". Selector Gimnasio/Casa solo si location:'both' (default
-  'gym'). Crea la plantilla al primer acceso si getTemplate(context) da
-  vacío (getSplit + getProfileSignals + createTemplate). getProfileSignals()
-  nueva en plan-generator.ts, extraída de generatePlan() sin cambiar su
-  comportamiento — reutilizable por quien necesite equipment/isGym/
-  musclePriorities/dislikedIds/likedIds del perfil. getSplit() exportada.
-- **Fase E**: elegir/quitar ejercicio por slot. ChangeExerciseModal admite
-  currentExerciseId:null (picker por MuscleGroup vía
-  getExercisesByMuscleGroup, nueva en muscleBasedSelection.ts, Opción B ya
-  cerrada del audit de ciclos de import) + prop onRemove opcional ("Quitar
-  ejercicio"). Los 2 puntos de llamada preexistentes (training.tsx/
-  session.tsx) sin ninguna línea tocada — confirmado con git diff en su
-  momento.
-- **Fase F**: botón "+" al final de cada día abre un picker de los 15
-  MuscleGroup (orden de declaración ya establecido en exercises.ts/
-  ExerciseCard.tsx, sin restricción por tipo de día) → addSlot(). Papelera
-  junto a cada slot → removeSlot() al instante, sin diálogo (ver decisión
-  arriba). Estimación de duración por día (~X min) solo con slots que ya
-  tienen exerciseId, vía getRepScheme()+isCompound del ejercicio real —
-  mismo criterio que usa routineMaterializer.ts. estimateDuration()
-  exportada desde training.tsx (import cruzado entre rutas, mismo patrón ya
-  usado por profile.tsx→musclePriorities.tsx) para no duplicar la fórmula.
-
-**Fase G1 — esquema y materializador para el interruptor de modos
-(comiteada; backend puro, sin conectar a ninguna pantalla todavía):**
-- Migración 0014: workout_plans gana source ('auto'|'manual', default
-  'auto') y context ('gym'|'home'|null, solo relevante si source='manual').
-- src/lib/routineMaterializer.ts: materializeTemplate() DEJA de buscar o
-  crear el plan activo por su cuenta — ahora recibe planId y cycleStart
-  explícitos; solo quien la llama (las 3 acciones nuevas de abajo) puede
-  resolver qué contexto es "el activo" para un usuario location:'both'.
-  hasSessionForPlanDay() gana sinceTimestamp: un día cuenta como "ya
-  entrenado" solo si tiene una sesión con createdAt >= sinceTimestamp (el
-  generatedAt del ciclo vigente), no "para siempre" — así activar/
-  reactivar un plan o pasar de semana re-sincroniza todo en vez de quedar
-  congelado por una sola sesión antigua. Nueva findManualPlan(context):
-  localiza el plan manual de un contexto (activo o no), para reutilizarlo
-  al reactivar en vez de duplicarlo.
-- src/store/workout.store.ts — 3 acciones nuevas (mismo patrón que
-  generateAndSavePlan: isGenerating, try/finally, recarga de currentPlan
-  con mapDayRows):
-  * activateManualPlan(context, profile, equipment, dislikedIds): único
-    punto de entrada al modo manual para un contexto. findManualPlan →
-    reactiva si existe (UPDATE generatedAt) o INSERT si no; desactiva
-    todos los demás planes y deja este como isActive:1; materializa;
-    resetea activeDayIndex(0) + racha semanal. generatedAt SIEMPRE se
-    mueve a Date.now(), también al reactivar (resincronizado limpio de
-    cualquier edición hecha mientras el modo manual estaba desactivado).
-  * syncManualPlanIfActive(context, profile, equipment, dislikedIds): la
-    que se llamará tras cada edición de slot en G2. Si el plan activo
-    actual no es 'manual' o su context no coincide con el dado, NO HACE
-    NADA (ni un UPDATE) — así editar el contexto que NO está corriendo
-    nunca lo activa solo. Nunca toca generatedAt (es sincronizar
-    contenido, no un evento de "nuevo ciclo").
-  * startNextManualCycle(context, profile, equipment, dislikedIds): botón
-    "semana completada" en modo manual — reutiliza el plan YA activo
-    (nunca busca/crea uno; lanza si la premisa de que ya está activo no se
-    cumple), mueve generatedAt a Date.now() (nuevo ciclo), mismo cierre que
-    activateManualPlan.
-- src/store/profile.store.ts: setPlanMode('auto'|'manual') — mismo patrón
-  que updateEquipmentAndLocation.
-- La "REGLA PENDIENTE PARA FASE G" que quedaba abierta desde C2 (búsqueda
-  GLOBAL de "plan activo" dentro de materializeTemplate, sin filtrar por
-  contexto) queda RESUELTA por este cambio de firma: la función ya no
-  decide por sí sola, quien la llama le pasa planId/cycleStart ya
-  resueltos.
-- Migración 0014 verificada en frío con node:sqlite (script temporal,
-  borrado tras confirmar): cadena 0000→0014 limpia en instalación nueva y
-  con fila workout_plans preexistente (sin pérdida de datos, defaults
-  correctos). Validada también en dispositivo real.
-
-**Bug de arranque encontrado y corregido en la sesión de Fase D (no
-relacionado con el constructor, pero descubierto validándolo):** condición
-de carrera — varias pantallas (training.tsx, progress.tsx,
-exercisePreferences.tsx, ChangeExerciseModal.tsx, RecapModal.tsx)
-consultaban la base de datos sin esperar el flag isDbReady, causando "no
-such table" en instalaciones limpias. Corregido en los 5 archivos +
-try/catch añadido a exercisePreferences.ts. Lección: al añadir una guarda
-de flag a un useEffect, el flag SIEMPRE debe entrar también en las
-dependencias, o el efecto puede quedar bloqueado para siempre.
-
-**Backlog anotado, sin resolver, no bloquea nada de esto:** si una migración
-falla, useMigrations() solo hace console.error sin avisar al usuario — la
-app se quedaría en el splash para siempre sin explicación.
-
-**Próximo paso al retomar — Fase G2 (la parte visible; última fase de esta
-arquitectura antes de H):**
-- Botón "Activar esta rutina" por contexto en routineBuilder.tsx →
-  llama a activateManualPlan.
-- Dividir el botón "generar mi plan" del estado vacío de training.tsx en
-  "...automáticamente" (flujo automático ya existente, sin cambios) /
-  "crear mi propio plan" (abre routineBuilder.tsx).
-- Conectar syncManualPlanIfActive a los 3 flujos de edición que ya existen
-  en routineBuilder.tsx desde las Fases E/F — elegir ejercicio (onSelect
-  del picker), quitar ejercicio (onRemove del modal), añadir/quitar slot
-  (addSlot/removeSlot) — cada uno debe llamarla DESPUÉS de su propia
-  escritura en routine_template_slots, con el equipment/dislikedIds ya
-  disponibles en la pantalla.
-- Botón "semana completada" en modo manual (mismo patrón visual que el
-  automático ya existente en training.tsx) → llama a startNextManualCycle.
-- Sin audit corrido todavía para G2 — pedirlo al retomar, no hace falta
-  redactarlo de nuevo.
+Detalles técnicos completos de toda la arquitectura (routineTemplates.ts,
+routineMaterializer.ts, workout.store.ts, la rutina ancla, etc.) — pídele
+un resumen a Claude en el chat al retomar si hace falta el detalle, ya
+está todo documentado ahí.
 
 ## Despliegue — variantes de app EAS
 
