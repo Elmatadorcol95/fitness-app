@@ -1657,11 +1657,35 @@ están cerrados y comiteados:
 5. Botón "Cambiar ejercicio" quitado de Entreno en modo manual (el
    constructor es la única fuente de verdad).
 
-**Único pendiente: punto 6** — cardio editable en el constructor (elegir
-el ejercicio de cardio + tiempo, en vez del cardio automático actual).
-Es del tamaño de una fase nueva completa, no un ajuste — necesita su
-propio diseño desde cero (posible esquema nuevo para slots de cardio,
-distinto renderizado según contexto gym/casa) antes de tocar código.
+## Cardio editable en el constructor — EN CURSO (2 de 3 sub-fases)
+
+Único punto pendiente del constructor de rutina propia. Decisiones ya
+tomadas con Juan: arreglo ACOTADO (solo el cardio propio se refresca al
+editarlo, el automático sigue igual); casa mantiene la estructura de
+sesiones (como ya hace el cardio automático); sí habrá botón para volver
+a automático.
+
+Arquitectura: routine_templates gana una columna cardio (JSON de
+CardioPlan, nullable — null = usa el automático de siempre). Hallazgo
+importante encontrado a mitad de la Sub-fase 1: needsCardio solo era
+true la primera vez que se materializaba un día — en modo manual (donde
+las filas de plan_days se reutilizan entre ciclos) esto habría impedido
+que un cardio editado DESPUÉS de la primera materialización se aplicara
+nunca. Arreglado con un parámetro forceCardioRefreshDayIndex en
+materializeTemplate()/syncManualPlanIfActive(), evaluado DENTRO del
+bucle ya protegido por hasSessionForPlanDay (nunca antes, para no
+arriesgar escribir un cardio:'[]' inválido sobre un día con ejercicios
+reales).
+
+Sub-fase 1 (backend) y Sub-fase 2 (UI de gimnasio — sección "Cardio" por
+día, picker de las 5 máquinas de gym, bloques editables 1-60 min, revierte
+a automático al vaciar) — CERRADAS y validadas en dispositivo.
+
+**Falta: Sub-fase 3** — la misma idea pero para casa, con la estructura
+de sesiones (varios ejercicios por sesión + descanso entre sesiones, igual
+que ya funciona hoy el cardio automático de casa) — es la pieza más
+compleja de las 3 por la anidación sesión→bloques. Necesita su propio
+diseño de detalle antes de tocar código.
 
 Detalles técnicos completos de toda la arquitectura (routineTemplates.ts,
 routineMaterializer.ts, workout.store.ts, la rutina ancla, etc.) — pídele
