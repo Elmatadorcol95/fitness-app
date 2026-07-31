@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -10,7 +10,7 @@ import { VulcanDialog } from '@/components/ui/VulcanDialog';
 import { useProfileStore } from '@/store/profile.store';
 import { useWorkoutStore } from '@/store/workout.store';
 import { Spacing } from '@/constants/theme';
-import { getExerciseName, type MuscleGroup } from '@/lib/exercises';
+import { EXERCISES, getExerciseName, type MuscleGroup } from '@/lib/exercises';
 import type { Profile } from '@/db/schema';
 import { muscleLabel } from '@/components/workout/ExerciseCard';
 import { ChangeExerciseModal } from '@/components/workout/ChangeExerciseModal';
@@ -21,12 +21,14 @@ import {
   type DayType,
 } from '@/lib/plan-generator';
 import { buildExercisesFromTemplateDay } from '@/lib/routineMaterializer';
+import type { PlannedCardioBlock, CardioPlan } from '@/lib/cardioSelection';
 import {
   getTemplate,
   createTemplate,
   setSlotExercise,
   addSlot,
   removeSlot,
+  setTemplateCardio,
   type TemplateContext,
   type BuilderDayType,
   type RoutineTemplateDay,
@@ -52,6 +54,22 @@ const ALL_MUSCLE_GROUPS: MuscleGroup[] = [
   'quads', 'hamstrings', 'glutes', 'calves', 'core',
   'lats', 'traps', 'forearms', 'abs', 'adductors',
 ];
+
+// Mismo pool que selectGymCardio() en cardioSelection.ts — los 5 ejercicios
+// de cardio de máquina de gimnasio, para el picker del bloque nuevo.
+const GYM_CARDIO_EXERCISES = EXERCISES.filter(e => e.category === 'cardio' && e.equipment.includes('cardioMachine'));
+
+// Lee los bloques de cardio propio de gimnasio ya guardados en la plantilla.
+// day.cardio null = todavía usa el cardio automático (centinela de
+// routineTemplates.cardio, distinto del '[]' de plan_days.cardio).
+function getGymCardioBlocks(day: RoutineTemplateDay): PlannedCardioBlock[] {
+  if (!day.cardio) return [];
+  return (JSON.parse(day.cardio) as CardioPlan).gym;
+}
+
+function cardioMinutesKey(day: RoutineTemplateDay, blockIdx: number): string {
+  return `${day.id}-${blockIdx}`;
+}
 
 // Mismo criterio que routineMaterializer.ts (reutiliza buildExercisesFromTemplateDay,
 // ya no duplica la lógica): solo slots con exerciseId ya asignado aportan al
@@ -99,6 +117,44 @@ function MusclePickerModal({
   );
 }
 
+// Picker de ejercicio de cardio para un bloque nuevo de gimnasio — mismo
+// patrón que MusclePickerModal, iterando GYM_CARDIO_EXERCISES en vez de
+// ALL_MUSCLE_GROUPS.
+function CardioExercisePickerModal({
+  visible,
+  title,
+  lang,
+  onClose,
+  onSelect,
+}: {
+  visible: boolean;
+  title: string;
+  lang: 'es' | 'en' | 'fr';
+  onClose: () => void;
+  onSelect: (exerciseId: string) => void;
+}) {
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <ThemedView style={styles.pickerRoot}>
+        <View style={styles.pickerHeader}>
+          <ThemedText type="subtitle" style={styles.pickerHeaderTitle}>{title}</ThemedText>
+          <Pressable onPress={onClose} hitSlop={16}>
+            <Ionicons name="close" size={24} color="#9DA89F" />
+          </Pressable>
+        </View>
+        <ScrollView contentContainerStyle={styles.pickerList}>
+          {GYM_CARDIO_EXERCISES.map((e) => (
+            <Pressable key={e.id} style={styles.pickerRow} onPress={() => onSelect(e.id)}>
+              <ThemedText style={styles.pickerRowText}>{getExerciseName(e.id, lang)}</ThemedText>
+              <Ionicons name="chevron-forward" size={18} color={GREEN} />
+            </Pressable>
+          ))}
+        </ScrollView>
+      </ThemedView>
+    </Modal>
+  );
+}
+
 export default function RoutineBuilderScreen() {
   const { t, i18n } = useTranslation();
   const lang = (i18n.language.startsWith('fr') ? 'fr' : i18n.language.startsWith('es') ? 'es' : 'en') as 'es' | 'en' | 'fr';
@@ -118,6 +174,11 @@ export default function RoutineBuilderScreen() {
     muscleGroup: MuscleGroup | undefined;
   }>({ visible: false, slotId: 0, currentExerciseId: null, muscleGroup: undefined });
   const [addSlotDay, setAddSlotDay] = useState<RoutineTemplateDay | null>(null);
+  const [cardioPickerDay, setCardioPickerDay] = useState<RoutineTemplateDay | null>(null);
+  // Texto en edición de los minutos de un bloque de cardio, por día+índice
+  // (mismo patrón que gymInputStr en session.tsx, pero indexado también por
+  // día porque aquí coexisten varios días a la vez en pantalla).
+  const [cardioMinutesInput, setCardioMinutesInput] = useState<Record<string, string>>({});
   // dayIndex → true si el último intento de sincronizar ese día se saltó por
   // ya tener una sesión registrada este ciclo (bug 2). Solo en memoria, no se
   // persiste — se recalcula en cada syncIfActive() y se limpia sola si un
@@ -150,10 +211,10 @@ export default function RoutineBuilderScreen() {
   // dayIndex: el día cuyo slot se acaba de editar — si viene en
   // skippedDayIndexes, ese día ya se entrenó este ciclo y el cambio no se
   // reflejará hasta el próximo (bug 2); se avisa con un banner local.
-  async function syncIfActive(dayIndex: number) {
+  async function syncIfActive(dayIndex: number, forceCardioRefreshDayIndex?: number) {
     if (!profile) return;
     const signals = await getProfileSignals(profile);
-    const result = await useWorkoutStore.getState().syncManualPlanIfActive(context, profile, signals.equipment, signals.dislikedIds);
+    const result = await useWorkoutStore.getState().syncManualPlanIfActive(context, profile, signals.equipment, signals.dislikedIds, forceCardioRefreshDayIndex);
     setSkippedWarningDays(prev => {
       const next = new Set(prev);
       if (result.skippedDayIndexes.includes(dayIndex)) next.add(dayIndex);
@@ -182,6 +243,57 @@ export default function RoutineBuilderScreen() {
     setBackToAutoOpen(false);
     if (!profile) return;
     await useWorkoutStore.getState().backToAutoPlan(profile);
+  }
+
+  // ── Cardio propio de gimnasio (Sub-fase 2) ──────────────────────────────────
+  // forceCardioRefreshDayIndex=day.dayIndex en las 4 llamadas: el cardio
+  // recién guardado en la plantilla ya no es la primera materialización de
+  // este día (en modo manual las filas de plan_days se reutilizan entre
+  // ciclos), así que sin este flag needsCardio no volvería a ser true y el
+  // cambio nunca se reflejaría en Entreno (ver Sub-fase 1).
+  async function addCardioBlock(day: RoutineTemplateDay, exerciseId: string) {
+    const current = getGymCardioBlocks(day);
+    const updated: CardioPlan = { gym: [...current, { exerciseId, durationSeconds: 600 }], homeSessions: [] };
+    await setTemplateCardio(day.id, updated);
+    setCardioPickerDay(null);
+    await reloadTemplate();
+    await syncIfActive(day.dayIndex, day.dayIndex);
+  }
+
+  async function removeCardioBlock(day: RoutineTemplateDay, blockIdx: number) {
+    const current = getGymCardioBlocks(day);
+    const filtered = current.filter((_, i) => i !== blockIdx);
+    await setTemplateCardio(day.id, filtered.length === 0 ? null : { gym: filtered, homeSessions: [] });
+    await reloadTemplate();
+    await syncIfActive(day.dayIndex, day.dayIndex);
+  }
+
+  async function updateCardioBlockMinutes(day: RoutineTemplateDay, blockIdx: number, minutes: number) {
+    const current = getGymCardioBlocks(day);
+    const updated = current.map((b, i) => i === blockIdx ? { ...b, durationSeconds: minutes * 60 } : b);
+    await setTemplateCardio(day.id, { gym: updated, homeSessions: [] });
+    await reloadTemplate();
+    await syncIfActive(day.dayIndex, day.dayIndex);
+  }
+
+  async function revertToAutoCardio(day: RoutineTemplateDay) {
+    await setTemplateCardio(day.id, null);
+    await reloadTemplate();
+    await syncIfActive(day.dayIndex, day.dayIndex);
+  }
+
+  // Valida el texto de minutos igual que applyGymInput en session.tsx (rango
+  // 1-60): si es válido, persiste; si no, revierte el texto al valor real
+  // guardado, sin tocar la DB.
+  function applyCardioMinutes(day: RoutineTemplateDay, blockIdx: number) {
+    const key = cardioMinutesKey(day, blockIdx);
+    const v = parseInt(cardioMinutesInput[key] ?? '', 10);
+    if (v >= 1 && v <= 60) {
+      updateCardioBlockMinutes(day, blockIdx, v);
+    } else {
+      const current = getGymCardioBlocks(day)[blockIdx];
+      setCardioMinutesInput(prev => ({ ...prev, [key]: String(Math.round((current?.durationSeconds ?? 600) / 60)) }));
+    }
   }
 
   useEffect(() => {
@@ -352,6 +464,72 @@ export default function RoutineBuilderScreen() {
                       <Ionicons name="add-circle-outline" size={22} color={GREEN} />
                     </Pressable>
                   </ThemedView>
+
+                  {/* Cardio propio (Sub-fase 2) — solo gimnasio; casa llega en Sub-fase 3 */}
+                  {context === 'gym' && (() => {
+                    const cardioBlocks = getGymCardioBlocks(day);
+                    return (
+                      <View style={styles.cardioSection}>
+                        <ThemedText type="defaultSemiBold" style={styles.dayTitle}>
+                          {t('routineBuilder.cardioSectionTitle')}
+                        </ThemedText>
+                        <ThemedView type="backgroundElement" style={styles.dayCard}>
+                          {cardioBlocks.length === 0 ? (
+                            <>
+                              <ThemedText themeColor="textSecondary" style={styles.emptySlotsText}>
+                                {t('routineBuilder.cardioAutoNote')}
+                              </ThemedText>
+                              <Pressable style={styles.addSlotRow} onPress={() => setCardioPickerDay(day)} hitSlop={8}>
+                                <Ionicons name="add-circle-outline" size={22} color={GREEN} />
+                              </Pressable>
+                            </>
+                          ) : (
+                            <>
+                              <Pressable style={styles.cardioBackToAutoBtn} onPress={() => revertToAutoCardio(day)}>
+                                <ThemedText style={styles.cardioBackToAutoBtnText}>{t('routineBuilder.cardioBackToAutoLink')}</ThemedText>
+                              </Pressable>
+                              {cardioBlocks.map((block, blockIdx) => {
+                                const key = cardioMinutesKey(day, blockIdx);
+                                return (
+                                  <View key={blockIdx} style={styles.slotRow}>
+                                    <View style={styles.slotTextWrap}>
+                                      <ThemedText style={styles.slotMuscle}>
+                                        {getExerciseName(block.exerciseId, lang)}
+                                      </ThemedText>
+                                    </View>
+                                    <TextInput
+                                      style={styles.cardioMinutesInput}
+                                      keyboardType="numeric"
+                                      value={cardioMinutesInput[key] ?? String(Math.round(block.durationSeconds / 60))}
+                                      onChangeText={(text) => setCardioMinutesInput(prev => ({ ...prev, [key]: text }))}
+                                      onEndEditing={() => applyCardioMinutes(day, blockIdx)}
+                                      onSubmitEditing={() => applyCardioMinutes(day, blockIdx)}
+                                      selectTextOnFocus
+                                      returnKeyType="done"
+                                    />
+                                    <ThemedText themeColor="textSecondary" style={styles.cardioMinutesLabel}>
+                                      {t('workout.session.minutesAbbrev')}
+                                    </ThemedText>
+                                    <Pressable
+                                      style={styles.slotDeleteBtn}
+                                      hitSlop={8}
+                                      onPress={() => removeCardioBlock(day, blockIdx)}
+                                    >
+                                      <Ionicons name="trash-outline" size={18} color={AMBER} />
+                                    </Pressable>
+                                  </View>
+                                );
+                              })}
+                              <Pressable style={styles.addSlotRow} onPress={() => setCardioPickerDay(day)} hitSlop={8}>
+                                <Ionicons name="add-circle-outline" size={22} color={GREEN} />
+                              </Pressable>
+                            </>
+                          )}
+                        </ThemedView>
+                      </View>
+                    );
+                  })()}
+
                   {skippedWarningDays.has(day.dayIndex) && (
                     <View style={styles.skippedWarning}>
                       <Ionicons name="information-circle-outline" size={14} color={AMBER} />
@@ -406,6 +584,17 @@ export default function RoutineBuilderScreen() {
           setAddSlotDay(null);
           await reloadTemplate();
           await syncIfActive(dayIndex);
+        }}
+      />
+
+      {/* Picker de ejercicio de cardio para un bloque nuevo (Sub-fase 2) */}
+      <CardioExercisePickerModal
+        visible={cardioPickerDay !== null}
+        title={t('routineBuilder.addCardioPickerTitle')}
+        lang={lang}
+        onClose={() => setCardioPickerDay(null)}
+        onSelect={(exerciseId) => {
+          if (cardioPickerDay) addCardioBlock(cardioPickerDay, exerciseId);
         }}
       />
 
@@ -503,6 +692,17 @@ const styles = StyleSheet.create({
     borderColor: GREEN + '33',
     borderStyle: 'dashed',
   },
+  cardioSection: { gap: Spacing.one },
+  cardioBackToAutoBtn: {
+    alignSelf: 'flex-start', borderRadius: Spacing.two, borderWidth: 1, borderColor: AMBER + '55',
+    paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, marginBottom: Spacing.one,
+  },
+  cardioBackToAutoBtnText: { fontSize: 12, color: AMBER, fontWeight: '600' },
+  cardioMinutesInput: {
+    width: 44, fontSize: 14, color: '#F1F4F1', textAlign: 'center',
+    borderBottomWidth: 1, borderBottomColor: GREEN + '55', paddingVertical: 2,
+  },
+  cardioMinutesLabel: { fontSize: 12, marginLeft: 4, marginRight: Spacing.one },
   pickerRoot: { flex: 1 },
   pickerHeader: {
     flexDirection: 'row',

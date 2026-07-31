@@ -533,6 +533,10 @@
     "backToAutoMsg": "An automatic plan will be generated based on your profile. Your own routine won't be deleted — you can activate it again anytime.",
     "backToAutoConfirm": "Yes, switch back",
     "dayAlreadyTrainedWarning": "You already trained this day this week — your change will apply starting next cycle",
-    "autoSubstituteNote": "Will be used automatically when you train here"
+    "autoSubstituteNote": "Will be used automatically when you train here",
+    "cardioSectionTitle": "Cardio",
+    "cardioAutoNote": "Generated automatically",
+    "cardioBackToAutoLink": "Switch back to automatic cardio",
+    "addCardioPickerTitle": "Choose a cardio exercise"
   }
 }
