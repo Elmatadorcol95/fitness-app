@@ -80,6 +80,7 @@ export async function materializeTemplate(
   dislikedIds: Set<string>,
   planId: number,
   cycleStart: number,
+  forceCardioRefreshDayIndex?: number,
 ): Promise<{ skippedDayIndexes: number[] }> {
   const templateDays = await getTemplate(context);
   // Plantilla inexistente (aún sin crear para este contexto) — nada que
@@ -135,11 +136,15 @@ export async function materializeTemplate(
 
     const exercises = buildExercisesFromTemplateDay(day, profile);
 
-    const needsCardio = exercises.length > 0 && (!existingDay || existingDay.cardio === '[]');
+    const needsCardio = exercises.length > 0 && (!existingDay || existingDay.cardio === '[]' || day.dayIndex === forceCardioRefreshDayIndex);
     let cardioPlan: CardioPlan | null = null;
     if (needsCardio) {
-      const cardioSlots = getCardioSlots(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null, totalSlots);
-      cardioPlan = selectCardio(cardioSlots, equipment, isGym, usedCardioIds, cardioCycle, dislikedIds);
+      if (day.cardio) {
+        cardioPlan = JSON.parse(day.cardio) as CardioPlan;
+      } else {
+        const cardioSlots = getCardioSlots(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null, totalSlots);
+        cardioPlan = selectCardio(cardioSlots, equipment, isGym, usedCardioIds, cardioCycle, dislikedIds);
+      }
       for (const c of cardioPlan.gym) usedCardioIds.add(c.exerciseId);
       for (const session of cardioPlan.homeSessions) {
         for (const c of session.blocks) usedCardioIds.add(c.exerciseId);

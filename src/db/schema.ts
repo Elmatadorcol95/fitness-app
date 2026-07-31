@@ -194,6 +194,7 @@ export const routineTemplates = sqliteTable('routine_templates', {
   context: text('context').notNull(), // 'gym' | 'home'
   dayIndex: integer('day_index').notNull(),
   dayType: text('day_type').notNull(), // DayType — solo push/pull/legs/full_body en el constructor
+  cardio: text('cardio'), // JSON de CardioPlan, nullable — null = usa el cardio automático
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });

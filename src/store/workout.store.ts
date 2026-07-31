@@ -44,7 +44,7 @@ interface WorkoutState {
   advanceDayIndex: () => Promise<void>;
   resetAll: () => Promise<void>;
   activateManualPlan: (context: TemplateContext, profile: Profile, equipment: string[], dislikedIds: Set<string>) => Promise<void>;
-  syncManualPlanIfActive: (context: TemplateContext, profile: Profile, equipment: string[], dislikedIds: Set<string>) => Promise<{ skippedDayIndexes: number[] }>;
+  syncManualPlanIfActive: (context: TemplateContext, profile: Profile, equipment: string[], dislikedIds: Set<string>, forceCardioRefreshDayIndex?: number) => Promise<{ skippedDayIndexes: number[] }>;
   startNextManualCycle: (context: TemplateContext, profile: Profile, equipment: string[], dislikedIds: Set<string>) => Promise<void>;
   backToAutoPlan: (profile: Profile) => Promise<void>;
 }
@@ -328,7 +328,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   // distinto de activateManualPlan/startNextManualCycle, que sí lo hacen
   // porque esos dos representan el INICIO de un ciclo, no una edición de
   // contenido dentro de uno ya en marcha.
-  syncManualPlanIfActive: async (context, profile, equipment, dislikedIds) => {
+  syncManualPlanIfActive: async (context, profile, equipment, dislikedIds, forceCardioRefreshDayIndex) => {
     set({ isGenerating: true });
     try {
       const [activePlan] = await db
@@ -341,7 +341,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       if (!activePlan) return { skippedDayIndexes: [] };
       if (activePlan.source !== 'manual' || activePlan.context !== context) return { skippedDayIndexes: [] };
 
-      const { skippedDayIndexes } = await materializeTemplate(context, profile, equipment, dislikedIds, activePlan.id, activePlan.generatedAt);
+      const { skippedDayIndexes } = await materializeTemplate(context, profile, equipment, dislikedIds, activePlan.id, activePlan.generatedAt, forceCardioRefreshDayIndex);
 
       const dayRows = await db.select().from(planDays).where(eq(planDays.planId, activePlan.id));
       set(state => ({

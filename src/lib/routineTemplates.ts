@@ -6,6 +6,7 @@ import { getExerciseCounts } from './plan-generator';
 import { findTargetByKey } from './muscleTargets';
 import { selectExercisesForDayByMuscle } from './muscleBasedSelection';
 import type { MuscleGroup } from './exercises';
+import type { CardioPlan } from './cardioSelection';
 
 export type TemplateContext = 'gym' | 'home';
 
@@ -151,6 +152,18 @@ export async function addSlot(templateId: number, dayIndex: number, muscleGroup:
 
 export async function removeSlot(slotId: number): Promise<void> {
   await db.delete(routineTemplateSlots).where(eq(routineTemplateSlots.id, slotId));
+}
+
+// Fija (o borra, con null) el cardio propio de un día de plantilla. null =
+// vuelve a usar el cardio automático (selectCardio() dentro de
+// materializeTemplate) — mismo significado que el centinela ausente de
+// verdad, a diferencia de plan_days.cardio que usa '[]' como centinela por
+// no ser nullable.
+export async function setTemplateCardio(templateId: number, cardio: CardioPlan | null): Promise<void> {
+  await db
+    .update(routineTemplates)
+    .set({ cardio: cardio ? JSON.stringify(cardio) : null })
+    .where(eq(routineTemplates.id, templateId));
 }
 
 // Borra una plantilla completa (todos sus días + todos sus slots) de un
