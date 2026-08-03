@@ -7,6 +7,8 @@ import { playRestDone } from '@/lib/sounds';
 import { runProgressionAfterSession } from '@/lib/progression';
 import { EXERCISES } from '@/lib/exercises';
 import { markExerciseUsed } from '@/lib/muscleUsage';
+import type { CardioPlan } from '@/lib/cardioSelection';
+import type { DayType } from '@/lib/plan-generator';
 import type { StoredPlanDay } from './workout.store';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -44,6 +46,8 @@ interface SessionStore {
   restTimerSeconds: number;
   restTimerRunning: boolean;
   trainingContext: 'gym' | 'home' | null;
+  cardio: CardioPlan;
+  sessionDayType: DayType | null;
 
   startSession: (planId: number, day: StoredPlanDay) => Promise<void>;
   setTrainingContext: (ctx: 'gym' | 'home' | null) => void;
@@ -269,11 +273,13 @@ function computeCoach(
 
 const EMPTY_STATE: Pick<SessionStore,
   'isActive' | 'planId' | 'planDayId' | 'startTime' | 'currentExerciseIdx' |
-  'exercises' | 'restTimerSeconds' | 'restTimerRunning' | 'trainingContext'
+  'exercises' | 'restTimerSeconds' | 'restTimerRunning' | 'trainingContext' |
+  'cardio' | 'sessionDayType'
 > = {
   isActive: false, planId: null, planDayId: null, startTime: null,
   currentExerciseIdx: 0, exercises: [], restTimerSeconds: 0, restTimerRunning: false,
   trainingContext: null,
+  cardio: { gym: [], homeSessions: [] }, sessionDayType: null,
 };
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -333,6 +339,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       isActive: true, planId, planDayId: day.dbId,
       startTime: Date.now(), currentExerciseIdx: 0,
       exercises, restTimerSeconds: 0, restTimerRunning: false,
+      cardio: day.cardio, sessionDayType: day.dayType,
     });
   },
 

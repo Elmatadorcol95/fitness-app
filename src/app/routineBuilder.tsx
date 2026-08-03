@@ -10,7 +10,7 @@ import { VulcanDialog } from '@/components/ui/VulcanDialog';
 import { useProfileStore } from '@/store/profile.store';
 import { useWorkoutStore } from '@/store/workout.store';
 import { Spacing } from '@/constants/theme';
-import { EXERCISES, getExerciseName, type MuscleGroup } from '@/lib/exercises';
+import { EXERCISES, getExerciseName, type Exercise, type MuscleGroup } from '@/lib/exercises';
 import type { Profile } from '@/db/schema';
 import { muscleLabel } from '@/components/workout/ExerciseCard';
 import { ChangeExerciseModal } from '@/components/workout/ChangeExerciseModal';
@@ -18,10 +18,20 @@ import { estimateDuration } from '@/app/training';
 import {
   getSplit,
   getProfileSignals,
+  canDoExercise,
+  getExerciseCounts,
+  getCardioSlots,
   type DayType,
+  type GoalKey,
 } from '@/lib/plan-generator';
 import { buildExercisesFromTemplateDay } from '@/lib/routineMaterializer';
-import type { PlannedCardioBlock, CardioPlan } from '@/lib/cardioSelection';
+import {
+  selectCardio,
+  createCardioCycleState,
+  type PlannedCardioBlock,
+  type CardioPlan,
+  type HomeCardioSession,
+} from '@/lib/cardioSelection';
 import {
   getTemplate,
   createTemplate,
@@ -71,6 +81,32 @@ function cardioMinutesKey(day: RoutineTemplateDay, blockIdx: number): string {
   return `${day.id}-${blockIdx}`;
 }
 
+// Pool de cardio de casa para el picker — mismo criterio que
+// selectHomeCardioSessions() en cardioSelection.ts, pero sin dislikedIds
+// (el constructor da libertad total, igual que getExercisesByMuscleGroup/
+// getAlternatives). Función, no constante: depende del equipamiento real del
+// perfil, a diferencia de GYM_CARDIO_EXERCISES (isGym=true siempre disponible).
+function getHomeCardioExercises(equipment: string[]): Exercise[] {
+  return EXERCISES.filter(e => e.category === 'cardio' && !e.equipment.includes('cardioMachine') && canDoExercise(e, equipment, false));
+}
+
+// Lee las sesiones de cardio propio de casa ya guardadas en la plantilla.
+function getHomeCardioSessions(day: RoutineTemplateDay): HomeCardioSession[] {
+  if (!day.cardio) return [];
+  return (JSON.parse(day.cardio) as CardioPlan).homeSessions;
+}
+
+// El descanso entre sesiones nunca se edita a mano aquí (solo en vivo, en
+// session.tsx) — se recalcula siempre que se guarda: 90s todas menos la
+// última, 0 en la última.
+function withRecalculatedRest(sessions: HomeCardioSession[]): HomeCardioSession[] {
+  return sessions.map((s, i) => ({ ...s, restAfterSeconds: i < sessions.length - 1 ? 90 : 0 }));
+}
+
+function homeCardioSecondsKey(day: RoutineTemplateDay, sessionIdx: number, blockIdx: number): string {
+  return `${day.id}-${sessionIdx}-${blockIdx}`;
+}
+
 // Mismo criterio que routineMaterializer.ts (reutiliza buildExercisesFromTemplateDay,
 // ya no duplica la lógica): solo slots con exerciseId ya asignado aportan al
 // cálculo. Slots vacíos no aportan nada todavía.
@@ -117,19 +153,21 @@ function MusclePickerModal({
   );
 }
 
-// Picker de ejercicio de cardio para un bloque nuevo de gimnasio — mismo
-// patrón que MusclePickerModal, iterando GYM_CARDIO_EXERCISES en vez de
-// ALL_MUSCLE_GROUPS.
+// Picker de ejercicio de cardio para un bloque nuevo — mismo patrón que
+// MusclePickerModal. exercises viene por prop (gimnasio pasa
+// GYM_CARDIO_EXERCISES tal cual; casa pasa getHomeCardioExercises(equipment)).
 function CardioExercisePickerModal({
   visible,
   title,
   lang,
+  exercises,
   onClose,
   onSelect,
 }: {
   visible: boolean;
   title: string;
   lang: 'es' | 'en' | 'fr';
+  exercises: Exercise[];
   onClose: () => void;
   onSelect: (exerciseId: string) => void;
 }) {
@@ -143,7 +181,7 @@ function CardioExercisePickerModal({
           </Pressable>
         </View>
         <ScrollView contentContainerStyle={styles.pickerList}>
-          {GYM_CARDIO_EXERCISES.map((e) => (
+          {exercises.map((e) => (
             <Pressable key={e.id} style={styles.pickerRow} onPress={() => onSelect(e.id)}>
               <ThemedText style={styles.pickerRowText}>{getExerciseName(e.id, lang)}</ThemedText>
               <Ionicons name="chevron-forward" size={18} color={GREEN} />
@@ -179,6 +217,11 @@ export default function RoutineBuilderScreen() {
   // (mismo patrón que gymInputStr en session.tsx, pero indexado también por
   // día porque aquí coexisten varios días a la vez en pantalla).
   const [cardioMinutesInput, setCardioMinutesInput] = useState<Record<string, string>>({});
+  // Cardio propio de casa (Sub-fase 3) — target del picker (día + sesión a la
+  // que añadir el bloque; sessionIdx=null crea una sesión nueva) y texto en
+  // edición de los segundos de un bloque, por día+sesión+índice.
+  const [homeCardioPickerTarget, setHomeCardioPickerTarget] = useState<{ day: RoutineTemplateDay; sessionIdx: number | null } | null>(null);
+  const [homeCardioSecondsInput, setHomeCardioSecondsInput] = useState<Record<string, string>>({});
   // dayIndex → true si el último intento de sincronizar ese día se saltó por
   // ya tener una sesión registrada este ciclo (bug 2). Solo en memoria, no se
   // persiste — se recalcula en cada syncIfActive() y se limpia sola si un
@@ -294,6 +337,81 @@ export default function RoutineBuilderScreen() {
       const current = getGymCardioBlocks(day)[blockIdx];
       setCardioMinutesInput(prev => ({ ...prev, [key]: String(Math.round((current?.durationSeconds ?? 600) / 60)) }));
     }
+  }
+
+  // ── Cardio propio de casa (Sub-fase 3) ──────────────────────────────────────
+  // Mismo motivo del forceCardioRefreshDayIndex que en gimnasio (ver arriba).
+  async function addHomeCardioBlock(day: RoutineTemplateDay, sessionIdx: number | null, exerciseId: string) {
+    const exercise = EXERCISES.find(e => e.id === exerciseId);
+    const durationSeconds = exercise?.defaultDurationSeconds ?? 30;
+    const sessions = getHomeCardioSessions(day);
+    const updatedSessions: HomeCardioSession[] = sessionIdx === null
+      ? [...sessions, { blocks: [{ exerciseId, durationSeconds }], restAfterSeconds: 0 }]
+      : sessions.map((s, i) => i === sessionIdx ? { ...s, blocks: [...s.blocks, { exerciseId, durationSeconds }] } : s);
+    await setTemplateCardio(day.id, { gym: [], homeSessions: withRecalculatedRest(updatedSessions) });
+    setHomeCardioPickerTarget(null);
+    await reloadTemplate();
+    await syncIfActive(day.dayIndex, day.dayIndex);
+  }
+
+  async function removeHomeCardioBlock(day: RoutineTemplateDay, sessionIdx: number, blockIdx: number) {
+    const sessions = getHomeCardioSessions(day);
+    const updatedSessions = sessions
+      .map((s, i) => i === sessionIdx ? { ...s, blocks: s.blocks.filter((_, bi) => bi !== blockIdx) } : s)
+      .filter(s => s.blocks.length > 0);
+    await setTemplateCardio(day.id, updatedSessions.length === 0 ? null : { gym: [], homeSessions: withRecalculatedRest(updatedSessions) });
+    await reloadTemplate();
+    await syncIfActive(day.dayIndex, day.dayIndex);
+  }
+
+  async function updateHomeCardioBlockSeconds(day: RoutineTemplateDay, sessionIdx: number, blockIdx: number, seconds: number) {
+    const sessions = getHomeCardioSessions(day);
+    const updatedSessions = sessions.map((s, i) => i === sessionIdx
+      ? { ...s, blocks: s.blocks.map((b, bi) => bi === blockIdx ? { ...b, durationSeconds: seconds } : b) }
+      : s);
+    await setTemplateCardio(day.id, { gym: [], homeSessions: withRecalculatedRest(updatedSessions) });
+    await reloadTemplate();
+    await syncIfActive(day.dayIndex, day.dayIndex);
+  }
+
+  // Valida el texto de segundos (rango 5-600): si es válido, persiste; si no,
+  // revierte el texto al valor real guardado, sin tocar la DB.
+  function applyHomeCardioSeconds(day: RoutineTemplateDay, sessionIdx: number, blockIdx: number) {
+    const key = homeCardioSecondsKey(day, sessionIdx, blockIdx);
+    const v = parseInt(homeCardioSecondsInput[key] ?? '', 10);
+    if (v >= 5 && v <= 600) {
+      updateHomeCardioBlockSeconds(day, sessionIdx, blockIdx, v);
+    } else {
+      const current = getHomeCardioSessions(day)[sessionIdx]?.blocks[blockIdx];
+      setHomeCardioSecondsInput(prev => ({ ...prev, [key]: String(current?.durationSeconds ?? 30) }));
+    }
+  }
+
+  // Siembra inicial con el motor real (gimnasio y casa) — una sola vez, sin
+  // coordinación de variedad entre días (es un punto de partida editable
+  // para ESTE día, no una generación semanal). El usuario sigue editando
+  // desde ahí con el resto de herramientas ya existentes.
+  async function generateAutoCardioSeed(day: RoutineTemplateDay, isGymContext: boolean) {
+    if (!profile) return;
+    const counts = getExerciseCounts(profile.minutesPerSession);
+    const totalSlots = counts.compounds + counts.isolations;
+    const cardioSlots = getCardioSlots(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null, totalSlots);
+    const seed = selectCardio(cardioSlots, equipmentForModal, isGymContext, new Set(), createCardioCycleState());
+    await setTemplateCardio(day.id, seed);
+    await reloadTemplate();
+    await syncIfActive(day.dayIndex, day.dayIndex);
+  }
+
+  // Duplica los bloques de la última sesión de casa tal cual, como sesión
+  // nueva al final — solo casa, mismo recálculo de descanso de siempre.
+  async function duplicateLastHomeSession(day: RoutineTemplateDay) {
+    const sessions = getHomeCardioSessions(day);
+    if (sessions.length === 0) return;
+    const last = sessions[sessions.length - 1];
+    const duplicated: HomeCardioSession = { blocks: last.blocks.map(b => ({ ...b })), restAfterSeconds: 0 };
+    await setTemplateCardio(day.id, { gym: [], homeSessions: withRecalculatedRest([...sessions, duplicated]) });
+    await reloadTemplate();
+    await syncIfActive(day.dayIndex, day.dayIndex);
   }
 
   useEffect(() => {
@@ -465,8 +583,8 @@ export default function RoutineBuilderScreen() {
                     </Pressable>
                   </ThemedView>
 
-                  {/* Cardio propio (Sub-fase 2) — solo gimnasio; casa llega en Sub-fase 3 */}
-                  {context === 'gym' && (() => {
+                  {/* Cardio propio (Sub-fase 2 gimnasio, Sub-fase 3 casa) */}
+                  {context === 'gym' ? (() => {
                     const cardioBlocks = getGymCardioBlocks(day);
                     return (
                       <View style={styles.cardioSection}>
@@ -479,9 +597,17 @@ export default function RoutineBuilderScreen() {
                               <ThemedText themeColor="textSecondary" style={styles.emptySlotsText}>
                                 {t('routineBuilder.cardioAutoNote')}
                               </ThemedText>
-                              <Pressable style={styles.addSlotRow} onPress={() => setCardioPickerDay(day)} hitSlop={8}>
-                                <Ionicons name="add-circle-outline" size={22} color={GREEN} />
-                              </Pressable>
+                              <View style={styles.cardioEmptyActionsRow}>
+                                <Pressable style={[styles.addSlotRow, styles.cardioEmptyActionFlex]} onPress={() => setCardioPickerDay(day)} hitSlop={8}>
+                                  <Ionicons name="add-circle-outline" size={22} color={GREEN} />
+                                </Pressable>
+                                <Pressable
+                                  style={[styles.cardioGenerateAutoBtn, styles.cardioEmptyActionFlex]}
+                                  onPress={() => generateAutoCardioSeed(day, true)}
+                                >
+                                  <ThemedText style={styles.cardioGenerateAutoBtnText}>{t('routineBuilder.cardioGenerateAutoBtn')}</ThemedText>
+                                </Pressable>
+                              </View>
                             </>
                           ) : (
                             <>
@@ -523,6 +649,96 @@ export default function RoutineBuilderScreen() {
                               <Pressable style={styles.addSlotRow} onPress={() => setCardioPickerDay(day)} hitSlop={8}>
                                 <Ionicons name="add-circle-outline" size={22} color={GREEN} />
                               </Pressable>
+                            </>
+                          )}
+                        </ThemedView>
+                      </View>
+                    );
+                  })() : (() => {
+                    const homeSessions = getHomeCardioSessions(day);
+                    return (
+                      <View style={styles.cardioSection}>
+                        <ThemedText type="defaultSemiBold" style={styles.dayTitle}>
+                          {t('routineBuilder.cardioSectionTitle')}
+                        </ThemedText>
+                        <ThemedView type="backgroundElement" style={styles.dayCard}>
+                          {homeSessions.length === 0 ? (
+                            <>
+                              <ThemedText themeColor="textSecondary" style={styles.emptySlotsText}>
+                                {t('routineBuilder.cardioAutoNote')}
+                              </ThemedText>
+                              <View style={styles.cardioEmptyActionsRow}>
+                                <Pressable style={[styles.addSlotRow, styles.cardioEmptyActionFlex]} onPress={() => setHomeCardioPickerTarget({ day, sessionIdx: null })} hitSlop={8}>
+                                  <Ionicons name="add-circle-outline" size={22} color={GREEN} />
+                                </Pressable>
+                                <Pressable
+                                  style={[styles.cardioGenerateAutoBtn, styles.cardioEmptyActionFlex]}
+                                  onPress={() => generateAutoCardioSeed(day, false)}
+                                >
+                                  <ThemedText style={styles.cardioGenerateAutoBtnText}>{t('routineBuilder.cardioGenerateAutoBtn')}</ThemedText>
+                                </Pressable>
+                              </View>
+                            </>
+                          ) : (
+                            <>
+                              <Pressable style={styles.cardioBackToAutoBtn} onPress={() => revertToAutoCardio(day)}>
+                                <ThemedText style={styles.cardioBackToAutoBtnText}>{t('routineBuilder.cardioBackToAutoLink')}</ThemedText>
+                              </Pressable>
+                              {homeSessions.map((session, sessionIdx) => (
+                                <View key={sessionIdx} style={styles.homeSessionBlock}>
+                                  <ThemedText themeColor="textSecondary" type="defaultSemiBold" style={styles.homeSessionTitle}>
+                                    {t('workout.session.sessionLabel', { n: sessionIdx + 1 })}
+                                  </ThemedText>
+                                  {session.blocks.map((block, blockIdx) => {
+                                    const key = homeCardioSecondsKey(day, sessionIdx, blockIdx);
+                                    return (
+                                      <View key={blockIdx} style={styles.slotRow}>
+                                        <View style={styles.slotTextWrap}>
+                                          <ThemedText style={styles.slotMuscle}>
+                                            {getExerciseName(block.exerciseId, lang)}
+                                          </ThemedText>
+                                        </View>
+                                        <TextInput
+                                          style={styles.cardioMinutesInput}
+                                          keyboardType="numeric"
+                                          value={homeCardioSecondsInput[key] ?? String(block.durationSeconds)}
+                                          onChangeText={(text) => setHomeCardioSecondsInput(prev => ({ ...prev, [key]: text }))}
+                                          onEndEditing={() => applyHomeCardioSeconds(day, sessionIdx, blockIdx)}
+                                          onSubmitEditing={() => applyHomeCardioSeconds(day, sessionIdx, blockIdx)}
+                                          selectTextOnFocus
+                                          returnKeyType="done"
+                                        />
+                                        <ThemedText themeColor="textSecondary" style={styles.cardioMinutesLabel}>s</ThemedText>
+                                        <Pressable
+                                          style={styles.slotDeleteBtn}
+                                          hitSlop={8}
+                                          onPress={() => removeHomeCardioBlock(day, sessionIdx, blockIdx)}
+                                        >
+                                          <Ionicons name="trash-outline" size={18} color={AMBER} />
+                                        </Pressable>
+                                      </View>
+                                    );
+                                  })}
+                                  <Pressable
+                                    style={styles.addSlotRowSmall}
+                                    onPress={() => setHomeCardioPickerTarget({ day, sessionIdx })}
+                                    hitSlop={8}
+                                  >
+                                    <Ionicons name="add-circle-outline" size={16} color={GREEN} />
+                                  </Pressable>
+                                </View>
+                              ))}
+                              <View style={styles.cardioEmptyActionsRow}>
+                                <Pressable style={[styles.addSlotRow, styles.cardioEmptyActionFlex]} onPress={() => setHomeCardioPickerTarget({ day, sessionIdx: null })} hitSlop={8}>
+                                  <Ionicons name="add-circle-outline" size={22} color={GREEN} />
+                                </Pressable>
+                                <Pressable
+                                  style={[styles.cardioGenerateAutoBtn, styles.cardioEmptyActionFlex]}
+                                  onPress={() => duplicateLastHomeSession(day)}
+                                >
+                                  <ThemedText style={styles.cardioGenerateAutoBtnText}>{t('routineBuilder.cardioDuplicateSessionBtn')}</ThemedText>
+                                </Pressable>
+                              </View>
                             </>
                           )}
                         </ThemedView>
@@ -587,14 +803,27 @@ export default function RoutineBuilderScreen() {
         }}
       />
 
-      {/* Picker de ejercicio de cardio para un bloque nuevo (Sub-fase 2) */}
+      {/* Picker de ejercicio de cardio para un bloque nuevo de gimnasio (Sub-fase 2) */}
       <CardioExercisePickerModal
         visible={cardioPickerDay !== null}
         title={t('routineBuilder.addCardioPickerTitle')}
         lang={lang}
+        exercises={GYM_CARDIO_EXERCISES}
         onClose={() => setCardioPickerDay(null)}
         onSelect={(exerciseId) => {
           if (cardioPickerDay) addCardioBlock(cardioPickerDay, exerciseId);
+        }}
+      />
+
+      {/* Picker de ejercicio de cardio para un bloque nuevo de casa (Sub-fase 3) */}
+      <CardioExercisePickerModal
+        visible={homeCardioPickerTarget !== null}
+        title={t('routineBuilder.addCardioPickerTitle')}
+        lang={lang}
+        exercises={getHomeCardioExercises(equipmentForModal)}
+        onClose={() => setHomeCardioPickerTarget(null)}
+        onSelect={(exerciseId) => {
+          if (homeCardioPickerTarget) addHomeCardioBlock(homeCardioPickerTarget.day, homeCardioPickerTarget.sessionIdx, exerciseId);
         }}
       />
 
@@ -703,6 +932,30 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: GREEN + '55', paddingVertical: 2,
   },
   cardioMinutesLabel: { fontSize: 12, marginLeft: 4, marginRight: Spacing.one },
+  homeSessionBlock: { gap: Spacing.one, marginBottom: Spacing.one },
+  homeSessionTitle: { fontSize: 13 },
+  cardioEmptyActionsRow: { flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.one },
+  cardioEmptyActionFlex: { flex: 1, marginTop: 0 },
+  cardioGenerateAutoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+    borderColor: AMBER + '55',
+  },
+  cardioGenerateAutoBtnText: { fontSize: 12, color: AMBER, fontWeight: '600' },
+  addSlotRowSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.one,
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+    borderColor: GREEN + '33',
+    borderStyle: 'dashed',
+  },
   pickerRoot: { flex: 1 },
   pickerHeader: {
     flexDirection: 'row',

@@ -537,6 +537,8 @@
     "cardioSectionTitle": "Cardio",
     "cardioAutoNote": "Se genera automáticamente",
     "cardioBackToAutoLink": "Volver a cardio automático",
-    "addCardioPickerTitle": "Elige un ejercicio de cardio"
+    "addCardioPickerTitle": "Elige un ejercicio de cardio",
+    "cardioGenerateAutoBtn": "Generar automáticamente",
+    "cardioDuplicateSessionBtn": "Duplicar sesión anterior"
   }
 }

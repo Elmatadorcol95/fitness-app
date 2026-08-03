@@ -22,6 +22,7 @@ import { getExerciseName, getAlternatives, canDoAtHome, EXERCISES, type Exercise
 import { getExerciseTargetsForPlan } from '@/lib/progression';
 import { generateWarmup } from '@/lib/warmupGenerator';
 import { getProfileSignals, type PlannedExercise, type DayType } from '@/lib/plan-generator';
+import type { CardioPlan } from '@/lib/cardioSelection';
 import { getDislikedIds, getAllPreferences, togglePreference, type Preference } from '@/lib/exercisePreferences';
 import { getTemplate } from '@/lib/routineTemplates';
 import { buildExercisesFromTemplateDay } from '@/lib/routineMaterializer';
@@ -209,7 +210,18 @@ export default function TrainingScreen() {
         const substituteIdx = activeIdx % trainableOtherDays.length;
         const substituteDay = trainableOtherDays[substituteIdx];
         const substituteExercises = buildExercisesFromTemplateDay(substituteDay, profile);
-        return { day: { ...anchorDay, exercises: substituteExercises, dayType: substituteDay.dayType as DayType }, substituted: true };
+        const substituteCardio: CardioPlan | null = substituteDay.cardio
+          ? JSON.parse(substituteDay.cardio) as CardioPlan
+          : null;
+        return {
+          day: {
+            ...anchorDay,
+            exercises: substituteExercises,
+            dayType: substituteDay.dayType as DayType,
+            ...(substituteCardio ? { cardio: substituteCardio } : {}),
+          },
+          substituted: true,
+        };
       }
     }
     return { day: anchorDay, substituted: false };

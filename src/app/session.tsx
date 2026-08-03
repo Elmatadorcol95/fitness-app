@@ -184,19 +184,19 @@ export default function SessionScreen() {
 
   const {
     isActive, startTime, currentExerciseIdx, exercises,
-    restTimerSeconds, restTimerRunning, trainingContext, planDayId,
+    restTimerSeconds, restTimerRunning, trainingContext,
+    cardio, sessionDayType,
     setCurrentExercise, updateSetField, completeSet,
     addSet, removeSet, updateNote, adjustRest, startRestTimer, stopRestTimer,
     tickRestTimer, finishSession, cancelSession, replaceExercise,
   } = useSessionStore();
 
-  const { currentPlan, advanceDayIndex } = useWorkoutStore();
+  const { advanceDayIndex } = useWorkoutStore();
   const { recordWorkout, unlockAchievement, incrementDaysTrainedThisWeek, incrementDaysFinishedThisWeek } = useGamificationStore();
   const { profile }           = useProfileStore();
   const equipment = parseEquipment(profile?.equipment);
   const isGym     = profile?.location === 'gym' || profile?.location === 'both';
 
-  const cardio: CardioPlan = currentPlan?.days.find(d => d.dbId === planDayId)?.cardio ?? { gym: [], homeSessions: [] };
   const cardioSlotsForDay = cardio.gym.length > 0 ? cardio.gym.length : cardio.homeSessions.length / 2;
   const wasGymGenerated = cardio.gym.length > 0;
   const effectiveIsGymForCardio = trainingContext === 'home' ? false : trainingContext === 'gym' ? true : isGym;
@@ -258,7 +258,6 @@ export default function SessionScreen() {
 
   // ── Aviso: sesión "en casa" con poca variedad de espalda o sin bíceps ──────────
   const isHomeContext  = trainingContext === 'home';
-  const sessionDayType = currentPlan?.days.find(d => d.dbId === planDayId)?.dayType ?? null;
   const isPullRelevant = sessionDayType === 'pull' || sessionDayType === 'upper';
   const dayExercises = exercises
     .map(ex => EXERCISES.find(e => e.id === ex.exerciseId))
