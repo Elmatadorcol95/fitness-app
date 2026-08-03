@@ -279,7 +279,6 @@ export default function RoutineBuilderScreen() {
     if (!profile) return;
     const signals = await getProfileSignals(profile);
     await useWorkoutStore.getState().activateManualPlan(context, profile, signals.equipment, signals.dislikedIds);
-    await useProfileStore.getState().setPlanMode('manual');
   }
 
   async function handleBackToAuto() {
@@ -466,7 +465,7 @@ export default function RoutineBuilderScreen() {
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {profile?.planMode === 'manual' && (
+          {currentPlan?.source === 'manual' && (
             <Pressable
               style={styles.backToAutoBtn}
               onPress={() => setBackToAutoOpen(true)}

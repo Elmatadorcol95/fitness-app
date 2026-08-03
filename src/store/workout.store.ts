@@ -7,7 +7,6 @@ import type { CardioPlan } from '@/lib/cardioSelection';
 import { materializeTemplate, findManualPlan } from '@/lib/routineMaterializer';
 import { getTemplate, type TemplateContext } from '@/lib/routineTemplates';
 import { useGamificationStore } from './gamification.store';
-import { useProfileStore } from './profile.store';
 import type { Profile } from '@/db/schema';
 
 const ACTIVE_DAY_KEY = 'workout_active_day_index';
@@ -404,10 +403,11 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
 
   // Punto 4 — "Volver al plan automático" (antes vivía solo en profile.tsx,
   // ahora es una acción de store para poder disparase también desde
-  // routineBuilder.tsx y training.tsx sin duplicar la secuencia
-  // setPlanMode('auto') + generateAndSavePlan).
+  // routineBuilder.tsx y training.tsx sin duplicar la llamada a
+  // generateAndSavePlan). currentPlan.source vuelve a 'auto' solo porque
+  // generateAndSavePlan() siempre crea un plan nuevo con source='auto'
+  // (default del schema) — no hace falta ningún flag aparte para marcarlo.
   backToAutoPlan: async (profile) => {
-    await useProfileStore.getState().setPlanMode('auto');
     await get().generateAndSavePlan(profile);
   },
 }));
