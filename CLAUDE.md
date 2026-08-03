@@ -1682,8 +1682,11 @@ es referencia para quien necesite tocarlo en el futuro.
 - `workout_plans` gana (migración 0014) source ('auto'|'manual') y
   context ('gym'|'home'|null, solo relevante si source='manual') — así
   se puede distinguir e identificar el plan manual de un contexto
-  específico y reutilizarlo al reactivar (evita el reseteo de progresión
-  que sí sufre el modo automático al regenerar).
+  específico y reutilizarlo al reactivar en vez de crear uno nuevo cada
+  vez (preserva el id de `plan_days` y el historial de sesiones ligado a
+  él). La progresión de pesos ya no depende de esto — desde la migración
+  0016, `exercise_targets` es independiente del plan (ver sección aparte
+  "Progresión de cargas").
 - `profile.planMode` ('auto'|'manual') — migración 0013.
 
 ### Archivos clave y su responsabilidad
@@ -1772,6 +1775,20 @@ día dado — nunca necesita activarse explícitamente. En routineBuilder.tsx,
 viendo el contexto que no es el ancla mientras ya hay un plan manual
 activo, se muestra solo un texto informativo, sin botón.
 
+### Guarda de modo manual en Equipamiento y Prioridades musculares
+
+`src/app/equipment.tsx` y `src/app/musclePriorities.tsx` comprueban
+`currentPlan?.source === 'manual'` (misma señal que ya usa
+`resolveEffectiveDay` en training.tsx) antes de llamar a
+`generateAndSavePlan`. Bug preexistente hasta esta sesión: con un plan
+manual activo, guardar en cualquiera de esas dos pantallas desactivaba el
+plan manual y lo sustituía por uno automático sin preguntar. Ahora, en
+modo manual, ambas guardan el dato (equipamiento/prioridades) sin tocar
+el plan y muestran un diálogo informativo
+(`manualNoticeTitle`/`manualNoticeMsg`, es/en/fr) explicando que el plan
+no cambia. El diálogo de regeneración existente (modo automático) queda
+intacto.
+
 ### El cardio editable (Punto 6)
 
 Columna `cardio` en routine_templates (ver esquema arriba). En
@@ -1829,11 +1846,67 @@ casa) copia los bloques de la última sesión tal cual.
   tiempo (ver más arriba en este documento si hace falta el detalle).
 - Producción de GIFs/vídeos de ejercicios — pipeline definido
   (Midjourney→Runway/Kling + catálogo Excel), en paralelo, sin código.
-- exercise_targets se resetea con cada regeneración del plan AUTOMÁTICO
-  (indexado por planId) — bug pre-existente, baja prioridad, el modo
-  manual ya NO sufre esto gracias al plan estable.
 - useMigrations() no avisa al usuario si una migración falla (solo
   console.error) — bug pre-existente, baja prioridad.
+- Dos señales distintas responden a "estoy en modo manual":
+  `profile.planMode` (intención, persistida) y `currentPlan.source`
+  (plan realmente activo). `backToAutoPlan` encapsula
+  `setPlanMode('auto') + generateAndSavePlan`, pero `activateManualPlan`
+  NO llama a `setPlanMode` — eso lo hace `handleActivate` en
+  routineBuilder.tsx por separado. Interruptor asimétrico. Paso
+  pendiente: mover `setPlanMode('manual')` dentro de
+  `activateManualPlan`.
+- Desde Equipamiento se puede cambiar la UBICACIÓN estando en modo
+  manual, dejando activo un plan de un contexto que el perfil ya no
+  contempla.
+- `resetAll` de `workout.store.ts` es código muerto (sin ningún call
+  site) y no borra `exercise_targets`.
+- `doSignOut` borra perfil y gamificación, pero no planes ni targets: la
+  progresión de pesos sobrevive al cierre de sesión.
+- E-3 / filtro de equipamiento — VERIFICADO 2026-08-03: NO es deuda.
+  Cubierto en dos capas para location:'home' puro — en generación
+  (`getProfileSignals` pone `isGym=false`, `canDoExercise` excluye el
+  material ausente dentro de `selectExercisesForDayByMuscle`) y en
+  arranque de sesión (`handleStart` fuerza `context='home'`, fix del
+  2026-07-03). location:'both' es el único caso donde la generación
+  asume gimnasio siempre y depende de la sustitución en sesión: diseño
+  documentado, no bug. No reinvestigar sin motivo nuevo.
+
+## Progresión de cargas — exercise_targets reindexada por ejercicio (migración 0016)
+
+`exercise_targets` ya no está indexada por `plan_id` — la clave única
+pasa a ser solo `exercise_id`. Migración `0016_exercise_targets_by_exercise.sql`:
+reconstruye la tabla, colapsando duplicados por `updated_at` más reciente
+(desempate por `id` DESC), y arranca con `DROP TABLE IF EXISTS
+exercise_targets_new` para ser idempotente ante un reintento tras fallo
+parcial. La tabla original se conserva como `exercise_targets_legacy` (no
+declarada en `schema.ts`, sin uso en código).
+
+Consecuencias buscadas:
+- La progresión de pesos ya NO se resetea al regenerar el plan
+  automático (afecta a los 6 call sites de `generateAndSavePlan`).
+- La progresión es común a los contextos gym y home del mismo ejercicio.
+- La calibración (`sessionCount === 0`) ocurre una sola vez por
+  ejercicio, no una vez por plan.
+
+Firmas cambiadas: `getExerciseTarget(exerciseId)`, `getAllExerciseTargets()`
+(antes `getExerciseTargetsForPlan(planId)`), `upsertTarget(exerciseId,
+output)`, `runProgressionAfterSession(exercisesData)`,
+`getTargetFromProgression(exerciseId)` (todas en `src/lib/progression.ts`
+y `src/store/session.store.ts`). La guarda `if (planId !== null)` de
+`finishSession` en `session.store.ts` se mantiene a propósito aunque
+`planId` ya no se use dentro de la llamada — retirarla es un cambio de
+comportamiento pendiente de decidir aparte.
+
+`computeNextTargets` clampa `currentRepsMin` al rango del plan
+(`safeCurrentRepsMin = Math.min(Math.max(currentRepsMin, planRepsMin),
+planRepsMax)`) para evitar rangos de reps invertidos (ej. 11-8) cuando el
+objetivo guardado sobrevive a un cambio de rango de reps del plan.
+
+Verificado con un banco de pruebas SQL aislado fuera del repo (colapso de
+duplicados, desempate, NULL preservado, índice único, doble ejecución,
+instalación limpia) antes de validar en dispositivo físico desde
+instalación limpia.
 
 ## Despliegue — variantes de app EAS
 
