@@ -120,6 +120,13 @@
       "when": 1785762320341,
       "tag": "0016_exercise_targets_by_exercise",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1785785730987,
+      "tag": "0017_drop_plan_mode",
+      "breakpoints": true
     }
   ]
 }

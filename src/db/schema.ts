@@ -17,7 +17,6 @@ export const profile = sqliteTable('profile', {
   musclePriorities: text('muscle_priorities').notNull().default('[]'),
   injuries: text('injuries').default(''),
   units: text('units').notNull().default('metric'),
-  planMode: text('plan_mode').notNull().default('auto'), // 'auto' | 'manual'
   createdAt: integer('created_at').notNull(),
 });
 
@@ -182,7 +181,7 @@ export const muscleExerciseUsage = sqliteTable('muscle_exercise_usage', {
 export type MuscleExerciseUsage = typeof muscleExerciseUsage.$inferSelect;
 
 // ── Plan propio (constructor manual) — Fase B ─────────────────────────────────
-// Un plan propio coexiste con el automático vía profile.planMode ('auto'|'manual').
+// Un plan propio coexiste con el automático vía workout_plans.source ('auto'|'manual').
 // Cada fila de routine_templates es UN DÍA de la plantilla (mismo patrón que
 // plan_days para el plan automático); context distingue gym/casa — un usuario
 // location:'both' tiene DOS plantillas independientes (dos tandas de filas,

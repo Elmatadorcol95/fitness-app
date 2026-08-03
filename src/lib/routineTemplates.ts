@@ -167,7 +167,7 @@ export async function setTemplateCardio(templateId: number, cardio: CardioPlan |
 }
 
 // Borra una plantilla completa (todos sus días + todos sus slots) de un
-// contexto — para cuando el usuario cambia de planMode o regenera desde cero.
+// contexto — para cuando el usuario sale del modo manual o regenera desde cero.
 export async function deleteTemplate(context: TemplateContext): Promise<void> {
   const days = await db.select({ id: routineTemplates.id }).from(routineTemplates).where(eq(routineTemplates.context, context));
   for (const day of days) {
