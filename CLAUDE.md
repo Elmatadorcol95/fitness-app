@@ -1871,6 +1871,24 @@ casa) copia los bloques de la última sesión tal cual.
   2026-07-03). location:'both' es el único caso donde la generación
   asume gimnasio siempre y depende de la sustitución en sesión: diseño
   documentado, no bug. No reinvestigar sin motivo nuevo.
+- RESUELTO 2026-08-03 (commits `76035ca`/`d9c038c`): el interruptor
+  asimétrico `profile.planMode`/`currentPlan.source` del punto anterior se
+  cerró eliminando `planMode` por completo — ver la sección nueva
+  "Refactor: profile.planMode eliminado" más abajo. `activateManualPlan` ya
+  no necesita sincronizar nada con `setPlanMode` porque `setPlanMode` no
+  existe.
+- `src/lib/supabase.ts` construye el cliente en ámbito de módulo usando `!`
+  de TypeScript sobre las variables de entorno: eso apaga la única
+  verificación posible y convierte una variable ausente o corrupta en un
+  crash total con un mensaje que no menciona el `.env`. Pendiente: guarda
+  explícita al principio del módulo, que además valide que la URL empieza
+  por `https://`.
+- No existe ningún `.env.example` versionado. Pendiente: crearlo con los
+  NOMBRES de las variables y sin valores, para que cualquier PC nueva sepa
+  qué necesita.
+- `eas-cli` local desactualizado (21.2.0 frente a 21.5.0 disponible).
+  Decisión: no actualizar el mismo día en que se validan migraciones;
+  hacerlo en una sesión propia.
 
 ## Progresión de cargas — exercise_targets reindexada por ejercicio (migración 0016)
 
@@ -1908,6 +1926,41 @@ duplicados, desempate, NULL preservado, índice único, doble ejecución,
 instalación limpia) antes de validar en dispositivo físico desde
 instalación limpia.
 
+## Refactor: profile.planMode eliminado — workout_plans.source como única fuente (2026-08-03)
+
+Cierra el punto del "Backlog general del proyecto" (sección "Constructor de
+rutina propia" más arriba) sobre el interruptor asimétrico entre
+`profile.planMode` y `currentPlan.source`. Las menciones a
+`profile.planMode` en el esquema y en `backToAutoPlan` de esa sección
+describen el estado PREVIO a este refactor — se dejan sin tocar como
+registro histórico; esta sección es la fuente correcta a partir de ahora.
+
+- `profile.plan_mode` ELIMINADA (migración `0017_drop_plan_mode.sql`,
+  `ALTER TABLE profile DROP COLUMN plan_mode` — primer uso de `DROP COLUMN`
+  en el proyecto; `expo-sqlite` embarca SQLite 3.50.3, muy por encima del
+  3.35 mínimo que requiere el comando).
+- `workout_plans.source` (`'auto'|'manual'`) es ahora la ÚNICA fuente de
+  verdad sobre el modo del plan. `setPlanMode` ya no existe en
+  `profile.store.ts`.
+- `backToAutoPlan` solo regenera: el plan vuelve a `source='auto'` porque
+  `generateAndSavePlan` no pasa `source` y hereda el default del schema. No
+  hace falta ningún flag aparte para marcarlo.
+- `routineBuilder.tsx` usa `currentPlan?.source === 'manual'`, predicado
+  GLOBAL sin comparar `context` (igual que `training.tsx`). Confundirlo con
+  `isActiveForContext` escondería el enlace "volver al automático" al mirar
+  el contexto que no es el ancla.
+- Motivo del refactor: las dos señales podían divergir de verdad.
+  `handleActivate` hacía dos escrituras separadas no atómicas
+  (`activateManualPlan` + `setPlanMode`) sin `try/catch` común, así que un
+  cierre de la app entre ambas dejaba un plan manual activo con
+  `planMode='auto'` para siempre, sin ninguna reconciliación al arrancar.
+- Verificado en un banco de pruebas SQL aislado, fuera del repo, antes de
+  aplicar: las 16 columnas restantes conservan tipo/`NOT NULL`/`DEFAULT`/PK
+  intactos, la fila de perfil sobrevive idéntica campo por campo, no hay
+  índices/vistas/triggers sobre `profile` que referencien la columna
+  (`sqlite_master`), y la re-ejecución de la migración falla de forma
+  limpia sin destruir nada.
+
 ## Despliegue — variantes de app EAS
 
 Tres variantes conviven en el teléfono de Juan vía app.config.js +
@@ -1928,6 +1981,28 @@ bytes, xxd) que el prompt interactivo puede colar un byte de control
 invisible (0x02) al inicio del valor pegado, lo que rompe validaciones de
 formato (URLs, keys) de forma indetectable a simple vista o incluso con
 eas env:get. Costó una sesión entera de diagnóstico la primera vez.
+
+LECCIÓN AMPLIADA (2026-08-03): el mismo byte de control 0x02 apareció
+también en un `.env.local` LOCAL (en la 2.ª PC), no solo en variables de
+EAS — con los dos valores de Supabase (`EXPO_PUBLIC_SUPABASE_URL` y
+`EXPO_PUBLIC_SUPABASE_ANON_KEY`) empezando por 0x02 en la posición 0.
+`.env.local` tiene PRIORIDAD sobre `.env` en Expo, así que machacaba los
+valores buenos de `.env` sin que nada lo avisara. Síntoma: "Invalid
+supabaseUrl" al importar `src/lib/supabase.ts`, lo que tumba `_layout.tsx`
+entero y produce en cascada un "Cannot read property 'ErrorBoundary' of
+undefined" — el mensaje no menciona el `.env` por ningún lado, así que el
+diagnóstico tiene que empezar por ahí a propósito. Solución aplicada:
+borrar `.env.local` y arrancar con `--clear`. Lección ampliada: nunca pegar
+credenciales en un prompt interactivo de terminal, ni para EAS ni en local.
+Para regenerar `.env.local` limpio, usar `eas env:pull --environment <env>`.
+
+DECISIÓN — expo-updates en el perfil "preview": el perfil de build
+"preview" declara `channel:"preview"`, pero `expo-updates` NO está
+instalado (se retiró a propósito tras romper cosas — ver commit
+`3bb39e0`). Por eso `eas build --profile preview` PREGUNTA si instalarlo en
+cada build. Responder siempre que NO. El build se completa igual sin el
+paquete; lo único que no se puede hacer es enviar actualizaciones OTA, que
+no forma parte del flujo actual (distribución manual del APK).
 
 ## Plan de fases
 
