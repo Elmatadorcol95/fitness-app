@@ -139,7 +139,6 @@ export const exerciseMaxes = sqliteTable('exercise_maxes', {
 
 export const exerciseTargets = sqliteTable('exercise_targets', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  planId: integer('plan_id').notNull(),
   exerciseId: text('exercise_id').notNull(),
   targetSets: integer('target_sets').notNull(),
   targetRepsMin: integer('target_reps_min').notNull(),

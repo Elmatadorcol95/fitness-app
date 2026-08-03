@@ -19,7 +19,7 @@ import { useGamificationStore } from '@/store/gamification.store';
 import { useWarmupStore } from '@/store/warmup.store';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { getExerciseName, getAlternatives, canDoAtHome, EXERCISES, type Exercise } from '@/lib/exercises';
-import { getExerciseTargetsForPlan } from '@/lib/progression';
+import { getAllExerciseTargets } from '@/lib/progression';
 import { generateWarmup } from '@/lib/warmupGenerator';
 import { getProfileSignals, type PlannedExercise, type DayType } from '@/lib/plan-generator';
 import type { CardioPlan } from '@/lib/cardioSelection';
@@ -174,7 +174,7 @@ export default function TrainingScreen() {
     if (!isDbReady) return;
     if (!currentPlan) return;
     (async () => {
-      const targets = await getExerciseTargetsForPlan(currentPlan.id);
+      const targets = await getAllExerciseTargets();
       const map: Record<string, { weightKg: number | null; reason: string | null }> = {};
       for (const t of targets) {
         map[t.exerciseId] = {

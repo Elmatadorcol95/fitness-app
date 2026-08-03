@@ -113,6 +113,13 @@
       "when": 1785483355990,
       "tag": "0015_routine_templates_cardio",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1785762320341,
+      "tag": "0016_exercise_targets_by_exercise",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { exerciseTargets, exerciseMaxes } from '@/db/schema';
 import { EXERCISES } from '@/lib/exercises';
@@ -208,12 +208,12 @@ export function estimateOneRepMax(weightKg: number, reps: number): number {
 
 // ── DB: obtener target de un ejercicio ───────────────────────────────────────
 
-export async function getExerciseTarget(planId: number, exerciseId: string) {
+export async function getExerciseTarget(exerciseId: string) {
   try {
     const rows = await db
       .select()
       .from(exerciseTargets)
-      .where(and(eq(exerciseTargets.planId, planId), eq(exerciseTargets.exerciseId, exerciseId)))
+      .where(eq(exerciseTargets.exerciseId, exerciseId))
       .limit(1);
     return rows[0] ?? null;
   } catch {
@@ -221,14 +221,13 @@ export async function getExerciseTarget(planId: number, exerciseId: string) {
   }
 }
 
-// ── DB: obtener todos los targets de un plan ─────────────────────────────────
+// ── DB: obtener todos los targets ────────────────────────────────────────────
 
-export async function getExerciseTargetsForPlan(planId: number) {
+export async function getAllExerciseTargets() {
   try {
     return await db
       .select()
-      .from(exerciseTargets)
-      .where(eq(exerciseTargets.planId, planId));
+      .from(exerciseTargets);
   } catch {
     return [];
   }
@@ -236,10 +235,9 @@ export async function getExerciseTargetsForPlan(planId: number) {
 
 // ── DB: guardar target (insert or update) ────────────────────────────────────
 
-async function upsertTarget(planId: number, exerciseId: string, output: ProgressionOutput) {
-  const existing = await getExerciseTarget(planId, exerciseId);
+async function upsertTarget(exerciseId: string, output: ProgressionOutput) {
+  const existing = await getExerciseTarget(exerciseId);
   const values = {
-    planId,
     exerciseId,
     targetSets:         output.targetSets,
     targetRepsMin:      output.targetRepsMin,
@@ -255,7 +253,7 @@ async function upsertTarget(planId: number, exerciseId: string, output: Progress
     await db
       .update(exerciseTargets)
       .set(values)
-      .where(and(eq(exerciseTargets.planId, planId), eq(exerciseTargets.exerciseId, exerciseId)));
+      .where(eq(exerciseTargets.exerciseId, exerciseId));
   } else {
     await db.insert(exerciseTargets).values(values);
   }
@@ -264,7 +262,6 @@ async function upsertTarget(planId: number, exerciseId: string, output: Progress
 // ── DB: ejecutar progresión tras una sesión ───────────────────────────────────
 
 export async function runProgressionAfterSession(
-  planId: number,
   exercisesData: ExerciseProgressionData[],
 ): Promise<{ hasPR: boolean }> {
   let hasPR = false;
@@ -273,7 +270,7 @@ export async function runProgressionAfterSession(
   for (const data of exercisesData) {
     if (data.completedSets.length === 0) continue;
 
-    const current      = await getExerciseTarget(planId, data.exerciseId);
+    const current      = await getExerciseTarget(data.exerciseId);
     const equipmentType = getEquipmentType(data.exerciseId);
 
     const input: ProgressionInput = {
@@ -291,7 +288,7 @@ export async function runProgressionAfterSession(
     };
 
     const output = computeNextTargets(input);
-    await upsertTarget(planId, data.exerciseId, output);
+    await upsertTarget(data.exerciseId, output);
 
     // ── 1RM estimado (Epley) ──────────────────────────────────────────────
     const bestSet = data.completedSets.reduce((best, s) =>

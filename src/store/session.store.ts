@@ -119,12 +119,12 @@ async function getLastSetData(exerciseId: string): Promise<{ reps: number | null
   }
 }
 
-async function getTargetFromProgression(planId: number, exerciseId: string): Promise<{ weightKg: number | null; repsMin: number | null; targetRir: number | null }> {
+async function getTargetFromProgression(exerciseId: string): Promise<{ weightKg: number | null; repsMin: number | null; targetRir: number | null }> {
   try {
     const rows = await db
       .select({ targetWeightKg: exerciseTargets.targetWeightKg, targetRepsMin: exerciseTargets.targetRepsMin, targetRir: exerciseTargets.targetRir })
       .from(exerciseTargets)
-      .where(and(eq(exerciseTargets.planId, planId), eq(exerciseTargets.exerciseId, exerciseId)))
+      .where(eq(exerciseTargets.exerciseId, exerciseId))
       .limit(1);
     return { weightKg: rows[0]?.targetWeightKg ?? null, repsMin: rows[0]?.targetRepsMin ?? null, targetRir: rows[0]?.targetRir ?? null };
   } catch {
@@ -291,7 +291,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     console.log('[Session] startSession — planId:', planId, 'day.dbId:', day.dbId);
 
     const progressionDataArr = await Promise.all(
-      day.exercises.map(ex => getTargetFromProgression(planId, ex.exerciseId)),
+      day.exercises.map(ex => getTargetFromProgression(ex.exerciseId)),
     );
     const lastDataArr = await Promise.all(
       day.exercises.map((ex, i) =>
@@ -527,7 +527,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     let hasPR = false;
     if (planId !== null) {
       try {
-        const result = await runProgressionAfterSession(planId, exercises.map(ex => ({
+        const result = await runProgressionAfterSession(exercises.map(ex => ({
           exerciseId:    ex.exerciseId,
           planRepsMin:   ex.planRepsMin,
           planRepsMax:   ex.planRepsMax,
