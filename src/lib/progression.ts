@@ -84,10 +84,11 @@ export function computeNextTargets(input: ProgressionInput): ProgressionOutput {
 
   const increment = getMinIncrement(equipmentType);
   const newCount  = sessionCount + 1;
+  const safeCurrentRepsMin = Math.min(Math.max(currentRepsMin, planRepsMin), planRepsMax);
 
   const unchanged: ProgressionOutput = {
     targetSets:         planSets,
-    targetRepsMin:      currentRepsMin,
+    targetRepsMin:      safeCurrentRepsMin,
     targetRepsMax:      planRepsMax,
     targetWeightKg:     currentWeightKg,
     targetRir,
