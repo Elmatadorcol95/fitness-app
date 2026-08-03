@@ -52,6 +52,7 @@ export default function EquipmentScreen() {
   const { t } = useTranslation();
   const { profile, updateEquipmentAndLocation } = useProfileStore();
   const generateAndSavePlan = useWorkoutStore((s) => s.generateAndSavePlan);
+  const isManualPlan = useWorkoutStore((s) => s.currentPlan?.source) === 'manual';
 
   const initialEquipment: string[] = (() => {
     try { return JSON.parse(profile?.equipment ?? '[]') as string[]; } catch { return []; }
@@ -62,6 +63,7 @@ export default function EquipmentScreen() {
   const [equipment, setEquipment] = useState<string[]>(initialEquipment);
   const [saving, setSaving] = useState(false);
   const [regenOpen, setRegenOpen] = useState(false);
+  const [manualNoticeOpen, setManualNoticeOpen] = useState(false);
   const [saveErrorMsg, setSaveErrorMsg] = useState('');
   const [regenErrorMsg, setRegenErrorMsg] = useState('');
   const pendingProfile = useRef<typeof profile>(null);
@@ -96,14 +98,23 @@ export default function EquipmentScreen() {
     setSaving(true);
     try {
       await updateEquipmentAndLocation(location, equipment);
-      pendingProfile.current = { ...profile, location, equipment: JSON.stringify(equipment) };
-      setRegenOpen(true);
+      if (isManualPlan) {
+        setManualNoticeOpen(true);
+      } else {
+        pendingProfile.current = { ...profile, location, equipment: JSON.stringify(equipment) };
+        setRegenOpen(true);
+      }
     } catch (err) {
       console.error('[Equipment] Error al guardar equipamiento:', err);
       setSaveErrorMsg(t('equipment.saveErrorMsg'));
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleManualNoticeClose = () => {
+    setManualNoticeOpen(false);
+    useProfileStore.getState().closeEquipment();
   };
 
   return (
@@ -233,6 +244,16 @@ export default function EquipmentScreen() {
           }
           useProfileStore.getState().closeEquipment();
         }}
+      />
+
+      <VulcanDialog
+        visible={manualNoticeOpen}
+        onClose={handleManualNoticeClose}
+        hideCancel
+        title={t('equipment.manualNoticeTitle')}
+        message={t('equipment.manualNoticeMsg')}
+        confirmLabel="OK"
+        onConfirm={handleManualNoticeClose}
       />
 
       <VulcanDialog

@@ -491,7 +491,9 @@
     "saveErrorTitle": "Impossible d'enregistrer",
     "saveErrorMsg": "Un problème est survenu en enregistrant votre équipement. Veuillez réessayer.",
     "regenErrorTitle": "Équipement enregistré, plan non mis à jour",
-    "regenErrorMsg": "Votre équipement a été enregistré, mais le plan n'a pas pu être régénéré. Vous pouvez réessayer plus tard depuis Profil."
+    "regenErrorMsg": "Votre équipement a été enregistré, mais le plan n'a pas pu être régénéré. Vous pouvez réessayer plus tard depuis Profil.",
+    "manualNoticeTitle": "Équipement enregistré",
+    "manualNoticeMsg": "Vous avez une routine personnalisée active, votre plan ne change donc pas. Vérifiez votre routine dans le constructeur si un exercice ne correspond plus à votre équipement."
   },
   "musclePriorities": {
     "title": "Priorité musculaire",
@@ -504,6 +506,8 @@
     "regenTitle": "Priorité musculaire mise à jour",
     "regenMsg": "Vous verrez désormais plus d'exercices ciblant ces zones dans votre plan. Vous pouvez modifier votre priorité à tout moment — à chaque modification, votre plan se régénérera automatiquement en appuyant sur Terminer.",
     "regenConfirm": "Terminer",
+    "manualNoticeTitle": "Priorités enregistrées",
+    "manualNoticeMsg": "Vous avez une routine personnalisée active, votre plan ne change donc pas. Ces priorités s'appliqueront si vous revenez au plan automatique.",
     "zoneLabels": {
       "chest": "Pectoraux", "shoulders": "Épaules", "biceps": "Biceps", "quads": "Quadriceps",
       "core_abdomen": "Core/Abdominaux", "back": "Dos", "triceps": "Triceps",

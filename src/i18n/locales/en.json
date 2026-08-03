@@ -491,7 +491,9 @@
     "saveErrorTitle": "Couldn't save",
     "saveErrorMsg": "There was a problem saving your equipment. Please try again.",
     "regenErrorTitle": "Equipment saved, plan not updated",
-    "regenErrorMsg": "Your equipment was saved, but the plan couldn't be regenerated. You can try again later from Profile."
+    "regenErrorMsg": "Your equipment was saved, but the plan couldn't be regenerated. You can try again later from Profile.",
+    "manualNoticeTitle": "Equipment saved",
+    "manualNoticeMsg": "You have a custom routine active, so your plan won't change. Check your routine in the builder if any exercise no longer matches your equipment."
   },
   "musclePriorities": {
     "title": "Muscle priority",
@@ -504,6 +506,8 @@
     "regenTitle": "Muscle priority updated",
     "regenMsg": "From now on you'll see more exercises targeting these areas in your plan. You can change your priority anytime — each time you edit it, your plan will automatically regenerate when you press Finish.",
     "regenConfirm": "Finish",
+    "manualNoticeTitle": "Priorities saved",
+    "manualNoticeMsg": "You have a custom routine active, so your plan won't change. These priorities will apply if you switch back to the automatic plan.",
     "zoneLabels": {
       "chest": "Chest", "shoulders": "Shoulders", "biceps": "Biceps", "quads": "Quads",
       "core_abdomen": "Core/Abs", "back": "Back", "triceps": "Triceps",

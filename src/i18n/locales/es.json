@@ -491,7 +491,9 @@
     "saveErrorTitle": "No se pudo guardar",
     "saveErrorMsg": "Hubo un problema al guardar tu equipamiento. Inténtalo de nuevo.",
     "regenErrorTitle": "Equipamiento guardado, plan no actualizado",
-    "regenErrorMsg": "Tu equipamiento se guardó, pero no se pudo regenerar el plan. Puedes intentarlo de nuevo más tarde desde Perfil."
+    "regenErrorMsg": "Tu equipamiento se guardó, pero no se pudo regenerar el plan. Puedes intentarlo de nuevo más tarde desde Perfil.",
+    "manualNoticeTitle": "Equipamiento guardado",
+    "manualNoticeMsg": "Tienes una rutina propia activa, así que tu plan no cambia. Revisa tu rutina en el constructor si algún ejercicio ya no encaja con tu equipamiento."
   },
   "musclePriorities": {
     "title": "Prioridad muscular",
@@ -504,6 +506,8 @@
     "regenTitle": "Prioridad muscular actualizada",
     "regenMsg": "A partir de ahora verás más ejercicios dirigidos a estas zonas en tu plan. Puedes cambiar tu prioridad cuando quieras — cada vez que la edites, tu plan se regenerará automáticamente al presionar Finalizar.",
     "regenConfirm": "Finalizar",
+    "manualNoticeTitle": "Prioridades guardadas",
+    "manualNoticeMsg": "Tienes una rutina propia activa, así que tu plan no cambia. Estas prioridades se aplicarán si vuelves al plan automático.",
     "zoneLabels": {
       "chest": "Pecho", "shoulders": "Hombros", "biceps": "Bíceps", "quads": "Cuádriceps",
       "core_abdomen": "Core/Abdomen", "back": "Espalda", "triceps": "Tríceps",

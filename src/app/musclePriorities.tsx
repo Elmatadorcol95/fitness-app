@@ -46,6 +46,7 @@ export default function MusclePrioritiesScreen() {
   const { t } = useTranslation();
   const { profile, updateMusclePriorities } = useProfileStore();
   const generateAndSavePlan = useWorkoutStore((s) => s.generateAndSavePlan);
+  const isManualPlan = useWorkoutStore((s) => s.currentPlan?.source) === 'manual';
 
   const initialSelected: MuscleRegionId[] = (() => {
     const groups = parseMusclePriorities(profile?.musclePriorities ?? undefined);
@@ -56,6 +57,7 @@ export default function MusclePrioritiesScreen() {
   const [view, setView] = useState<'front' | 'back'>('front');
   const [saving, setSaving] = useState(false);
   const [regenOpen, setRegenOpen] = useState(false);
+  const [manualNoticeOpen, setManualNoticeOpen] = useState(false);
   const pendingProfile = useRef<typeof profile>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -89,8 +91,12 @@ export default function MusclePrioritiesScreen() {
     try {
       const groups = zonesToGroups(selected);
       await updateMusclePriorities(groups);
-      pendingProfile.current = { ...profile, musclePriorities: JSON.stringify(groups) };
-      setRegenOpen(true);
+      if (isManualPlan) {
+        setManualNoticeOpen(true);
+      } else {
+        pendingProfile.current = { ...profile, musclePriorities: JSON.stringify(groups) };
+        setRegenOpen(true);
+      }
     } finally {
       setSaving(false);
     }
@@ -105,6 +111,11 @@ export default function MusclePrioritiesScreen() {
         console.error('[MusclePriorities] Error al regenerar plan:', err);
       }
     }
+    useProfileStore.getState().closeMusclePriorities();
+  };
+
+  const handleManualNoticeClose = () => {
+    setManualNoticeOpen(false);
     useProfileStore.getState().closeMusclePriorities();
   };
 
@@ -187,6 +198,16 @@ export default function MusclePrioritiesScreen() {
         message={t('musclePriorities.regenMsg')}
         confirmLabel={t('musclePriorities.regenConfirm')}
         onConfirm={handleRegenConfirm}
+      />
+
+      <VulcanDialog
+        visible={manualNoticeOpen}
+        onClose={handleManualNoticeClose}
+        hideCancel
+        title={t('musclePriorities.manualNoticeTitle')}
+        message={t('musclePriorities.manualNoticeMsg')}
+        confirmLabel="OK"
+        onConfirm={handleManualNoticeClose}
       />
     </ThemedView>
   );
