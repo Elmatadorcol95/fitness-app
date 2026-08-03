@@ -1637,60 +1637,203 @@ Bucle ~1.3 s sobre fondo #141A17:
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
-## Constructor de rutina propia — CASI COMPLETO
+## Constructor de rutina propia — COMPLETO (cerrado julio 2026)
 
-Fases A-G2 cerradas y validadas en dispositivo. De los 6 puntos de
-refinamiento que Juan reportó tras validar la Fase G2, los 5 primeros ya
-están cerrados y comiteados:
+Feature completa: el usuario puede construir su propia rutina de fuerza +
+cardio a mano, en vez de usar el plan generado automáticamente. Convive
+con el modo automático vía profile.planMode ('auto'|'manual'), nunca los
+dos activos a la vez. TODAS las fases (A a G2) y los 6 puntos de
+refinamiento reportados tras validar están cerrados y validados en
+dispositivo físico. Sin trabajo pendiente en este feature — lo que sigue
+es referencia para quien necesite tocarlo en el futuro.
 
-1. Redundancia "Activar rutina"/"¿dónde entrenas hoy?" para location:'both'
-   → resuelto con el modelo de "rutina ancla" + sustitución en vivo por
-   índice (no por tipo de día) del contexto que no es el ancla.
-2. Edición de un día ya entrenado esta semana no se reflejaba sin avisar
-   → corregido, ahora avisa con un banner en el constructor.
-3. La semana no cerraba en modo manual (días vacíos bloqueaban el ciclo,
-   o el contador de logros no correspondía a "día finalizado") → nuevo
-   contador daysFinishedThisWeek independiente de logros/racha; días sin
-   ejercicios ya no cuentan ni bloquean.
-4. "Volver al plan automático" reubicado — visible en el constructor y en
-   Entreno, eliminado de Perfil.
-5. Botón "Cambiar ejercicio" quitado de Entreno en modo manual (el
-   constructor es la única fuente de verdad).
+### Decisiones de producto (no reabrir sin discutirlo con Juan)
 
-## Cardio editable en el constructor — EN CURSO (2 de 3 sub-fases)
+- Exclusividad total con el modo automático — nunca ambos a la vez. En
+  Entreno el botón se divide en "generar mi plan automáticamente"/"crear
+  mi propio plan".
+- El plan propio se repite igual cada semana (sin variación semanal).
+- Slots de fuerza SIN prerelleno — el usuario elige cada ejercicio a
+  propósito (debe sentirse como "construir", no "editar una rutina ya
+  hecha").
+- Días del constructor: solo push/pull/legs/full_body — upper/lower
+  quedan dormidos (mismo DayType del generador automático).
+- Libertad total, sin restricciones: sin restricción de grupo muscular
+  por tipo de día al añadir un slot; sin excluir ejercicios repetidos ni
+  siquiera dentro del mismo día; el picker de cardio de casa no filtra
+  por dislikedIds (mismo criterio que el resto del constructor).
+- Usuarios location:'both' tienen DOS plantillas independientes (una por
+  contexto gym/home) — nunca comparten filas.
+- Series/reps editables: pendiente, fuera de alcance de v1.
+- Un día con TODOS los slots de fuerza vacíos crea igual su fila
+  (exercises:[]), bloqueado por el botón "Iniciar" ya existente, y NO
+  cuenta para el ciclo semanal (ver "trainableDays" abajo).
 
-Único punto pendiente del constructor de rutina propia. Decisiones ya
-tomadas con Juan: arreglo ACOTADO (solo el cardio propio se refresca al
-editarlo, el automático sigue igual); casa mantiene la estructura de
-sesiones (como ya hace el cardio automático); sí habrá botón para volver
-a automático.
+### Esquema (migraciones 0013, 0014, 0015)
 
-Arquitectura: routine_templates gana una columna cardio (JSON de
-CardioPlan, nullable — null = usa el automático de siempre). Hallazgo
-importante encontrado a mitad de la Sub-fase 1: needsCardio solo era
-true la primera vez que se materializaba un día — en modo manual (donde
-las filas de plan_days se reutilizan entre ciclos) esto habría impedido
-que un cardio editado DESPUÉS de la primera materialización se aplicara
-nunca. Arreglado con un parámetro forceCardioRefreshDayIndex en
-materializeTemplate()/syncManualPlanIfActive(), evaluado DENTRO del
-bucle ya protegido por hasSessionForPlanDay (nunca antes, para no
-arriesgar escribir un cardio:'[]' inválido sobre un día con ejercicios
-reales).
+- `routine_templates`: una fila por día de la plantilla. context
+  ('gym'|'home'), dayIndex, dayType, y **cardio** (text, JSON de
+  CardioPlan, NULLABLE — null = usa el cardio automático de siempre; un
+  valor real = el usuario configuró el suyo para ese día). Migración
+  0015.
+- `routine_template_slots`: muscleGroup NOT NULL, exerciseId nullable
+  (null = slot sin elegir). sets/repRange/restSeconds/notes existen en
+  el esquema pero sin uso en v1.
+- `workout_plans` gana (migración 0014) source ('auto'|'manual') y
+  context ('gym'|'home'|null, solo relevante si source='manual') — así
+  se puede distinguir e identificar el plan manual de un contexto
+  específico y reutilizarlo al reactivar (evita el reseteo de progresión
+  que sí sufre el modo automático al regenerar).
+- `profile.planMode` ('auto'|'manual') — migración 0013.
 
-Sub-fase 1 (backend) y Sub-fase 2 (UI de gimnasio — sección "Cardio" por
-día, picker de las 5 máquinas de gym, bloques editables 1-60 min, revierte
-a automático al vaciar) — CERRADAS y validadas en dispositivo.
+### Archivos clave y su responsabilidad
 
-**Falta: Sub-fase 3** — la misma idea pero para casa, con la estructura
-de sesiones (varios ejercicios por sesión + descanso entre sesiones, igual
-que ya funciona hoy el cardio automático de casa) — es la pieza más
-compleja de las 3 por la anidación sesión→bloques. Necesita su propio
-diseño de detalle antes de tocar código.
+- `src/lib/routineTemplates.ts` — CRUD de la plantilla: createTemplate
+  (recomienda muscleGroup por slot reutilizando el motor real
+  selectExercisesForDayByMuscle, NUNCA round-robin ciego), getTemplate,
+  setSlotExercise, addSlot, removeSlot, setTemplateCardio, deleteTemplate.
+- `src/lib/routineMaterializer.ts` — el puente entre la plantilla
+  (routine_templates) y el plan real (plan_days):
+  - `hasSessionForPlanDay(planDayId, sinceTimestamp)` — un día cuenta
+    como "ya entrenado" (y por tanto intocable) solo si tiene una sesión
+    DESDE el inicio del ciclo vigente, no "para siempre". Corrige que un
+    día entrenado una vez quedara congelado para futuras ediciones.
+  - `buildExercisesFromTemplateDay(day, profile)` — función PURA (sin
+    DB) que convierte slots en PlannedExercise[]. Reutilizada por
+    materializeTemplate, por estimateDayDuration (routineBuilder.tsx) y
+    por la sustitución en vivo (training.tsx) — una sola fuente de
+    verdad para esta conversión.
+  - `materializeTemplate(context, profile, equipment, dislikedIds,
+    planId, cycleStart, forceCardioRefreshDayIndex?)` — nunca busca ni
+    crea el plan activo por su cuenta (eso lo hacen las 3 acciones de
+    workout.store.ts). Nunca reescribe un día ya entrenado en el ciclo
+    vigente. Cardio: usa day.cardio (de la plantilla) si existe;
+    si no, lo calcula con selectCardio() como siempre. needsCardio
+    normalmente solo es true la primera vez (centinela '[]' en
+    plan_days.cardio) — forceCardioRefreshDayIndex fuerza el recálculo
+    para UN día específico cuando el usuario acaba de editar su cardio
+    propio, evitando el mismo problema de "congelado para siempre" que
+    ya se corrigió para hasSessionForPlanDay.
+  - `findManualPlan(context)` — busca el plan manual de un contexto,
+    activo o no, para reactivarlo en vez de duplicar.
+- `src/store/workout.store.ts` — StoredPlan incluye source/context.
+  3 acciones sobre el modo manual: `activateManualPlan` (crea o
+  reactiva, único punto de entrada, resetea generatedAt+índice+
+  contador), `syncManualPlanIfActive` (sincroniza tras editar SOLO si
+  ese contexto ya es el activo — nunca activa nada sola; devuelve
+  skippedDayIndexes para avisar de ediciones que no se reflejarán hasta
+  el próximo ciclo), `startNextManualCycle` (mueve generatedAt, para
+  "generar próxima semana" en modo manual). `backToAutoPlan(profile)` —
+  único punto de entrada para volver a automático (setPlanMode('auto')
+  + generateAndSavePlan), usado desde 3 sitios sin duplicar la
+  secuencia.
+- `src/store/gamification.store.ts` — `daysFinishedThisWeek`, contador
+  INDEPENDIENTE de daysTrainedThisWeek/logros. Decisión de Juan: "día
+  finalizado" (cierra la semana) ≠ "logro/racha" (sigue exigiendo 50% de
+  series de siempre, sin tocar). Se incrementa SIEMPRE al terminar
+  sesión.
+- `src/app/routineBuilder.tsx` — la pantalla del constructor: selector
+  de contexto (solo location:'both'), slots musculares (elegir/quitar/
+  añadir/quitar ejercicio), sección de cardio por día (gym: lista plana
+  de bloques; casa: sesiones agrupadas con sub-bloques + "duplicar
+  sesión anterior" + "generar automáticamente"), botón de activar/"ya
+  activa"/nota informativa según corresponda, botón "volver a
+  automático".
+- `src/app/training.tsx` — pantalla principal de Entreno.
+  `trainableDays` (días con ≥1 ejercicio de fuerza) calculado UNA vez y
+  compartido por render/startRealSession/handleWarmupMinutes — nunca
+  recalculado por separado (lección de esta sesión, ver abajo).
+  `resolveEffectiveDay(context)` — la pieza central de la "rutina
+  ancla": si el plan es manual y el contexto elegido hoy no es el del
+  ancla, y esa plantilla tiene algún día entrenable, sustituye TODO el
+  día (ejercicios + dayType + cardio si la plantilla sustituta tiene
+  cardio propio) por el de la MISMA posición (índice con módulo, NUNCA
+  por tipo de día — la libertad total del constructor rompe cualquier
+  correspondencia fiable por tipo). Puramente en memoria, nunca toca
+  plan_days ni resetea el ciclo. Si no hay plantilla sustituta válida,
+  cae al filtro E-3 de sustitución por equipamiento de siempre.
+  Compartida entre el flujo de calentamiento y el arranque real de
+  sesión.
+- `src/store/session.store.ts` / `src/app/session.tsx` — el
+  SessionStore guarda `cardio` y `sessionDayType` como campos PROPIOS,
+  poblados en startSession() desde el day ya resuelto por
+  resolveEffectiveDay. session.tsx los lee del store, nunca los
+  re-deriva buscando por planDayId en el plan del ancla (ver lección
+  crítica abajo).
 
-Detalles técnicos completos de toda la arquitectura (routineTemplates.ts,
-routineMaterializer.ts, workout.store.ts, la rutina ancla, etc.) — pídele
-un resumen a Claude en el chat al retomar si hace falta el detalle, ya
-está todo documentado ahí.
+### La "rutina ancla" (Punto 1, para location:'both')
+
+Resuelve la redundancia entre "Activar esta rutina" y la pregunta diaria
+"¿dónde entrenas hoy?": una sola rutina ancla activa a la vez (no una
+activación por contexto). El contexto que NO es el ancla, si tiene su
+propia plantilla con algún día entrenable, se usa por SUSTITUCIÓN EN
+VIVO (vía resolveEffectiveDay) cuando el usuario elige entrenar ahí un
+día dado — nunca necesita activarse explícitamente. En routineBuilder.tsx,
+viendo el contexto que no es el ancla mientras ya hay un plan manual
+activo, se muestra solo un texto informativo, sin botón.
+
+### El cardio editable (Punto 6)
+
+Columna `cardio` en routine_templates (ver esquema arriba). En
+routineBuilder.tsx: gimnasio ofrece una lista plana de bloques
+(ejercicio de máquina + minutos, 1-60); casa ofrece sesiones agrupadas
+(varios ejercicios por sesión + descanso recalculado SIEMPRE al guardar
+— 90s todas menos la última, 0 en la última — nunca editable a mano en
+el constructor, solo en vivo en session.tsx como siempre). Quitar el
+último bloque de gimnasio, o el último bloque de una sesión de casa
+(que además elimina la sesión si queda vacía; y si quedan 0 sesiones,
+revierte a null), vuelve al cardio automático. "Generar automáticamente"
+(ambos contextos) siembra una propuesta inicial con el motor real
+(getExerciseCounts+getCardioSlots+selectCardio), editable desde ahí —
+sin coordinación de variedad entre días (simplificación consciente, es
+un punto de partida de un solo día). "Duplicar sesión anterior" (solo
+casa) copia los bloques de la última sesión tal cual.
+
+### Lecciones importantes para quien retome/extienda esto
+
+1. **Cálculos duplicados se desincronizan.** Ocurrió 3 veces en esta
+   sesión (trainableDays, el dayType del calentamiento, y casi con el
+   cardio también) — cuando dos sitios distintos necesitan derivar el
+   mismo dato, extraer SIEMPRE un único helper/función compartida. Nunca
+   recalcular "igual pero por separado".
+
+2. **Los centinelas de "calculado una sola vez" necesitan ser
+   conscientes del CICLO, no de "para siempre".** hasSessionForPlanDay y
+   el cardio de un día materializado en modo manual reutilizan las
+   mismas filas de plan_days entre ciclos (a propósito, para no perder
+   progresión) — cualquier "esto ya se calculó, no lo toques más" debe
+   comparar contra el INICIO DEL CICLO VIGENTE (generatedAt), nunca
+   contra "alguna vez en la historia de esta fila".
+
+3. **LA MÁS IMPORTANTE — pasar un dato resuelto por una cadena de
+   funciones no garantiza que el consumidor final lo use.** El bug de
+   cardio más difícil de esta sesión tuvo DOS capas: resolveEffectiveDay
+   (training.tsx) sustituía el cardio correctamente y lo pasaba a
+   startSession() — pero session.store.ts descartaba ese valor sin
+   guardarlo en ningún campo recuperable, y session.tsx volvía a
+   derivarlo por su cuenta buscando por planDayId (=dbId del ANCLA,
+   estable a propósito) dentro del plan del ancla — ignorando por
+   completo lo que se le había pasado. El primer arreglo (capa 1) pareció
+   suficiente pero no lo era; hizo falta un segundo audit para encontrar
+   la capa 2. LECCIÓN: cuando un valor "ya resuelto" viaja a través de
+   varias capas (función → store → componente), verificar EXPLÍCITAMENTE
+   que cada capa intermedia lo propaga en vez de asumir que "pasar el
+   dato" es suficiente — sobre todo si existe algún identificador
+   estable (como planDayId=dbId del ancla) que un consumidor descuidado
+   podría usar para "re-derivar" el dato de una fuente distinta y
+   equivocada.
+
+### Backlog general del proyecto (no relacionado con el constructor)
+
+- Funcionalidades sociales S-1/S-2/S-3 — sin empezar, diseñadas hace
+  tiempo (ver más arriba en este documento si hace falta el detalle).
+- Producción de GIFs/vídeos de ejercicios — pipeline definido
+  (Midjourney→Runway/Kling + catálogo Excel), en paralelo, sin código.
+- exercise_targets se resetea con cada regeneración del plan AUTOMÁTICO
+  (indexado por planId) — bug pre-existente, baja prioridad, el modo
+  manual ya NO sufre esto gracias al plan estable.
+- useMigrations() no avisa al usuario si una migración falla (solo
+  console.error) — bug pre-existente, baja prioridad.
 
 ## Despliegue — variantes de app EAS
 
