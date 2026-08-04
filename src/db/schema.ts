@@ -17,6 +17,11 @@ export const profile = sqliteTable('profile', {
   musclePriorities: text('muscle_priorities').notNull().default('[]'),
   injuries: text('injuries').default(''),
   units: text('units').notNull().default('metric'),
+  authUserId: text('auth_user_id'), // UUID de Supabase auth — nullable
+  // para instalaciones previas a esta migracion, backfillado en el
+  // arranque (_layout.tsx). Ver auditoria: sin esto, un dispositivo
+  // compartido entre cuentas (sesion invalidada sin logout limpio +
+  // login de otra persona) mostraria el perfil de la cuenta anterior.
   createdAt: integer('created_at').notNull(),
 });
 

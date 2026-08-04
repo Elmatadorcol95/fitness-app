@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { Linking, StyleSheet, View, useColorScheme } from 'react-native';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
+import { eq } from 'drizzle-orm';
 
 import '@/i18n';
 import { db, schema } from '@/db';
@@ -148,11 +149,26 @@ export default function RootLayout() {
   // la DB está lista; sin ella, StreakWidget, AchievementsSection e HistoryScreen
   // consultarían tablas que aún no existen.
   useEffect(() => {
-    if (!migrationsReady) return;
+    if (!migrationsReady || isAuthLoading) return;
     (async () => {
       try {
         const rows = await db.select().from(schema.profile).limit(1);
-        useProfileStore.getState().setProfile(rows[0] ?? null);
+        const row = rows[0];
+        if (!row) {
+          useProfileStore.getState().setProfile(null);
+        } else {
+          const currentUserId = useAuthStore.getState().session?.user.id ?? null;
+          if (row.authUserId === null) {
+            // Instalación previa a la migración 0018 — backfill con la sesión actual.
+            await db.update(schema.profile).set({ authUserId: currentUserId }).where(eq(schema.profile.id, row.id));
+            useProfileStore.getState().setProfile({ ...row, authUserId: currentUserId });
+          } else if (row.authUserId !== currentUserId) {
+            console.warn('[Profile] auth_user_id no coincide con la sesion activa');
+            useProfileStore.getState().setProfile(null);
+          } else {
+            useProfileStore.getState().setProfile(row);
+          }
+        }
       } catch {
         useProfileStore.getState().setProfile(null);
       } finally {
@@ -162,7 +178,7 @@ export default function RootLayout() {
       await useGamificationStore.getState().loadGamification();
       useProfileStore.getState().setDbReady(true);
     })();
-  }, [migrationsReady]);
+  }, [migrationsReady, isAuthLoading]);
 
   // ── Patrón "overlay": AppTabs siempre montado, pantallas de auth encima ────
   //

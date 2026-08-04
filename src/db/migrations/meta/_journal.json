@@ -127,6 +127,13 @@
       "when": 1785785730987,
       "tag": "0017_drop_plan_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1785837722908,
+      "tag": "0018_profile_auth_link",
+      "breakpoints": true
     }
   ]
 }

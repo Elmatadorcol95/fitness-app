@@ -19,6 +19,7 @@ import { eq } from 'drizzle-orm';
 
 import { db, schema } from '@/db';
 import { useProfileStore } from '@/store/profile.store';
+import { useAuthStore } from '@/store/auth.store';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -64,6 +65,7 @@ export function OnboardingFlow() {
         musclePriorities: JSON.stringify(draft.musclePriorities),
         injuries:         draft.injuries,
         units:            draft.units,
+        authUserId:       useAuthStore.getState().session?.user.id ?? null,
         createdAt:        now,
       });
 
