@@ -1691,6 +1691,136 @@ Bucle ~1.3 s sobre fondo #141A17:
     3. `profile.plan_mode` eliminada (migración 0017, ver "Refactor:
        profile.planMode eliminado" más abajo).
     4. Pantalla de error de migraciones con reintento real (esta entrada).
+- Hecho: sesión 2026-08-04 (continuación) — **Vínculo perfil-auth, guardas
+  de entorno/ubicación, timeout de arranque y fix de peso/altura en
+  onboarding** (commits `578df30`, `ceaade9`, `da1ae5a`, `931cf20`,
+  `c02e028`; JS + 1 migración manual, sin recompilación):
+  * **a) Migración 0018 — `profile.auth_user_id`** (commit `578df30`):
+    el perfil local (SQLite) no tenía ningún vínculo explícito con el
+    usuario de Supabase autenticado — se asumía "una sola fila de perfil
+    por dispositivo". Migración `0018_profile_auth_link.sql`: columna
+    `auth_user_id` (nullable, índice único — SQLite permite múltiples
+    `NULL` en un índice único, así que instalaciones existentes sin
+    backfill todavía no rompen nada). `OnboardingFlow.tsx` la graba desde
+    `useAuthStore.getState().session?.user.id` al crear el perfil.
+    `_layout.tsx`: backfill silencioso si la fila existente tiene
+    `auth_user_id === null` (instalación previa a la migración); si no
+    coincide con la sesión activa, oculta el perfil sin borrarlo
+    (`console.warn('[Profile] auth_user_id no coincide con la sesion
+    activa')`) — decisión de qué hacer con datos huérfanos de una cuenta
+    anterior queda pendiente y deliberadamente fuera de este cambio.
+    Cimiento fundacional para el futuro sistema de amigos (ver sección
+    "Funcionalidad futura: Social", en pausa).
+    Se detectó y corrigió una condición de carrera real en el mismo
+    cambio: el `useEffect` de carga de perfil en `_layout.tsx` debe
+    esperar también a `isAuthLoading`, no solo a `migrationsReady` — la
+    verificación de sesión es una llamada de red, más lenta que
+    comprobar migraciones ya aplicadas; sin esto, `session` podía leerse
+    `null` de forma transitoria en cada arranque.
+  * **b) Guarda de variables de entorno en `src/lib/supabase.ts`**
+    (commit `ceaade9`): `assertCleanEnvValue()` detecta variable
+    ausente, primer carácter no imprimible (el patrón exacto de los
+    incidentes de bytes de control 0x02 documentados en "Despliegue —
+    variantes de app EAS"), y URL que no empieza por `https://` — los 3
+    casos fallan con un mensaje que nombra el `.env` y advierte sobre
+    `.env.local`. `.env.example` creado y versionado por primera vez
+    (no existía ninguno) con las 2 variables reales del proyecto;
+    `EXPO_OS` y `APP_VARIANT` descartadas explícitamente por venir
+    inyectadas por Expo/EAS, no ser credenciales de usuario.
+  * **c) `equipment.tsx` — guarda de conflicto de ubicación** (commit
+    `da1ae5a`): con un plan manual activo en un contexto (ej. `'home'`),
+    cambiar `profile.location` a un valor que ya no lo incluye (ej.
+    `'gym'`) dejaba el plan activo apuntando a un contexto huérfano.
+    Hallazgo de auditoría: `handleStart()` (`training.tsx`) decide el
+    contexto de sesión leyendo `profile.location`, no
+    `currentPlan.context` (mismo patrón de cálculo duplicado ya conocido
+    en el proyecto) — con la ubicación desincronizada, el cardio en vivo
+    de `session.tsx` podía recalcularse asumiendo gimnasio mientras la
+    fuerza seguía siendo la materializada para casa, en la misma sesión,
+    sin ningún aviso. Arreglado en el origen en vez de parchear cada
+    consumidor: `equipment.tsx` bloquea el guardado con un diálogo
+    explicativo (`locationConflictTitle`/`Msg`/`Button`, es/en/fr) si el
+    cambio dejaría el contexto activo fuera de la nueva ubicación,
+    remitiendo al constructor de rutina o a mantener `'Ambos'`.
+    `training.tsx`, `session.tsx` y `routineBuilder.tsx` quedan intactos.
+  * **d) Timeout de arranque en la verificación de sesión** (commit
+    `931cf20`) — bug crítico reportado por Juan: la app a veces se
+    quedaba pegada en el splash al abrir, hacía falta matar el proceso y
+    reabrir. Diagnosticado por un patrón de logs que Juan identificó: en
+    los arranques rotos, el log `'[Auth] startup getUser'` nunca llegaba
+    a aparecer (siempre presente justo tras `INITIAL_SESSION` en los
+    arranques sanos) — el patrón `TOKEN_REFRESHED` sin `getUser` señalaba
+    la carrera entre el refresco interno del SDK de Supabase y la
+    verificación propia contra el servidor. Causa raíz confirmada por
+    auditoría: `supabase.auth.getUser()` en `_layout.tsx` no tenía ningún
+    timeout — con mala conexión justo en ese instante, la promesa se
+    quedaba colgada sin resolver ni rechazar, `isAuthLoading` permanecía
+    en `true` para siempre. `withTimeout()` (helper nuevo en
+    `_layout.tsx`, `Promise.race` contra un `setTimeout` que rechaza)
+    envuelve `getUser()` + la consulta de estado/sesión inicial (15s), y
+    la consulta de `user_status` dentro de `onAuthStateChange` (6s, más
+    corto porque ahí la sesión ya es válida — si vence, continúa sin el
+    enriquecimiento de trial/pago en vez de bloquear). Al vencer el
+    timeout de arranque, NUNCA se asume "no autenticado" — pantalla de
+    reintento dedicada (`authCheckTimedOut`, reutiliza
+    `MigrationErrorScreen` sin duplicarlo) en vez de expulsar al login;
+    nuevo estado `authCheckAttempt` fuerza un remontaje real de la
+    verificación al pulsar "Reintentar" (mismo patrón `key` que
+    `migrationAttempt`). i18n `migrations.connectionErrorMsg` en es/en/fr.
+    Validado forzando modo avión en el dispositivo.
+  * **e) Onboarding — peso/altura perdidos al avanzar de inmediato**
+    (commit `c02e028`) — dos bugs relacionados, reportados por Juan en
+    pruebas de la APK preview:
+    1. El peso del onboarding nunca aparecía en el historial de Progreso
+       sin reiniciar la app: el `useEffect` de `progress.tsx` dependía
+       solo de `[isDbReady]`, que se vuelve `true` antes de terminar el
+       onboarding (las tabs ya están montadas de fondo bajo el overlay,
+       patrón "overlay" de `_layout.tsx`). `loadAll()` corría una sola
+       vez con el estado vacío y nunca se repetía. Mismo patrón ya
+       resuelto antes en `history.tsx` (sesión 2026-07-02) — aplicado
+       aquí igual: `useFocusEffect` + `useCallback`, import de
+       `expo-router` (no de `@react-navigation/native`).
+    2. El valor tecleado en los campos de peso/altura del onboarding se
+       perdía si el usuario pulsaba "Siguiente" inmediatamente después de
+       escribir, sin tocar otro punto de la pantalla antes. Causa real:
+       el único punto de guardado en `EditableStepper` era
+       `onBlur`/`onSubmitEditing`, y al desmontarse `StepPhysical` (por
+       el avance de paso) ese evento podía no llegar a dispararse — no
+       una carrera de milisegundos, el evento se perdía sin más.
+       Arreglo de raíz: `EditableStepper` comitea en cada tecla
+       (`onChangeText`), no solo al perder el foco; `onBlur`/
+       `onSubmitEditing` se mantienen como reafirmación inofensiva. De
+       paso, `commitHeight` se alineó con `commitWeight` (coma
+       normalizada a punto vía `.replace(',', '.')`, `console.warn` de
+       diagnóstico si el texto no es parseable).
+    Validado en dispositivo físico: avance inmediato tras escribir (el
+    caso que fallaba) para peso y altura, flujo normal sin tocar otro
+    sitio (intacto), y el caso más exigente (coma + avance inmediato).
+  * **f) Backlog de pruebas de la APK preview** (lista de Juan, 12
+    puntos — #2 y #11 cerrados hoy, ver items d y e arriba; el resto
+    queda pendiente):
+    1. ¿Las lesiones afectan realmente la generación del plan?
+    2. ~~El peso no migraba automáticamente al registro de Progreso, y el
+       número tecleado en el peso del onboarding se ignoraba (solo
+       contaban los botones +/-).~~ CERRADO 2026-08-04 (ver item e).
+    3. El gesto/botón de retroceso nativo de Android no funciona en la
+       pantalla de prioridades musculares.
+    4. Al salir de un entreno sin terminar, el mensaje solo menciona
+       series restantes, no también ejercicios restantes.
+    5. Priorizar máquinas sobre peso corporal en gimnasio.
+    6. Retomar ejercicios no completados del día anterior.
+    7. Usuario pide 60 min de entreno, el plan generado dura ~33 min.
+    8. Poder cambiar días/duración de entreno después del onboarding.
+    9. Revisar si la lista de equipamiento de casa es toda pertinente.
+    10. Demasiadas preguntas al iniciar/terminar sesión — preferencias
+       por defecto configurables (calentar/estirar/lugar) en modo
+       híbrido, sin perder la opción de seguir preguntando todo.
+    11. ~~La app a veces se quedaba pegada al arrancar (splash infinito),
+       hacía falta matarla y reabrirla.~~ CERRADO 2026-08-04 (ver item d).
+    12. Historial fantasma: un día sin ninguna serie completada aparece
+       igual en el historial con 0 series.
+  * Todo verificado con `npx tsc --noEmit` limpio en cada paso de esta
+    sesión.
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
