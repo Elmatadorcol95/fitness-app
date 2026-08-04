@@ -544,5 +544,10 @@
     "addCardioPickerTitle": "Choisissez un exercice de cardio",
     "cardioGenerateAutoBtn": "Générer automatiquement",
     "cardioDuplicateSessionBtn": "Dupliquer la séance précédente"
+  },
+  "migrations": {
+    "errorTitle": "Impossible de préparer la base de données",
+    "errorMsg": "Un problème est survenu lors de la mise à jour des données internes de l'application. Vous pouvez réessayer — si le problème persiste, contactez le support.",
+    "retryButton": "Réessayer"
   }
 }

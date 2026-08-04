@@ -544,5 +544,10 @@
     "addCardioPickerTitle": "Choose a cardio exercise",
     "cardioGenerateAutoBtn": "Generate automatically",
     "cardioDuplicateSessionBtn": "Duplicate previous session"
+  },
+  "migrations": {
+    "errorTitle": "Couldn't prepare the database",
+    "errorMsg": "Something went wrong updating the app's internal data. You can try again — if the problem continues, contact support.",
+    "retryButton": "Retry"
   }
 }

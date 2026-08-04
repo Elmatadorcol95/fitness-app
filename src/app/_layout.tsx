@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { Linking, StyleSheet, View, useColorScheme } from 'react-native';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
@@ -6,6 +6,8 @@ import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import '@/i18n';
 import { db, schema } from '@/db';
 import migrations from '@/db/migrations/migrations';
+
+import { MigrationErrorScreen } from '@/components/MigrationErrorScreen';
 
 import { supabase, isTrialValid, daysRemaining } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth.store';
@@ -50,11 +52,19 @@ async function handleAuthUrl(url: string) {
   }
 }
 
+function MigrationRunner({ onResult }: { onResult: (r: { success: boolean; error?: Error }) => void }) {
+  const result = useMigrations(db, migrations);
+  useEffect(() => { onResult(result); }, [result.success, result.error]);
+  return null;
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
 
-  const { success: migrationsReady, error: migrationsError } = useMigrations(db, migrations);
+  const [migrationAttempt, setMigrationAttempt] = useState(0);
+  const [migrationsReady, setMigrationsReady] = useState(false);
+  const [migrationsError, setMigrationsError] = useState<Error | undefined>(undefined);
 
   useEffect(() => {
     if (migrationsError) {
@@ -181,13 +191,31 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={theme}>
+      {/* Corre las migraciones; no ocupa pantalla. key={migrationAttempt} fuerza
+          un montaje nuevo (y por tanto un intento nuevo) al pulsar "Reintentar". */}
+      <MigrationRunner
+        key={migrationAttempt}
+        onResult={({ success, error }) => { setMigrationsReady(success); setMigrationsError(error); }}
+      />
+
       {/* Tabs siempre montados — el store de navegación de Expo Router no fluctúa */}
       <AppTabs />
 
       {/* Overlays encima — position absolute cubre todo */}
-      {stillLoading && (
+      {stillLoading && !migrationsError && (
         <View style={StyleSheet.absoluteFill}>
           <VulcanSplash />
+        </View>
+      )}
+      {migrationsError && (
+        <View style={StyleSheet.absoluteFill}>
+          <MigrationErrorScreen
+            error={migrationsError}
+            onRetry={() => {
+              setMigrationsError(undefined);
+              setMigrationAttempt(a => a + 1);
+            }}
+          />
         </View>
       )}
       {needsAuth && (
