@@ -551,6 +551,7 @@
   "migrations": {
     "errorTitle": "Impossible de préparer la base de données",
     "errorMsg": "Un problème est survenu lors de la mise à jour des données internes de l'application. Vous pouvez réessayer — si le problème persiste, contactez le support.",
-    "retryButton": "Réessayer"
+    "retryButton": "Réessayer",
+    "connectionErrorMsg": "Impossible de vérifier votre connexion à temps. Vérifiez votre connexion internet et réessayez."
   }
 }

@@ -3,6 +3,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { Linking, StyleSheet, View, useColorScheme } from 'react-native';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import { eq } from 'drizzle-orm';
+import { useTranslation } from 'react-i18next';
 
 import '@/i18n';
 import { db, schema } from '@/db';
@@ -34,6 +35,15 @@ import { useCooldownStore } from '@/store/cooldown.store';
 import { CooldownFlowOverlay } from '@/components/cooldown/CooldownFlowOverlay';
 import { AchievementCelebrationOverlay } from '@/components/gamification/AchievementCelebrationOverlay';
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`TIMEOUT:${label}`)), ms)
+    ),
+  ]);
+}
+
 // Intercambia el código PKCE (o tokens implícitos) de una URL de callback
 async function handleAuthUrl(url: string) {
   if (!url.includes('auth/callback')) return;
@@ -60,12 +70,15 @@ function MigrationRunner({ onResult }: { onResult: (r: { success: boolean; error
 }
 
 export default function RootLayout() {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
 
   const [migrationAttempt, setMigrationAttempt] = useState(0);
   const [migrationsReady, setMigrationsReady] = useState(false);
   const [migrationsError, setMigrationsError] = useState<Error | undefined>(undefined);
+  const [authCheckAttempt, setAuthCheckAttempt] = useState(0);
+  const [authCheckTimedOut, setAuthCheckTimedOut] = useState(false);
 
   useEffect(() => {
     if (migrationsError) {
@@ -94,11 +107,16 @@ export default function RootLayout() {
 
         let fetchedStatus = null;
         if (newSession?.user) {
-          const { data } = await supabase
-            .from('user_status')
-            .select('trial_started_at, is_paid')
-            .single();
-          fetchedStatus = data ?? null;
+          try {
+            const { data } = await withTimeout(
+              Promise.resolve(supabase.from('user_status').select('trial_started_at, is_paid').single()),
+              6000,
+              'authEventStatus'
+            );
+            fetchedStatus = data ?? null;
+          } catch (e) {
+            console.log('[Auth] onAuthStateChange — user_status timeout/error, continuando sin status:', e);
+          }
         }
         console.log('[Auth] setAuthState via event — session:', newSession?.user?.email ?? null, '| status:', fetchedStatus);
         useAuthStore.getState().setAuthState(newSession, fetchedStatus);
@@ -107,8 +125,13 @@ export default function RootLayout() {
 
     // ── Verificación inicial con el servidor ──────────────────────────────────
     (async () => {
+      setAuthCheckTimedOut(false);
       try {
-        const { data: { user }, error } = await supabase.auth.getUser();
+        const { data: { user }, error } = await withTimeout(
+          supabase.auth.getUser(),
+          15000,
+          'getUser'
+        );
         console.log('[Auth] startup getUser — user:', user?.email ?? null, '| error:', error?.message ?? null);
 
         if (error || !user) {
@@ -117,18 +140,27 @@ export default function RootLayout() {
           return;
         }
 
-        const [statusRes, sessionRes] = await Promise.all([
-          supabase.from('user_status').select('trial_started_at, is_paid').single(),
-          supabase.auth.getSession(),
-        ]);
+        const [statusRes, sessionRes] = await withTimeout(
+          Promise.all([
+            supabase.from('user_status').select('trial_started_at, is_paid').single(),
+            supabase.auth.getSession(),
+          ]),
+          15000,
+          'startupStatus'
+        );
         console.log('[Auth] startup → authenticated as', user.email, '| session:', !!sessionRes.data.session);
         useAuthStore.getState().setAuthState(
           sessionRes.data.session ?? null,
           statusRes.data ?? null,
         );
       } catch (e) {
+        const isTimeout = e instanceof Error && e.message.startsWith('TIMEOUT:');
         console.log('[Auth] startup error — clearing session:', e);
-        useAuthStore.getState().setAuthState(null, null);
+        if (isTimeout) {
+          setAuthCheckTimedOut(true);
+        } else {
+          useAuthStore.getState().setAuthState(null, null);
+        }
       }
     })();
 
@@ -140,7 +172,7 @@ export default function RootLayout() {
       subscription.unsubscribe();
       linkingSub.remove();
     };
-  }, []);
+  }, [authCheckAttempt]);
 
   // Cargar datos SQLite una vez confirmadas las migraciones.
   // Las migraciones (0000-0008) las aplica useMigrations() automáticamente.
@@ -231,6 +263,14 @@ export default function RootLayout() {
               setMigrationsError(undefined);
               setMigrationAttempt(a => a + 1);
             }}
+          />
+        </View>
+      )}
+      {authCheckTimedOut && (
+        <View style={StyleSheet.absoluteFill}>
+          <MigrationErrorScreen
+            error={new Error(t('migrations.connectionErrorMsg'))}
+            onRetry={() => { setAuthCheckTimedOut(false); setAuthCheckAttempt(a => a + 1); }}
           />
         </View>
       )}

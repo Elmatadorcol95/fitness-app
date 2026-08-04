@@ -551,6 +551,7 @@
   "migrations": {
     "errorTitle": "No se pudo preparar la base de datos",
     "errorMsg": "Ocurrió un problema al actualizar los datos internos de la app. Puedes intentarlo de nuevo — si el problema continúa, contacta con soporte.",
-    "retryButton": "Reintentar"
+    "retryButton": "Reintentar",
+    "connectionErrorMsg": "No se pudo verificar tu conexión a tiempo. Revisa tu conexión a internet e inténtalo de nuevo."
   }
 }
