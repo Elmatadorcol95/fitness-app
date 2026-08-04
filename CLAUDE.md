@@ -1634,6 +1634,63 @@ Bucle ~1.3 s sobre fondo #141A17:
   * Todo JS puro — sin módulos nativos, solo recarga. `npx tsc --noEmit`
     limpio verificado en cada paso.
   * Sin trabajo pendiente conocido en este feature.
+- Hecho: sesión 2026-08-04 — **Pantalla de error de migraciones + cierre
+  del plan de endurecimiento pre-beta** (commit `c03394a`; JS, recarga):
+  * Diagnóstico previo (auditoría de solo lectura, sin código): `useMigrations()`
+    (`drizzle-orm/expo-sqlite/migrator`) solo expone `{success, error?}` — sin
+    ningún estado "en progreso" distinguible del inicial y sin mecanismo de
+    retry propio. Si `error` quedaba seteado, `success` nunca pasaba a `true`,
+    `stillLoading` quedaba `true` para siempre y `VulcanSplash` giraba
+    indefinidamente — sin ningún mensaje, ni para el usuario ni para
+    diagnosticar el problema. Tampoco existía en el proyecto ningún
+    componente de pantalla de error reutilizable (ni `ErrorBoundary` ni
+    equivalente) antes de esta sesión.
+  * `_layout.tsx`: la llamada a `useMigrations(db, migrations)` se aisló en
+    un componente nuevo, `MigrationRunner` (sin exportar, definido en el
+    propio archivo), que no renderiza nada y solo reporta `{success, error}`
+    vía `onResult`. `RootLayout` guarda ese resultado en 3 `useState`
+    propios (`migrationAttempt`, `migrationsReady`, `migrationsError`) en
+    vez de leer el hook directamente. Truco del retry real: `<MigrationRunner
+    key={migrationAttempt} .../>` — como `useMigrations` dispara `migrate()`
+    dentro de un `useEffect` con deps `[]`, la única forma de re-ejecutarlo
+    es forzar un remontaje real del componente que lo llama; cambiar `key`
+    logra eso (un simple "reintentar" sin cambiar `key` no habría vuelto a
+    correr las migraciones, solo habría re-renderizado con el mismo estado
+    de error). El resto de `_layout.tsx` (`stillLoading`, `needsAuth`,
+    `needsOnboarding`, `needsPaywall`, el `useEffect` de `console.error`
+    ya existente) quedó intacto — confirmado con `git diff` línea por línea
+    en cada paso.
+  * `src/components/MigrationErrorScreen.tsx` (nuevo): primer componente de
+    pantalla de error fatal del proyecto — reutilizable si en el futuro
+    aparece otro fallo fatal de arranque (no solo migraciones). Sigue el
+    patrón visual ya usado en `PaywallScreen`/estados vacíos (`VulcanSymbol`,
+    `ThemedText`/`ThemedView`, botón en `#3FBF7F`): título + mensaje +
+    `error.message` crudo en fuente monoespaciada dentro de un `ScrollView`
+    (para poder leerlo si llega como reporte del usuario) + botón
+    "Reintentar" que limpia `migrationsError` e incrementa `migrationAttempt`.
+  * i18n `migrations.errorTitle`/`errorMsg`/`retryButton` en es/en/fr.
+  * Método de prueba usado para validar el camino de error (NUNCA
+    comiteado): migración temporal `0018_test_fail.sql` con
+    `ALTER TABLE tabla_inexistente_xyz ADD COLUMN foo TEXT` — SQLite la
+    rechaza al aplicarla, ejercitando el `.catch()` real de `migrate()`.
+    Creada con su entrada correspondiente en `_journal.json` (`when` real
+    vía `Date.now()`, mayor que el máximo anterior de idx 17) y en
+    `migrations.js`, validada en dispositivo físico (splash normal en el
+    camino feliz; pantalla de error legible + reintento funcional al
+    forzar el fallo) y revertida por completo (los 3 archivos) antes de
+    comitear — `git status --short` confirmado limpio de rastro de la 0018
+    en cada paso.
+  * `npx tsc --noEmit` limpio antes de comitear.
+  * **Plan de endurecimiento pre-beta de esta sesión: CERRADO.** Los 4
+    puntos:
+    1. `exercise_targets` ya no se resetea al regenerar el plan (migración
+       0016, ver sección "Progresión de cargas" más abajo).
+    2. Rutina manual protegida contra guardar equipamiento/prioridades
+       musculares (ver "Guarda de modo manual en Equipamiento y Prioridades
+       musculares" en la sección del Constructor de rutina propia).
+    3. `profile.plan_mode` eliminada (migración 0017, ver "Refactor:
+       profile.planMode eliminado" más abajo).
+    4. Pantalla de error de migraciones con reintento real (esta entrada).
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
@@ -1846,8 +1903,6 @@ casa) copia los bloques de la última sesión tal cual.
   tiempo (ver más arriba en este documento si hace falta el detalle).
 - Producción de GIFs/vídeos de ejercicios — pipeline definido
   (Midjourney→Runway/Kling + catálogo Excel), en paralelo, sin código.
-- useMigrations() no avisa al usuario si una migración falla (solo
-  console.error) — bug pre-existente, baja prioridad.
 - Dos señales distintas responden a "estoy en modo manual":
   `profile.planMode` (intención, persistida) y `currentPlan.source`
   (plan realmente activo). `backToAutoPlan` encapsula
