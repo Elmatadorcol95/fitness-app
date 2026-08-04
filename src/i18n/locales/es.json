@@ -493,7 +493,10 @@
     "regenErrorTitle": "Equipamiento guardado, plan no actualizado",
     "regenErrorMsg": "Tu equipamiento se guardó, pero no se pudo regenerar el plan. Puedes intentarlo de nuevo más tarde desde Perfil.",
     "manualNoticeTitle": "Equipamiento guardado",
-    "manualNoticeMsg": "Tienes una rutina propia activa, así que tu plan no cambia. Revisa tu rutina en el constructor si algún ejercicio ya no encaja con tu equipamiento."
+    "manualNoticeMsg": "Tienes una rutina propia activa, así que tu plan no cambia. Revisa tu rutina en el constructor si algún ejercicio ya no encaja con tu equipamiento.",
+    "locationConflictTitle": "No puedes quitar esta ubicación todavía",
+    "locationConflictMsg": "Tu rutina propia está activa y configurada para \"{{context}}\". Guardar este cambio la dejaría sin equipamiento coherente. Cambia primero tu rutina desde el constructor, o mantén \"Ambos\" para conservar las dos configuraciones.",
+    "locationConflictButton": "Entendido"
   },
   "musclePriorities": {
     "title": "Prioridad muscular",

@@ -53,6 +53,7 @@ export default function EquipmentScreen() {
   const { profile, updateEquipmentAndLocation } = useProfileStore();
   const generateAndSavePlan = useWorkoutStore((s) => s.generateAndSavePlan);
   const isManualPlan = useWorkoutStore((s) => s.currentPlan?.source) === 'manual';
+  const currentPlanContext = useWorkoutStore((s) => s.currentPlan?.context);
 
   const initialEquipment: string[] = (() => {
     try { return JSON.parse(profile?.equipment ?? '[]') as string[]; } catch { return []; }
@@ -64,6 +65,7 @@ export default function EquipmentScreen() {
   const [saving, setSaving] = useState(false);
   const [regenOpen, setRegenOpen] = useState(false);
   const [manualNoticeOpen, setManualNoticeOpen] = useState(false);
+  const [locationConflictOpen, setLocationConflictOpen] = useState(false);
   const [saveErrorMsg, setSaveErrorMsg] = useState('');
   const [regenErrorMsg, setRegenErrorMsg] = useState('');
   const pendingProfile = useRef<typeof profile>(null);
@@ -92,6 +94,17 @@ export default function EquipmentScreen() {
     JSON.stringify([...equipment].sort()) !== JSON.stringify([...initialEquipment].sort());
 
   const handleSave = async () => {
+    const wouldOrphanActiveContext =
+      isManualPlan &&
+      !!currentPlanContext &&
+      location !== 'both' &&
+      location !== currentPlanContext;
+
+    if (wouldOrphanActiveContext) {
+      setLocationConflictOpen(true);
+      return;
+    }
+
     if (!profile) { useProfileStore.getState().closeEquipment(); return; }
     if (!hasChanged) { useProfileStore.getState().closeEquipment(); return; }
 
@@ -254,6 +267,18 @@ export default function EquipmentScreen() {
         message={t('equipment.manualNoticeMsg')}
         confirmLabel="OK"
         onConfirm={handleManualNoticeClose}
+      />
+
+      <VulcanDialog
+        visible={locationConflictOpen}
+        onClose={() => setLocationConflictOpen(false)}
+        hideCancel
+        title={t('equipment.locationConflictTitle')}
+        message={t('equipment.locationConflictMsg', {
+          context: t(`onboarding.location.${currentPlanContext ?? 'home'}`),
+        })}
+        confirmLabel={t('equipment.locationConflictButton')}
+        onConfirm={() => setLocationConflictOpen(false)}
       />
 
       <VulcanDialog

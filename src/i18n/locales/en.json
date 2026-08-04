@@ -493,7 +493,10 @@
     "regenErrorTitle": "Equipment saved, plan not updated",
     "regenErrorMsg": "Your equipment was saved, but the plan couldn't be regenerated. You can try again later from Profile.",
     "manualNoticeTitle": "Equipment saved",
-    "manualNoticeMsg": "You have a custom routine active, so your plan won't change. Check your routine in the builder if any exercise no longer matches your equipment."
+    "manualNoticeMsg": "You have a custom routine active, so your plan won't change. Check your routine in the builder if any exercise no longer matches your equipment.",
+    "locationConflictTitle": "You can't remove this location yet",
+    "locationConflictMsg": "Your custom routine is active and set up for \"{{context}}\". Saving this change would leave it without matching equipment. Change your routine from the builder first, or keep \"Both\" to preserve both setups.",
+    "locationConflictButton": "Got it"
   },
   "musclePriorities": {
     "title": "Muscle priority",

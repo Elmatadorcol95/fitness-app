@@ -493,7 +493,10 @@
     "regenErrorTitle": "Équipement enregistré, plan non mis à jour",
     "regenErrorMsg": "Votre équipement a été enregistré, mais le plan n'a pas pu être régénéré. Vous pouvez réessayer plus tard depuis Profil.",
     "manualNoticeTitle": "Équipement enregistré",
-    "manualNoticeMsg": "Vous avez une routine personnalisée active, votre plan ne change donc pas. Vérifiez votre routine dans le constructeur si un exercice ne correspond plus à votre équipement."
+    "manualNoticeMsg": "Vous avez une routine personnalisée active, votre plan ne change donc pas. Vérifiez votre routine dans le constructeur si un exercice ne correspond plus à votre équipement.",
+    "locationConflictTitle": "Vous ne pouvez pas encore retirer cet emplacement",
+    "locationConflictMsg": "Votre routine personnalisée est active et configurée pour « {{context}} ». Enregistrer cette modification la laisserait sans équipement cohérent. Modifiez d'abord votre routine depuis le constructeur, ou conservez « Les deux » pour préserver les deux configurations.",
+    "locationConflictButton": "Compris"
   },
   "musclePriorities": {
     "title": "Priorité musculaire",
