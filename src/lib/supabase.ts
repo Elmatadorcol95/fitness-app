@@ -13,9 +13,38 @@ const secureStorage = {
   removeItem: (key: string) => SecureStore.deleteItemAsync(sanitizeKey(key)),
 };
 
+function assertCleanEnvValue(name: string, value: string | undefined): string {
+  if (!value) {
+    throw new Error(
+      `[Supabase] Falta la variable de entorno ${name}. Revisa tu .env ` +
+      `(ver .env.example) — recuerda que .env.local tiene prioridad sobre ` +
+      `.env si ambos existen.`
+    );
+  }
+  if (/^[^\x20-\x7E]/.test(value)) {
+    throw new Error(
+      `[Supabase] ${name} empieza con un caracter no imprimible: ` +
+      `${JSON.stringify(value.slice(0, 20))}... Esto suele pasar al pegar ` +
+      `la credencial en un prompt interactivo de terminal — revisa tu ` +
+      `.env / .env.local y regenera el valor sin pegarlo a mano.`
+    );
+  }
+  return value;
+}
+
+const supabaseUrl = assertCleanEnvValue('EXPO_PUBLIC_SUPABASE_URL', process.env.EXPO_PUBLIC_SUPABASE_URL);
+const supabaseAnonKey = assertCleanEnvValue('EXPO_PUBLIC_SUPABASE_ANON_KEY', process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY);
+
+if (!supabaseUrl.startsWith('https://')) {
+  throw new Error(
+    `[Supabase] EXPO_PUBLIC_SUPABASE_URL no empieza por "https://": ` +
+    `${JSON.stringify(supabaseUrl)}`
+  );
+}
+
 export const supabase = createClient(
-  process.env.EXPO_PUBLIC_SUPABASE_URL!,
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
+  supabaseUrl,
+  supabaseAnonKey,
   {
     auth: {
       storage: secureStorage,
