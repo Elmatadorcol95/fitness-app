@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { ThemedText } from '@/components/themed-text';
@@ -24,10 +25,12 @@ export default function ProgressScreen() {
   const isDbReady = useProfileStore(s => s.isDbReady);
   const [activeTab, setActiveTab] = useState<Tab>('weight');
 
-  useEffect(() => {
-    if (!isDbReady) return;
-    loadAll();
-  }, [isDbReady]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!isDbReady) return;
+      loadAll();
+    }, [isDbReady]),
+  );
 
   const units = profile?.units ?? 'metric';
 

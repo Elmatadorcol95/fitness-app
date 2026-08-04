@@ -126,7 +126,7 @@ function EditableStepper({ displayValue, editValue, onDec, onInc, canDec, canInc
           },
         ]}
         value={focused ? rawText : displayValue}
-        onChangeText={setRawText}
+        onChangeText={(text) => { setRawText(text); onCommit(text); }}
         onFocus={handleFocus}
         onBlur={handleBlur}
         keyboardType="decimal-pad"
@@ -233,8 +233,12 @@ export function StepPhysical() {
     updateDraft({ heightCm: Math.min(H_MAX, +(heightCm + hStep).toFixed(1)) });
 
   const commitHeight = (text: string) => {
-    const n = parseFloat(text);
-    if (isNaN(n)) return;
+    const normalized = text.replace(',', '.');
+    const n = parseFloat(normalized);
+    if (isNaN(n)) {
+      console.warn('[StepPhysical] commitHeight: texto no parseable:', JSON.stringify(text));
+      return;
+    }
     const cm = imperial ? +(n * 2.54).toFixed(1) : n;
     updateDraft({ heightCm: Math.min(H_MAX, Math.max(H_MIN, cm)) });
   };
@@ -249,8 +253,12 @@ export function StepPhysical() {
     updateDraft({ weightKg: Math.min(W_MAX, +(weightKg + wStep).toFixed(2)) });
 
   const commitWeight = (text: string) => {
-    const n = parseFloat(text);
-    if (isNaN(n)) return;
+    const normalized = text.replace(',', '.');
+    const n = parseFloat(normalized);
+    if (isNaN(n)) {
+      console.warn('[StepPhysical] commitWeight: texto no parseable:', JSON.stringify(text));
+      return;
+    }
     const kg = imperial ? lbToKg(n) : n;
     updateDraft({ weightKg: Math.min(W_MAX, Math.max(W_MIN, +kg.toFixed(2))) });
   };
