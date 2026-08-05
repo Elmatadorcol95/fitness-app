@@ -10,6 +10,7 @@ import { useProfileStore } from '@/store/profile.store';
 import { Spacing } from '@/constants/theme';
 import { EXERCISES, getExerciseName } from '@/lib/exercises';
 import { getAllPreferences, togglePreference, type Preference } from '@/lib/exercisePreferences';
+import { useAndroidBack } from '@/hooks/use-android-back';
 
 const GREEN = '#3FBF7F';
 const AMBER = '#F2B450';
@@ -21,6 +22,8 @@ export default function ExercisePreferencesScreen() {
   const isDbReady = useProfileStore(s => s.isDbReady);
 
   const [preferences, setPreferences] = useState<Map<string, Preference>>(new Map());
+
+  useAndroidBack(true, () => useProfileStore.getState().closeExercisePreferences());
 
   useEffect(() => {
     if (!isDbReady) return;

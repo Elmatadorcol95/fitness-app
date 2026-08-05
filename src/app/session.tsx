@@ -217,6 +217,7 @@ export default function SessionScreen() {
   const [restInputStr, setRestInputStr] = useState(() => String(currentEx?.restSeconds ?? 90));
   const [finishState,  setFinishState]  = useState<'idle' | 'confirm' | 'incomplete'>('idle');
   const [pendingCount, setPendingCount] = useState(0);
+  const [pendingExerciseCount, setPendingExerciseCount] = useState(0);
   const [cancelOpen,   setCancelOpen]   = useState(false);
   const [historyOpen,  setHistoryOpen]  = useState(false);
   const [historyMsg,   setHistoryMsg]   = useState('');
@@ -447,7 +448,9 @@ export default function SessionScreen() {
     const pending = exercises.reduce(
       (acc, ex) => acc + ex.sets.filter(s => !s.completed).length, 0,
     );
+    const pendingExercises = exercises.filter(ex => ex.sets.some(s => !s.completed)).length;
     setPendingCount(pending);
+    setPendingExerciseCount(pendingExercises);
     setFinishState(pending === 0 ? 'confirm' : 'incomplete');
   }
 
@@ -1071,7 +1074,7 @@ export default function SessionScreen() {
         visible={finishState === 'incomplete'}
         onClose={() => setFinishState('idle')}
         title={t('workout.session.finishIncompleteTitle')}
-        message={t('workout.session.finishIncompleteMsg', { count: pendingCount })}
+        message={t('workout.session.finishIncompleteMsg', { count: pendingCount, exercises: pendingExerciseCount })}
         confirmLabel={t('workout.session.finishSession')}
         cancelLabel={t('workout.session.stay')}
         destructive

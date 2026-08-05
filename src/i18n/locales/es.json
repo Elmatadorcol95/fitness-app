@@ -433,7 +433,7 @@
       "prevEx": "Anterior",
       "nextEx": "Siguiente",
       "finishIncompleteTitle": "¿Terminar sin completar?",
-      "finishIncompleteMsg": "Te faltan {{count}} series por completar. ¿Seguro que quieres terminar?",
+      "finishIncompleteMsg": "Te faltan {{count}} series por completar en {{exercises}} ejercicios. ¿Seguro que quieres terminar?",
       "rirHelpTitle": "Repeticiones en reserva (RIR)",
       "rirHelpBody": "RIR indica cuántas repeticiones más habrías podido hacer antes de fallar.\n\nSi terminas la serie y aún podías hacer 2 más → RIR 2.\n\n• RIR 0–1: al límite (rojo)\n• RIR 2–3: zona ideal (verde)\n• RIR 4+: demasiado fácil, sube la carga (gris)",
       "whereTitle": "¿Dónde entrenas hoy?",

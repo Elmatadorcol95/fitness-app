@@ -13,6 +13,7 @@ import { parseMusclePriorities, type MuscleGroup } from '@/lib/exercises';
 import { MuscleDiagramLabeled } from '@/components/musclePriorities/MuscleDiagramLabeled';
 import type { MuscleRegionId } from '@/components/musclePriorities/MuscleDiagramPhoto';
 import { Spacing } from '@/constants/theme';
+import { useAndroidBack } from '@/hooks/use-android-back';
 
 const VIEWS: Array<'front' | 'back'> = ['front', 'back'];
 
@@ -60,6 +61,8 @@ export default function MusclePrioritiesScreen() {
   const [manualNoticeOpen, setManualNoticeOpen] = useState(false);
   const pendingProfile = useRef<typeof profile>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useAndroidBack(true, () => useProfileStore.getState().closeMusclePriorities());
 
   function firePulse() {
     pulseAnim.setValue(1);

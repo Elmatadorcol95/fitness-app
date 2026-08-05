@@ -25,6 +25,7 @@ import {
   type GoalKey,
 } from '@/lib/plan-generator';
 import { buildExercisesFromTemplateDay } from '@/lib/routineMaterializer';
+import { useAndroidBack } from '@/hooks/use-android-back';
 import {
   selectCardio,
   createCardioCycleState,
@@ -200,6 +201,8 @@ export default function RoutineBuilderScreen() {
   const profile = useProfileStore(s => s.profile);
   const currentPlan = useWorkoutStore(s => s.currentPlan);
   const isGenerating = useWorkoutStore(s => s.isGenerating);
+
+  useAndroidBack(true, () => useProfileStore.getState().closeRoutineBuilder());
 
   const showSelector = profile?.location === 'both';
   const initialContext: TemplateContext = profile?.location === 'home' ? 'home' : 'gym';

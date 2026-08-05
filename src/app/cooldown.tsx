@@ -11,6 +11,7 @@ import { getCooldownAlternative } from '@/lib/cooldownGenerator';
 import { TimedChecklistItem } from '@/components/warmup/TimedChecklistItem';
 import { hapticsSuccess } from '@/lib/haptics';
 import { playRestDone } from '@/lib/sounds';
+import { useAndroidBack } from '@/hooks/use-android-back';
 
 const GREEN = '#3FBF7F';
 
@@ -32,6 +33,8 @@ export default function CooldownScreen() {
   const dislikedIds = useCooldownStore(s => s.dislikedIds);
   const end         = useCooldownStore(s => s.end);
   const replaceAt   = useCooldownStore(s => s.replaceAt);
+
+  useAndroidBack(true, end);
 
   const [runningIndex, setRunningIndex] = useState<number | null>(null);
   const [remaining, setRemaining] = useState<number[]>(() => items.map(i => i.durationSeconds));

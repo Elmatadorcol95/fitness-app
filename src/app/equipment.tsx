@@ -18,6 +18,7 @@ import { useWorkoutStore } from '@/store/workout.store';
 import { Spacing } from '@/constants/theme';
 import { type EquipmentKey } from '@/lib/exercises';
 import { getPullCoverage } from '@/lib/pullBicepCoverage';
+import { useAndroidBack } from '@/hooks/use-android-back';
 
 const AMBER = '#F2B450';
 
@@ -69,6 +70,8 @@ export default function EquipmentScreen() {
   const [saveErrorMsg, setSaveErrorMsg] = useState('');
   const [regenErrorMsg, setRegenErrorMsg] = useState('');
   const pendingProfile = useRef<typeof profile>(null);
+
+  useAndroidBack(true, () => useProfileStore.getState().closeEquipment());
 
   const isGym = location === 'gym';
   const { hasBackVariety, hasBicepWork } = getPullCoverage(equipment as EquipmentKey[]);

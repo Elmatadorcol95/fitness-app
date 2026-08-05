@@ -11,6 +11,7 @@ import { getWarmupAlternative } from '@/lib/warmupGenerator';
 import { TimedChecklistItem } from '@/components/warmup/TimedChecklistItem';
 import { hapticsSuccess } from '@/lib/haptics';
 import { playRestDone } from '@/lib/sounds';
+import { useAndroidBack } from '@/hooks/use-android-back';
 
 const GREEN = '#3FBF7F';
 
@@ -33,6 +34,8 @@ export default function WarmupScreen() {
   const dislikedIds = useWarmupStore(s => s.dislikedIds);
   const end         = useWarmupStore(s => s.end);
   const replaceAt   = useWarmupStore(s => s.replaceAt);
+
+  useAndroidBack(true, end);
 
   const [runningIndex, setRunningIndex] = useState<number | null>(null);
   const [remaining, setRemaining] = useState<number[]>(() => items.map(i => i.durationSeconds));
