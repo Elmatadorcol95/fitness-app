@@ -1798,7 +1798,9 @@ Bucle ~1.3 s sobre fondo #141A17:
     sitio (intacto), y el caso más exigente (coma + avance inmediato).
   * **f) Backlog de pruebas de la APK preview** (lista de Juan, 12
     puntos — #2 y #11 cerrados hoy, ver items d y e arriba; el resto
-    queda pendiente):
+    queda pendiente). NOTA: esta lista es VIVA — los ítems cerrados en
+    sesiones posteriores se marcan aquí mismo con su propia fecha, sin
+    reescribir la narrativa de la sesión que los originó:
     1. ¿Las lesiones afectan realmente la generación del plan?
     2. ~~El peso no migraba automáticamente al registro de Progreso, y el
        número tecleado en el peso del onboarding se ignoraba (solo
@@ -1809,7 +1811,8 @@ Bucle ~1.3 s sobre fondo #141A17:
        series restantes, no también ejercicios restantes.
     5. Priorizar máquinas sobre peso corporal en gimnasio.
     6. Retomar ejercicios no completados del día anterior.
-    7. Usuario pide 60 min de entreno, el plan generado dura ~33 min.
+    7. ~~Usuario pide 60 min de entreno, el plan generado dura ~33 min.~~
+       CERRADO 2026-08-05 (ver entrada de esa sesión, item b).
     8. Poder cambiar días/duración de entreno después del onboarding.
     9. Revisar si la lista de equipamiento de casa es toda pertinente.
     10. Demasiadas preguntas al iniciar/terminar sesión — preferencias
@@ -1817,10 +1820,102 @@ Bucle ~1.3 s sobre fondo #141A17:
        híbrido, sin perder la opción de seguir preguntando todo.
     11. ~~La app a veces se quedaba pegada al arrancar (splash infinito),
        hacía falta matarla y reabrirla.~~ CERRADO 2026-08-04 (ver item d).
-    12. Historial fantasma: un día sin ninguna serie completada aparece
-       igual en el historial con 0 series.
+    12. ~~Historial fantasma: un día sin ninguna serie completada aparece
+       igual en el historial con 0 series.~~ CERRADO 2026-08-05 (ver
+       entrada de esa sesión, item a).
   * Todo verificado con `npx tsc --noEmit` limpio en cada paso de esta
     sesión.
+- Hecho: sesión 2026-08-05 — **Historial fantasma + duración real del
+  plan** (commits `d326211` y `82d81fc`; JS puro, solo recarga). Dos
+  items del backlog de 12 puntos de la APK preview (#12 y #7). Mismo
+  protocolo de siempre: auditoría de SOLO LECTURA con código literal
+  pegado antes de cada bloque de cambios, cambios acotados a archivos
+  explícitamente permitidos, y verificación matemática a mano (cruzada
+  con un script Node aislado, fuera del repo) antes de tocar el
+  dispositivo:
+  * **a) #12 — historial fantasma** (`d326211`): `finishSession()`
+    (`session.store.ts`) insertaba en `workoutSessions` de forma
+    INCONDICIONAL — abrir una sesión y salir sin completar ni una serie
+    dejaba un día "fantasma" de 0 series en el Historial. Confirmado en
+    auditoría que no había ningún guard en toda la cadena: ni en
+    `handleFinish()`/`doFinish()` (`session.tsx`, el diálogo
+    `'incomplete'` es un aviso con botón habilitado, no un bloqueo), ni
+    antes del `db.insert`, ni en la consulta de `history.tsx` (que trae
+    las 50 sesiones más recientes sin `.where(...)` alguno).
+    Fix: si `completedSetsCount === 0` al terminar, se devuelve el estado
+    vacío sin tocar la base de datos — sin fila en `workoutSessions`, sin
+    `sessionSets`, sin `markExerciseUsed`, sin
+    `runProgressionAfterSession`. La lógica para `completedSetsCount > 0`
+    quedó intacta (verificado con `git diff`: solo 7 líneas añadidas).
+    **DECISIÓN DELIBERADA, no olvido**: `advanceDayIndex()` e
+    `incrementDaysFinishedThisWeek()` (`session.tsx:441` y `:443`) siguen
+    ejecutándose incondicionalmente también para este caso. Se deja así a
+    propósito porque Juan prepara un cambio mayor — poder elegir
+    libremente qué día entrenar, en vez del orden secuencial actual —
+    que hará obsoleta esta distinción de todas formas.
+  * **b) #7 — duración pedida vs. plan generado** (`82d81fc`, 7
+    archivos, +109/−35): Juan pedía 60 min de entreno y recibía un plan
+    de ~33 min. **Causa raíz**: `getExerciseCounts()` era una tabla fija
+    de compuestos/aislamientos por rango de minutos, escrita a mano y
+    **nunca calibrada contra `estimateDuration()`** (la fórmula real que
+    la propia app usa para MOSTRAR la duración: `sets × (45 + descanso)`
+    por ejercicio, en `training.tsx`). Las dos fórmulas no se conocían
+    entre sí. Reproducido exactamente en la auditoría (33 min clavados)
+    antes de tocar nada.
+    - `getExerciseCounts` → **`computeExerciseCounts(minutes,
+      goalPrimary, goalSecondary)`**. El rename fue INTENCIONAL, para
+      forzar la revisión de cada consumidor (mismo criterio que
+      `getAllExerciseTargets` en la migración 0016). Ahora deriva los
+      conteos de la fórmula real: añade ejercicios en round-robin
+      sesgado 2:1 a compuestos (patrón C,C,I,C,C,I…), aceptando cada uno
+      solo mientras ACERQUE el costo acumulado al presupuesto en
+      segundos; para en cuanto lo alejaría. Sin techo artificial. Suelo
+      obligatorio: nunca `compounds: 0`.
+    - **⚠️ 4 consumidores, solo 1 resta cardio — fácil de romper por
+      accidente**: `plan-generator.ts` (plan automático),
+      `routineTemplates.ts` (`createTemplate`), `routineMaterializer.ts`
+      (`materializeTemplate`) y `routineBuilder.tsx`
+      (`generateAutoCardioSeed`). **SOLO `generatePlan()` resta cardio
+      del presupuesto de fuerza.** Los 3 del constructor manual NO restan
+      nada — es la decisión de producto ya existente ("el cardio se
+      añade, nunca resta huecos de fuerza" en modo manual), respetada sin
+      cambios. Confirmado en auditoría que `subtractCardioSlots` tenía un
+      único call site y ni siquiera era exportable.
+    - En `generatePlan()`, el cardio se resta ahora en **SEGUNDOS
+      REALES** según contexto, no como huecos aproximados:
+      `CARDIO_BLOCK_SECONDS` (600s, exportada de `cardioSelection.ts` —
+      único cambio en ese archivo, solo el modificador `export`) por slot
+      en gimnasio; ~780s por slot en casa (2 sesiones de 300s + su
+      descanso de 90s). Con tope: el cardio nunca supera la mitad del
+      presupuesto total. `subtractCardioSlots` eliminada (código muerto
+      tras el cambio).
+    - La reducción de fuerza que sigue compara **DISTANCIAS** antes de
+      cada paso ("¿esto acerca o aleja del objetivo?"), no un simple "no
+      te pases" — mismo criterio que `computeExerciseCounts`. Sin esto,
+      perfiles YA cerca del objetivo empeoraban al reducir: caso real
+      detectado en la verificación matemática (no en dispositivo), 90 min
+      pedidos → 91.5 min sin reducir vs. 83 min con la reducción ciega
+      original.
+    - **`estimateCardioDuration()`** nueva en `training.tsx`: el número
+      de minutos que ve el usuario en la pantalla del día ahora incluye
+      el cardio. Antes solo sumaba la fuerza — el tiempo del bloque de
+      cardio no aparecía por ningún lado.
+    - `mapDayRows()` (`workout.store.ts`) blindada contra el centinela
+      `'[]'` de cardio aún no calculado: `JSON.parse('[]')` devuelve un
+      ARRAY vacío, no un objeto `{gym, homeSessions}` — leer `.gym` sobre
+      eso revienta. Hasta ahora nadie leía esos campos en el render, así
+      que estaba protegido de forma indirecta por cómo filtra
+      `trainableDays`; `estimateCardioDuration()` es el primer punto que
+      de verdad los lee en CADA render de la pantalla de hoy, así que el
+      riesgo dejó de ser teórico.
+    - **Verificación matemática con 4 perfiles ANTES de tocar el
+      dispositivo** (gym/casa, con/sin cardio, sesiones cortas y largas):
+      60min hipertrofia+fat_loss/gym → 58 min; 60min hipertrofia/gym →
+      59 min; 45min fat_loss/casa → 44 min; 90min fuerza/gym → 92 min.
+      Márgenes de 1-2 min (el de 90 min queda en +2 por la granularidad
+      inherente de añadir/quitar un ejercicio entero), frente a los ~27
+      min de brecha del bug original.
+  * `npx tsc --noEmit` limpio verificado en cada paso de la sesión.
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
