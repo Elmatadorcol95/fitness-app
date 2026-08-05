@@ -51,6 +51,13 @@ export function estimateDuration(exercises: PlannedExercise[]): number {
   return Math.round(exercises.reduce((sum, ex) => sum + ex.sets * (45 + ex.restSeconds), 0) / 60);
 }
 
+export function estimateCardioDuration(cardio: CardioPlan): number {
+  const gymSeconds = cardio.gym.reduce((sum, b) => sum + b.durationSeconds, 0);
+  const homeSeconds = cardio.homeSessions.reduce((sum, s) =>
+    sum + s.blocks.reduce((bs, b) => bs + b.durationSeconds, 0) + s.restAfterSeconds, 0);
+  return Math.round((gymSeconds + homeSeconds) / 60);
+}
+
 function countSets(exercises: PlannedExercise[]): number {
   return exercises.reduce((sum, ex) => sum + ex.sets, 0);
 }
@@ -466,7 +473,7 @@ export default function TrainingScreen() {
   const activeIdx  = currentPlan.activeDayIndex % trainableDays.length;
   const today      = trainableDays[activeIdx];
   const otherDays  = trainableDays.filter((_, i) => i !== activeIdx);
-  const estMin     = estimateDuration(today.exercises);
+  const estMin     = estimateDuration(today.exercises) + estimateCardioDuration(today.cardio);
   const totalSets_ = countSets(today.exercises);
   const isPullRelevantDay = today.dayType === 'pull' || today.dayType === 'upper';
   const dayExercises = today.exercises

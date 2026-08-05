@@ -35,7 +35,7 @@ export function createCardioCycleState(): CardioCycleState {
   return { gymCount: 0, homeCount: 0 };
 }
 
-const CARDIO_BLOCK_SECONDS = 600; // 10 min fijos por hueco de gimnasio (decisión de producto, independiente del defaultDurationSeconds del catálogo)
+export const CARDIO_BLOCK_SECONDS = 600; // 10 min fijos por hueco de gimnasio (decisión de producto, independiente del defaultDurationSeconds del catálogo)
 const HOME_SESSION_SECONDS = 300; // 5 min por sesión de casa
 const HOME_SESSION_REST_SECONDS = 90; // descanso por defecto entre sesiones de casa (editable en la UI, esto es solo el valor inicial)
 

@@ -68,7 +68,7 @@ function mapDayRows(dayRows: (typeof planDays.$inferSelect)[]): StoredPlanDay[] 
       dayIndex: d.dayIndex,
       dayType: d.dayType as DayType,
       exercises: JSON.parse(d.exercises) as PlannedExercise[],
-      cardio: JSON.parse(d.cardio) as CardioPlan,
+      cardio: d.cardio === '[]' ? { gym: [], homeSessions: [] } : JSON.parse(d.cardio) as CardioPlan,
     }));
 }
 

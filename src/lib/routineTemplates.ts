@@ -2,7 +2,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { routineTemplates, routineTemplateSlots } from '@/db/schema';
 import type { RoutineTemplate, RoutineTemplateSlot } from '@/db/schema';
-import { getExerciseCounts } from './plan-generator';
+import { computeExerciseCounts, type GoalKey } from './plan-generator';
 import { findTargetByKey } from './muscleTargets';
 import { selectExercisesForDayByMuscle } from './muscleBasedSelection';
 import type { MuscleGroup } from './exercises';
@@ -47,8 +47,9 @@ async function recommendMuscleGroups(
 }
 
 // Crea una plantilla completa (una fila de routine_templates por día + sus
-// slots vacíos) para un contexto. getExerciseCounts(minutesPerSession) decide
-// el presupuesto compound/isolation que recibe selectExercisesForDayByMuscle
+// slots vacíos) para un contexto. computeExerciseCounts(minutesPerSession,
+// goalPrimary, goalSecondary) decide el presupuesto compound/isolation que
+// recibe selectExercisesForDayByMuscle
 // para recomendar muscleGroup por slot — el desglose compound/isolation en sí
 // no se persiste en ningún slot, se deriva más adelante de isCompound del
 // ejercicio que el usuario elija. equipment/isGym/musclePriorities/
@@ -70,8 +71,10 @@ export async function createTemplate(
   musclePriorities: MuscleGroup[],
   dislikedIds: Set<string>,
   likedIds: Set<string>,
+  goalPrimary: GoalKey,
+  goalSecondary: GoalKey | null,
 ): Promise<void> {
-  const counts = getExerciseCounts(minutesPerSession);
+  const counts = computeExerciseCounts(minutesPerSession, goalPrimary, goalSecondary);
   const now = Date.now();
   // Mismo patrón exacto que generatePlan(): un único Set creado ANTES del
   // bucle de días, mutado tras cada día para que el siguiente no recomiende

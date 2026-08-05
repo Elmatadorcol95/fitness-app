@@ -3,7 +3,7 @@ import { db } from '@/db';
 import { workoutPlans, planDays, workoutSessions } from '@/db/schema';
 import type { Profile } from '@/db/schema';
 import { EXERCISES } from './exercises';
-import { getRepScheme, buildPlanned, getExerciseCounts, getCardioSlots, type GoalKey, type PlannedExercise } from './plan-generator';
+import { getRepScheme, buildPlanned, computeExerciseCounts, getCardioSlots, type GoalKey, type PlannedExercise } from './plan-generator';
 import { selectCardio, createCardioCycleState, type CardioPlan } from './cardioSelection';
 import { getTemplate, type TemplateContext, type RoutineTemplateDay } from './routineTemplates';
 
@@ -96,7 +96,7 @@ export async function materializeTemplate(
   const cardioCycle   = createCardioCycleState();
   const usedCardioIds = new Set<string>();
   const isGym         = context === 'gym';
-  const counts        = getExerciseCounts(profile.minutesPerSession);
+  const counts        = computeExerciseCounts(profile.minutesPerSession, profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null);
   const totalSlots    = counts.compounds + counts.isolations;
 
   // Pase previo — no toca ninguna fila, solo siembra usedCardioIds con el

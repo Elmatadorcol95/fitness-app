@@ -1,6 +1,6 @@
 import { parseMusclePriorities, type Exercise, type MuscleGroup } from './exercises';
 import { selectExercisesForDayByMuscle } from './muscleBasedSelection';
-import { selectCardio, createCardioCycleState, type CardioPlan } from './cardioSelection';
+import { selectCardio, createCardioCycleState, CARDIO_BLOCK_SECONDS, type CardioPlan } from './cardioSelection';
 import { getDislikedIds, getLikedIds } from './exercisePreferences';
 
 export type DayType = 'full_body' | 'push' | 'pull' | 'legs' | 'upper' | 'lower';
@@ -56,29 +56,49 @@ export function getRepScheme(primary: GoalKey, secondary?: GoalKey | null): RepS
     : { compoundSets: 3, compoundReps: '12-15', compoundRest: 60, isolationSets: 3, isolationReps: '15-20', isolationRest: 45 };
 }
 
-export function getExerciseCounts(minutes: number): { compounds: number; isolations: number } {
-  if (minutes <= 20) return { compounds: 2, isolations: 1 };
-  if (minutes <= 30) return { compounds: 2, isolations: 2 };
-  if (minutes <= 45) return { compounds: 3, isolations: 2 };
-  if (minutes <= 60) return { compounds: 3, isolations: 3 };
-  if (minutes <= 75) return { compounds: 4, isolations: 3 };
-  if (minutes <= 90) return { compounds: 4, isolations: 4 };
-  return { compounds: 5, isolations: 4 };
+// Sustituye la antigua tabla fija de tramos por minutos (getExerciseCounts)
+// por un cálculo derivado de la fórmula real de duración
+// (estimateDuration: sets*(45+rest) por ejercicio, ver training.tsx) y del
+// esquema real de sets/rest del objetivo (getRepScheme) — antes ninguna de
+// las dos fórmulas se conocía entre sí, lo que dejaba huecos de hasta ~27
+// min entre lo pedido y lo generado (ver auditoría de esta sesión).
+// Construye la cuenta añadiendo un ítem a la vez en el patrón C,C,I,C,C,I,...
+// (2 compuestos por cada aislamiento), aceptando cada ítem solo si acerca
+// (o empata) el costo acumulado al presupuesto en segundos; en cuanto un
+// ítem lo alejaría, se detiene. Sin techo artificial. Suelo obligatorio:
+// nunca compounds:0, aunque el presupuesto no alcance ni para uno.
+export function computeExerciseCounts(
+  minutesPerSession: number,
+  goalPrimary: GoalKey,
+  goalSecondary: GoalKey | null,
+): { compounds: number; isolations: number } {
+  const scheme = getRepScheme(goalPrimary, goalSecondary);
+  const compoundCost  = scheme.compoundSets  * (45 + scheme.compoundRest);
+  const isolationCost = scheme.isolationSets * (45 + scheme.isolationRest);
+  const budgetSeconds  = minutesPerSession * 60;
+
+  const pattern: Array<'compound' | 'isolation'> = ['compound', 'compound', 'isolation'];
+  let compounds  = 0;
+  let isolations = 0;
+  let cost = 0;
+
+  for (let i = 0; ; i++) {
+    const kind = pattern[i % pattern.length];
+    const itemCost = kind === 'compound' ? compoundCost : isolationCost;
+    const costWithItem = cost + itemCost;
+    if (Math.abs(costWithItem - budgetSeconds) > Math.abs(cost - budgetSeconds)) break;
+    cost = costWithItem;
+    if (kind === 'compound') compounds++; else isolations++;
+  }
+
+  if (compounds === 0) compounds = 1;
+
+  return { compounds, isolations };
 }
 
 export function getCardioSlots(goalPrimary: GoalKey, goalSecondary: GoalKey | null, totalSlots: number): number {
   const raw = goalPrimary === 'fat_loss' ? 2 : goalSecondary === 'fat_loss' ? 1 : 0;
   return Math.min(raw, Math.floor(totalSlots / 2));
-}
-
-function subtractCardioSlots(counts: { compounds: number; isolations: number }, cardioSlots: number): { compounds: number; isolations: number } {
-  const fromIsolations = Math.min(cardioSlots, counts.isolations);
-  const remaining = cardioSlots - fromIsolations;
-  const fromCompounds = Math.min(remaining, counts.compounds);
-  return {
-    isolations: counts.isolations - fromIsolations,
-    compounds: counts.compounds - fromCompounds,
-  };
 }
 
 export function getSplit(daysPerWeek: number): DayType[] {
@@ -187,13 +207,55 @@ export async function generatePlan(profile: {
 }): Promise<GeneratedPlan> {
   const { equipment, isGym, musclePriorities, dislikedIds, likedIds } = await getProfileSignals(profile);
 
-  const scheme = getRepScheme(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null);
-  const counts = getExerciseCounts(profile.minutesPerSession);
+  const goalPrimary   = profile.goalPrimary as GoalKey;
+  const goalSecondary = profile.goalSecondary as GoalKey | null;
+
+  const scheme = getRepScheme(goalPrimary, goalSecondary);
+  const counts = computeExerciseCounts(profile.minutesPerSession, goalPrimary, goalSecondary);
   const split  = getSplit(profile.daysPerWeek);
 
-  const totalSlotsPerDay = counts.compounds + counts.isolations;
-  const cardioSlots = getCardioSlots(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null, totalSlotsPerDay);
-  const reducedCounts = subtractCardioSlots(counts, cardioSlots);
+  const compoundCost  = scheme.compoundSets  * (45 + scheme.compoundRest);
+  const isolationCost = scheme.isolationSets * (45 + scheme.isolationRest);
+  const budgetSeconds  = profile.minutesPerSession * 60;
+
+  // Cardio: único de los 4 consumidores de counts.compounds/isolations que
+  // resta del presupuesto de fuerza (routineTemplates/routineMaterializer/
+  // routineBuilder NO restan — decisión de producto ya existente, sin
+  // tocar). Costo real en segundos por slot según contexto, en vez del
+  // hueco aproximado de antes.
+  const cardioSlotsRaw = goalPrimary === 'fat_loss' ? 2 : goalSecondary === 'fat_loss' ? 1 : 0;
+  const HOME_SLOT_SECONDS_APPROX = 2 * 300 + 2 * 90; // 2 sesiones de casa + su descanso, aproximación conservadora
+  const cardioSecondsPerSlot = isGym ? CARDIO_BLOCK_SECONDS : HOME_SLOT_SECONDS_APPROX;
+
+  // Tope: el cardio no puede superar la mitad del presupuesto total en segundos.
+  let cardioSlots = cardioSlotsRaw;
+  while (cardioSlots > 0 && cardioSlots * cardioSecondsPerSlot > budgetSeconds / 2) {
+    cardioSlots--;
+  }
+  const cardioSeconds = cardioSlots * cardioSecondsPerSlot;
+
+  // Reduce fuerza (aislamientos primero, igual que antes) hasta acercarse lo
+  // más posible al presupuesto restante tras reservar el cardio — mismo
+  // criterio de "lo más cercano gana" que computeExerciseCounts, no un
+  // simple "no superar": si el conteo inicial ya estaba más cerca del
+  // objetivo que tras reducir (típico en perfiles sin cardio o con poco),
+  // no reduce.
+  const reducedCounts = { ...counts };
+  const forceBudget = budgetSeconds - cardioSeconds;
+  const costOf = (c: { compounds: number; isolations: number }) => c.compounds * compoundCost + c.isolations * isolationCost;
+  while (reducedCounts.isolations > 0 || reducedCounts.compounds > 1) {
+    const candidate = { ...reducedCounts };
+    if (candidate.isolations > 0) candidate.isolations--;
+    else candidate.compounds--;
+    const currentDist   = Math.abs(costOf(reducedCounts) - forceBudget);
+    const candidateDist = Math.abs(costOf(candidate) - forceBudget);
+    if (candidateDist < currentDist) {
+      reducedCounts.isolations  = candidate.isolations;
+      reducedCounts.compounds   = candidate.compounds;
+    } else {
+      break;
+    }
+  }
 
   // Secuencial (no en paralelo): cada día necesita conocer los ejercicios ya
   // elegidos por los días anteriores de ESTA generación, vía excludeIds.

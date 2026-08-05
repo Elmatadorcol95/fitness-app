@@ -19,7 +19,7 @@ import {
   getSplit,
   getProfileSignals,
   canDoExercise,
-  getExerciseCounts,
+  computeExerciseCounts,
   getCardioSlots,
   type DayType,
   type GoalKey,
@@ -392,7 +392,7 @@ export default function RoutineBuilderScreen() {
   // desde ahí con el resto de herramientas ya existentes.
   async function generateAutoCardioSeed(day: RoutineTemplateDay, isGymContext: boolean) {
     if (!profile) return;
-    const counts = getExerciseCounts(profile.minutesPerSession);
+    const counts = computeExerciseCounts(profile.minutesPerSession, profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null);
     const totalSlots = counts.compounds + counts.isolations;
     const cardioSlots = getCardioSlots(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null, totalSlots);
     const seed = selectCardio(cardioSlots, equipmentForModal, isGymContext, new Set(), createCardioCycleState());
@@ -439,6 +439,8 @@ export default function RoutineBuilderScreen() {
             signals.musclePriorities,
             signals.dislikedIds,
             signals.likedIds,
+            profile.goalPrimary as GoalKey,
+            profile.goalSecondary as GoalKey | null,
           );
           template = await getTemplate(context);
         }
