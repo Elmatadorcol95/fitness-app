@@ -145,7 +145,7 @@ function buildSetState(index: number, targetReps: number, lastWeightKg: number |
 
 // ── Coach en tiempo real (determinista) ───────────────────────────────────────
 
-type EquipLocal = 'barbell' | 'dumbbell' | 'kettlebell' | 'cable' | 'machine' | 'bodyweight';
+type EquipLocal = 'barbell' | 'dumbbell' | 'kettlebell' | 'cable' | 'machine' | 'assisted' | 'bodyweight';
 
 function getEquipLocal(exerciseId: string): EquipLocal {
   const ex = EXERCISES.find(e => e.id === exerciseId);
@@ -155,11 +155,35 @@ function getEquipLocal(exerciseId: string): EquipLocal {
   if (ex.equipment.includes('kettlebells'))    return 'kettlebell';
   if (ex.equipment.includes('cableMachine'))   return 'cable';
   if (ex.equipment.includes('legPressMachine'))return 'machine';
+  // Máquinas selectorizadas de carga añadidas en el Lote 11 del catálogo
+  // (ver CLAUDE.md) — antes caían por el 'bodyweight' final de abajo pese
+  // a trackear un weightKg real, lo que hacía que computeCoach tomara la
+  // rama de peso corporal (kg:0 siempre) y el peso nunca se propagara a
+  // la siguiente serie. assistedMachine tiene su PROPIO EquipLocal
+  // ('assisted', más abajo) en vez de 'machine': la asistencia es inversa
+  // (más peso/asistencia = más fácil), así que computeCoach necesita una
+  // rama dedicada, no la fórmula de e1rm pensada para carga real.
+  // cardioMachine incluida por corrección — en la práctica nunca llega
+  // aquí, porque los ejercicios category:'cardio' nunca entran a
+  // exercises: ExerciseState[] (ver PlanDayData.cardio, un campo aparte).
+  if (ex.equipment.includes('chestPressMachine'))    return 'machine';
+  if (ex.equipment.includes('shoulderPressMachine')) return 'machine';
+  if (ex.equipment.includes('seatedRowMachine'))     return 'machine';
+  if (ex.equipment.includes('smithMachine'))         return 'machine';
+  if (ex.equipment.includes('pecDeckMachine'))       return 'machine';
+  if (ex.equipment.includes('tBarRowMachine'))       return 'machine';
+  if (ex.equipment.includes('hipThrustMachine'))     return 'machine';
+  if (ex.equipment.includes('abMachine'))            return 'machine';
+  if (ex.equipment.includes('hipAbductorMachine'))   return 'machine';
+  if (ex.equipment.includes('hipAdductorMachine'))   return 'machine';
+  if (ex.equipment.includes('calfMachine'))          return 'machine';
+  if (ex.equipment.includes('assistedMachine'))      return 'assisted';
+  if (ex.equipment.includes('cardioMachine'))        return 'machine';
   return 'bodyweight';
 }
 
 const EQUIP_INC: Record<EquipLocal, number> = {
-  barbell: 2.5, dumbbell: 2, kettlebell: 4, cable: 2.5, machine: 5, bodyweight: 0,
+  barbell: 2.5, dumbbell: 2, kettlebell: 4, cable: 2.5, machine: 5, assisted: 5, bodyweight: 0,
 };
 
 function computeCoach(
@@ -191,6 +215,36 @@ function computeCoach(
       return { reps: planRepsMax, kg: 0, reason: msg };
     }
     return null; // En rango: sin cambio
+  }
+
+  // ── Máquina asistida — la logica es INVERSA a cualquier otro equipo:
+  // mas peso/asistencia = mas facil, no mas dificil. Rama dedicada en vez
+  // de invertir la formula de e1rm (pensada para carga real, no aplica
+  // aqui). Nunca retorna kg:0 — completeSet solo propaga el peso cuando
+  // hint.kg > 0, asi que el piso se queda en 1 incremento, nunca cero.
+  // Usa RIR como señal ademas de reps (igual que la rama generica de
+  // abajo), no solo si se toco el techo/piso de reps — sin esto, unas
+  // reps "en rango" con RIR muy alto/bajo no disparaban nada.
+  if (equip === 'assisted') {
+    const incAssisted = EQUIP_INC.assisted;
+    const serieDura = done.rir < targetRir || done.rir <= 1;
+
+    const tooHard = done.actualReps < planRepsMin || serieDura;
+    if (tooHard) {
+      const suggested = done.weightKg + incAssisted;
+      return { reps: Math.max(done.actualReps, planRepsMin), kg: suggested, reason: `${done.actualReps} reps (RIR ${done.rir}) → más asistencia: ${suggested} kg` };
+    }
+
+    const tooEasy = done.actualReps >= planRepsMax || done.rir > targetRir;
+    if (tooEasy) {
+      const suggested = Math.max(done.weightKg - incAssisted, incAssisted);
+      if (suggested === done.weightKg) {
+        return { reps: planRepsMax, kg: suggested, reason: `Fácil (RIR ${done.rir}) → ya casi sin asistencia, prueba la variante sin ayuda` };
+      }
+      return { reps: planRepsMin, kg: suggested, reason: `Fácil (${done.actualReps} reps · RIR ${done.rir}) → menos asistencia: ${suggested} kg` };
+    }
+
+    return null; // reps en rango y RIR en el objetivo: sin cambio
   }
 
   // ── Ejercicio cargable ───────────────────────────────────────────────────────
