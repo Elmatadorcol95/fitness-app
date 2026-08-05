@@ -473,6 +473,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
     console.log('[Session] finishSession — exercises:', exercises.length);
 
+    const completedSetsCount = exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.completed).length, 0);
+    if (completedSetsCount === 0) {
+      const plannedSets = exercises.reduce((acc, ex) => acc + ex.planSets, 0);
+      set({ ...EMPTY_STATE });
+      return { hasPR: false, completedSets: 0, plannedSets };
+    }
+
     try {
       await db.insert(workoutSessions).values({
         planDayId, date: today, durationSeconds,
