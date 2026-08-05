@@ -1796,21 +1796,29 @@ Bucle ~1.3 s sobre fondo #141A17:
     Validado en dispositivo físico: avance inmediato tras escribir (el
     caso que fallaba) para peso y altura, flujo normal sin tocar otro
     sitio (intacto), y el caso más exigente (coma + avance inmediato).
-  * **f) Backlog de pruebas de la APK preview** (lista de Juan, 12
-    puntos — #2 y #11 cerrados hoy, ver items d y e arriba; el resto
-    queda pendiente). NOTA: esta lista es VIVA — los ítems cerrados en
+  * **f) Backlog de pruebas de la APK preview** (lista de Juan, ampliada
+    en sesiones posteriores a 22 puntos numerados — 7 cerrados, 15
+    pendientes. NOTA: esta lista es VIVA — los ítems cerrados en
     sesiones posteriores se marcan aquí mismo con su propia fecha, sin
     reescribir la narrativa de la sesión que los originó:
     1. ¿Las lesiones afectan realmente la generación del plan?
     2. ~~El peso no migraba automáticamente al registro de Progreso, y el
        número tecleado en el peso del onboarding se ignoraba (solo
        contaban los botones +/-).~~ CERRADO 2026-08-04 (ver item e).
-    3. El gesto/botón de retroceso nativo de Android no funciona en la
-       pantalla de prioridades musculares.
-    4. Al salir de un entreno sin terminar, el mensaje solo menciona
-       series restantes, no también ejercicios restantes.
+    3. ~~El gesto/botón de retroceso nativo de Android no funciona en la
+       pantalla de prioridades musculares.~~ CERRADO 2026-08-05 (ver
+       entrada "sesión 2026-08-05 (continuación)", item a — en realidad
+       afectaba a las 6 pantallas overlay, no solo prioridades
+       musculares).
+    4. ~~Al salir de un entreno sin terminar, el mensaje solo menciona
+       series restantes, no también ejercicios restantes.~~ CERRADO
+       2026-08-05 (ver entrada "sesión 2026-08-05 (continuación)",
+       item b).
     5. Priorizar máquinas sobre peso corporal en gimnasio.
-    6. Retomar ejercicios no completados del día anterior.
+    6. Retomar ejercicios no completados del día anterior. (Ver también
+       #18 — Juan confirma que ambos puntos se resuelven juntos con el
+       cambio de "elegir día libremente", en preparación fuera de esta
+       sesión.)
     7. ~~Usuario pide 60 min de entreno, el plan generado dura ~33 min.~~
        CERRADO 2026-08-05 (ver entrada de esa sesión, item b).
     8. Poder cambiar días/duración de entreno después del onboarding.
@@ -1823,6 +1831,53 @@ Bucle ~1.3 s sobre fondo #141A17:
     12. ~~Historial fantasma: un día sin ninguna serie completada aparece
        igual en el historial con 0 series.~~ CERRADO 2026-08-05 (ver
        entrada de esa sesión, item a).
+    13. Like/dislike de ejercicios sigue apareciendo como opción en
+       rutinas del constructor manual, donde no tiene sentido (el
+       usuario ya elige el ejercicio a mano).
+    14. Cuando la app pasa a segundo plano, el cronómetro de descanso se
+       detiene y deja de contar.
+    15. ~~El "coach" en vivo (recomendación de peso/reps entre series) no
+       funcionaba bien: peso cayendo a 0 en máquinas de gimnasio nuevas,
+       máquina asistida sin lógica propia, RIR ignorado con reps ya en
+       rango.~~ CERRADO 2026-08-05 (ver entrada "sesión 2026-08-05
+       (continuación)", item c — el hallazgo más importante de la
+       sesión).
+    16. No hay instrucciones escritas para los ejercicios en el botón
+       "Guía" de la sesión en vivo — sigue diciendo "próximamente" (ver
+       FASE 9b en "Estado actual").
+    17. Si un ejercicio se repite el mismo día (ej. press de hombros en
+       máquina dos veces), el peso puesto en la 1.ª vez no migra
+       automáticamente a la 2.ª — hay que volver a teclearlo. Debería
+       verse la progresión al instante.
+    18. No se puede elegir libremente qué día entrenar — el orden del
+       ciclo (ej. día 1 pull, día 2 push, día 3 legs) es obligatorio, sin
+       poder empezar por legs. Fusiona con #6 — Juan confirma que
+       prepara este cambio en paralelo, fuera de esta sesión.
+    19. El coach asume incrementos de peso de 1 en 1 kg, pero las
+       máquinas de gimnasio reales incrementan de 15 en 15 libras (o 10
+       en 10, según máquina) — el kg mostrado es la conversión. Los
+       discos de barra son de 5 en 5 kg; las mancuernas, de 1 en 1 kg.
+       Pendiente: ajustar la granularidad real de EQUIP_INC por tipo de
+       equipo, no un único valor por EquipLocal.
+    20. El campo de peso (Kg) en la sesión en vivo reselecciona todo el
+       texto tras cada tecla, impidiendo escribir números de 2+ dígitos
+       sin que se borren los dígitos anteriores.
+    21. El texto "mantén X kg" en computeCoach es engañoso cuando en
+       realidad el peso sugerido sube (rama "bajo mín" de computeCoach,
+       session.store.ts — dir solo distingue isDown, nunca contempla
+       isUp como caso propio ahí; señalado en auditoría de esta sesión,
+       sin corregir).
+    22. ¿runProgressionAfterSession/progression.ts tiene el mismo hueco
+       de clasificación de equipamiento que tenía computeCoach?
+       CONFIRMADO en auditoría de esta sesión: getEquipmentType()
+       (progression.ts:53-59) es AÚN MÁS limitado que el getEquipLocal()
+       original de computeCoach — ni siquiera reconoce
+       cableMachine/legPressMachine (solo
+       barbellPlates/dumbbells/kettlebells), así que cualquier máquina
+       cae en 'bodyweight' → getMinIncrement() devuelve 0 →
+       roundToIncrement() redondea a la décima más cercana en vez de a
+       la granularidad real de la máquina. Sin corregir — pendiente,
+       mismo patrón de fix que #15 pero en el archivo de progresión.
   * Todo verificado con `npx tsc --noEmit` limpio en cada paso de esta
     sesión.
 - Hecho: sesión 2026-08-05 — **Historial fantasma + duración real del
@@ -1916,6 +1971,122 @@ Bucle ~1.3 s sobre fondo #141A17:
       inherente de añadir/quitar un ejercicio entero), frente a los ~27
       min de brecha del bug original.
   * `npx tsc --noEmit` limpio verificado en cada paso de la sesión.
+- Hecho: sesión 2026-08-05 (continuación) — **Botón atrás de Android,
+  mensaje de sesión incompleta, y saga completa del coach en máquinas de
+  gimnasio (#15)** (commits `2817a74` y `228a35f`; JS puro, solo
+  recarga). Cierra 3 puntos más del backlog (#3, #4, #15) — mismo
+  protocolo de auditoría-antes-de-tocar de toda la sesión:
+  * **a) #3 — botón/gesto atrás de Android en overlays** (`2817a74`):
+    confirmado que la app monta 6 pantallas overlay controladas por
+    flags de Zustand (no rutas de Expo Router) sin ningún manejo del
+    botón atrás — solo `SessionScreen` lo tenía (`BackHandler` propio).
+    Nuevo hook compartido `useAndroidBack(active, onBack)`
+    (`src/hooks/use-android-back.ts`) añadido a las 6:
+    `equipment.tsx`, `musclePriorities.tsx`, `exercisePreferences.tsx`,
+    `routineBuilder.tsx`, `warmup.tsx`, `cooldown.tsx` — cada una
+    reutilizando su propia función de cierre ya existente (la misma que
+    su flecha de la app), sin inventar lógica nueva.
+    `VulcanDialog`/`VulcanBottomSheet` **NO se tocaron a propósito**:
+    la auditoría encontró que ambos ya usan
+    `<Modal transparent onRequestClose={dismiss}>` nativo — Android
+    intercepta el atrás a nivel de ventana antes de que el
+    `BackHandler` de JS entre en juego; añadir el hook ahí habría sido
+    redundante y arriesgado (listener duplicado compitiendo con el
+    mecanismo nativo). Decisión de producto confirmada explícitamente:
+    salir de Prioridades Musculares sin guardar sigue descartando en
+    silencio, igual que la flecha — no se añadió confirmación.
+  * **b) #4 — mensaje de sesión incompleta** (`2817a74`, mismo commit):
+    el diálogo `finishState==='incomplete'` (`session.tsx`) solo
+    mencionaba series pendientes. Ahora también cuenta ejercicios
+    (`pendingExerciseCount`, cualquiera con al menos 1 serie sin
+    completar — `exercises.filter(ex => ex.sets.some(s =>
+    !s.completed)).length`), mostrando ambos números. Nota técnica:
+    `{{count}}` es una clave reservada por i18next para pluralización
+    automática — el segundo número usa `{{exercises}}`, nunca un
+    segundo `{{count}}`. 3 idiomas actualizados (`finishIncompleteMsg`
+    en es/en/fr).
+  * **c) #15 — saga completa del coach en vivo, EL HALLAZGO MÁS
+    IMPORTANTE de esta sesión** (`228a35f` — **un único commit, no
+    tres**: las 3 correcciones lógicas de abajo se hicieron en pasos
+    separados dentro de la conversación, pero nunca se pidió comitear
+    entre ellos, así que quedaron fundidas en un solo commit al cierre
+    de sesión — confirmado con `git log`/`git show` antes de escribir
+    esta entrada, en vez de asumir la premisa original de "3 commits"):
+    - **Causa raíz diagnosticada ANTES de tocar código**:
+      `getEquipLocal()` (`session.store.ts` — función DISTINTA de
+      `getMinIncrement()`/`getEquipmentType()` en `progression.ts`, ver
+      hallazgo del punto 22 más abajo) solo reconocía 5 de los 34
+      `EquipmentKey` del catálogo (`barbellPlates`, `dumbbells`,
+      `kettlebells`, `cableMachine`, `legPressMachine`). Cualquier
+      máquina de las 13 añadidas en el Lote 11 (`chestPressMachine`,
+      `shoulderPressMachine`, `seatedRowMachine`, `smithMachine`,
+      `pecDeckMachine`, `tBarRowMachine`, `hipThrustMachine`,
+      `abMachine`, `hipAbductorMachine`, `hipAdductorMachine`,
+      `calfMachine`, `assistedMachine`, `cardioMachine`) caía en
+      `'bodyweight'` por el `return` final, pese a trackear un
+      `weightKg` real → `computeCoach` tomaba la rama de peso corporal
+      (`kg: 0` siempre) → `completeSet` (que solo propaga peso si
+      `hint.kg > 0`) dejaba el peso caído a 0 en la siguiente serie la
+      primera vez que el usuario hacía ese ejercicio (sin historial de
+      progresión previo). Diagnosticado con una **simulación a mano de
+      los 2 casos exactos reportados por Juan, ANTES de tocar ningún
+      código**, reproduciendo sus mensajes palabra por palabra ("6 reps
+      (bajo rango) → apunta a 5" y "Te quedó fácil... → prueba variante
+      difícil o añade lastre") bajo la hipótesis de clasificación
+      errónea — coincidencia exacta, confirmando la causa raíz sin
+      ambigüedad antes de escribir el fix.
+    - Fix: 12 `EquipmentKey` (11 máquinas + `assistedMachine`, más
+      `cardioMachine` por corrección aunque es código muerto — los
+      ejercicios `category:'cardio'` nunca entran a
+      `exercises: ExerciseState[]`, viven en `PlanDayData.cardio`
+      aparte) añadidas a `getEquipLocal()`, todas clasificadas como
+      `'machine'` (`inc: 5`) en un primer paso.
+    - `assistedMachine` se separó a su propio `EquipLocal`
+      (`'assisted'`, `inc: 5`), auditado sin evidencia de peso inverso
+      en el catálogo o en el código antes de decidirlo (solo 2
+      ejercicios, `assisted_pullup`/`assisted_dip`, sin ningún
+      campo/flag especial) — pero la asistencia SÍ es inversa por
+      diseño real de la máquina (más asistencia = más fácil), así que
+      se le dio una rama dedicada en `computeCoach` en vez de reutilizar
+      la fórmula de e1rm (pensada para carga real, no aplica aquí).
+      Nunca emite `kg: 0` — piso garantizado en 1 incremento
+      (`Math.max(peso - inc, inc)`).
+    - La rama `'assisted'` inicial solo miraba `actualReps` para decidir
+      si recomendar algo — hueco expuesto por Juan con un caso real (11
+      reps dentro de 8-12, RIR 5 → no disparaba nada, porque el RIR
+      nunca se miraba con reps ya en rango). Corregido combinando reps Y
+      RIR (`tooHard`/`tooEasy`, reutilizando la misma fórmula
+      `serieDura = rir < targetRir || rir <= 1` que ya usa la rama
+      genérica de equipo cargado) — mismo principio que esa rama
+      genérica ya tenía (RIR es señal independiente del rango de reps),
+      llevado a la rama nueva.
+    - **Confirmado explícitamente en auditoría**: `computeCoach` (ni su
+      trigger `completeSet`) NO distingue en ningún punto entre plan
+      manual y automático (`planId`/`source` nunca se leen ahí) — el
+      bug nunca fue específico de un modo, es general y depende solo de
+      qué ejercicio/equipo esté en juego.
+  * **d) Backlog ampliado a 22 puntos** (antes 12): `#3`, `#4`, `#7`,
+    `#12`, `#15` marcados CERRADOS con fecha (algunos ya lo estaban de
+    sesiones previas — verificado antes de duplicar marcas). Añadidos
+    `#13`-`#22` con el texto exacto que dio Juan, incluyendo `#18`
+    (elegir día de entreno libremente) fusionado explícitamente con el
+    `#6` ya existente (mismo cambio, que Juan prepara en paralelo fuera
+    de esta sesión) y `#19` (granularidad real de incrementos de peso
+    por tipo de máquina — libras vs kg, discos de 5kg, mancuernas de
+    1kg — pendiente, `EQUIP_INC` sigue con un valor único por
+    `EquipLocal`). **`#22` se investigó y CONFIRMÓ en esta misma
+    auditoría** (no quedó como pregunta abierta): `getEquipmentType()`
+    (`progression.ts:53-59`) tiene el mismo hueco que tenía
+    `computeCoach` — y más amplio, porque ni siquiera reconoce
+    `cableMachine`/`legPressMachine` (solo
+    `barbellPlates`/`dumbbells`/`kettlebells`) — cualquier máquina cae
+    en `'bodyweight'` → `getMinIncrement()` devuelve `0` →
+    `roundToIncrement()` (línea 71-74) redondea a la décima más cercana
+    en vez de a la granularidad real de la máquina. Sin corregir —
+    mismo patrón de fix que `#15`, pendiente para `progression.ts`.
+    Total: 22 puntos numerados, 7 cerrados
+    (`#2,#3,#4,#7,#11,#12,#15`), 15 pendientes.
+  * `npx tsc --noEmit` limpio en cada paso.
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
