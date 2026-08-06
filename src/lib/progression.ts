@@ -1,15 +1,13 @@
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { exerciseTargets, exerciseMaxes } from '@/db/schema';
-import { EXERCISES } from '@/lib/exercises';
+import { getEquipLocal, EQUIP_INC, type EquipLocal } from '@/lib/equipmentClassification';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type EquipmentType = 'barbell' | 'dumbbell' | 'kettlebell' | 'bodyweight';
-
 export interface ProgressionInput {
   exerciseId: string;
-  equipmentType: EquipmentType;
+  equipmentType: EquipLocal;
   /** Rango mínimo del plan (ej. 8 en "8-12") */
   planRepsMin: number;
   /** Rango máximo del plan (ej. 12 en "8-12") */
@@ -50,24 +48,6 @@ export interface ExerciseProgressionData {
 
 // ── Helpers internos ──────────────────────────────────────────────────────────
 
-function getEquipmentType(exerciseId: string): EquipmentType {
-  const ex = EXERCISES.find(e => e.id === exerciseId);
-  if (!ex) return 'bodyweight';
-  if (ex.equipment.includes('barbellPlates')) return 'barbell';
-  if (ex.equipment.includes('dumbbells'))     return 'dumbbell';
-  if (ex.equipment.includes('kettlebells'))   return 'kettlebell';
-  return 'bodyweight';
-}
-
-function getMinIncrement(type: EquipmentType): number {
-  switch (type) {
-    case 'barbell':    return 2.5;
-    case 'dumbbell':   return 2;
-    case 'kettlebell': return 4;
-    case 'bodyweight': return 0;
-  }
-}
-
 function roundToIncrement(value: number, increment: number): number {
   if (increment <= 0) return Math.round(value * 10) / 10;
   return Math.round(value / increment) * increment;
@@ -82,7 +62,7 @@ export function computeNextTargets(input: ProgressionInput): ProgressionOutput {
     completedSets, equipmentType,
   } = input;
 
-  const increment = getMinIncrement(equipmentType);
+  const increment = EQUIP_INC[equipmentType];
   const newCount  = sessionCount + 1;
   const safeCurrentRepsMin = Math.min(Math.max(currentRepsMin, planRepsMin), planRepsMax);
 
@@ -125,6 +105,14 @@ export function computeNextTargets(input: ProgressionInput): ProgressionOutput {
   if (missedBtm) {
     const newBelow = sessionsBelowRange + 1;
     if (newBelow >= 2 && workWeight > 0 && increment > 0) {
+      if (equipmentType === 'assisted') {
+        const newWeight = roundToIncrement(workWeight + increment, increment);
+        return {
+          targetSets: planSets, targetRepsMin: planRepsMin, targetRepsMax: planRepsMax,
+          targetWeightKg: newWeight, targetRir, sessionsBelowRange: 0, sessionCount: newCount,
+          reason: `Dos sesiones seguidas sin llegar al mínimo (${planRepsMin} reps) → más asistencia: ${newWeight} kg para volver al rango.`,
+        };
+      }
       const newWeight = roundToIncrement(workWeight * 0.9, increment);
       return {
         targetSets:         planSets,
@@ -150,6 +138,20 @@ export function computeNextTargets(input: ProgressionInput): ProgressionOutput {
   if (allHitTop) {
     if (Math.round(avgRir) >= targetRir) {
       // Regla 3: subir peso
+      if (equipmentType === 'assisted') {
+        const newWeight = Math.max(roundToIncrement(workWeight - increment, increment), increment);
+        if (newWeight === workWeight) {
+          return {
+            ...unchanged, sessionsBelowRange: 0, sessionCount: newCount, targetWeightKg: workWeight,
+            reason: `${planRepsMax} reps en todas las series con RIR ${Math.round(avgRir)} → ya casi sin asistencia, prueba la variante sin ayuda.`,
+          };
+        }
+        return {
+          targetSets: planSets, targetRepsMin: planRepsMin, targetRepsMax: planRepsMax,
+          targetWeightKg: newWeight, targetRir, sessionsBelowRange: 0, sessionCount: newCount,
+          reason: `${planRepsMax} reps en todas las series con RIR ${Math.round(avgRir)} → menos asistencia: ${newWeight} kg.`,
+        };
+      }
       if (increment === 0) {
         // Peso corporal: no podemos añadir kg — sugerir variación más difícil
         return {
@@ -271,7 +273,7 @@ export async function runProgressionAfterSession(
     if (data.completedSets.length === 0) continue;
 
     const current      = await getExerciseTarget(data.exerciseId);
-    const equipmentType = getEquipmentType(data.exerciseId);
+    const equipmentType = getEquipLocal(data.exerciseId);
 
     const input: ProgressionInput = {
       exerciseId:         data.exerciseId,
