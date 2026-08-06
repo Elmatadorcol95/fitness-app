@@ -713,7 +713,7 @@ export default function TrainingScreen() {
         noAlternativesText={t('tabs.training.noAlternatives')}
         onClose={() => setChangeModal(m => ({ ...m, visible: false }))}
         onSelect={(newId) => {
-          replaceExercise(changeModal.dayDbId, changeModal.exIdx, newId);
+          if (profile) replaceExercise(changeModal.dayDbId, changeModal.exIdx, newId, profile);
           setChangeModal(m => ({ ...m, visible: false }));
         }}
       />

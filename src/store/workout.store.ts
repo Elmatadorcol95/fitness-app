@@ -2,10 +2,11 @@ import { create } from 'zustand';
 import { desc, eq, ne } from 'drizzle-orm';
 import { db } from '@/db';
 import { gamificationMeta, planDays, workoutPlans } from '@/db/schema';
-import { generatePlan, type PlannedExercise, type DayType } from '@/lib/plan-generator';
+import { generatePlan, getRepScheme, buildPlanned, type PlannedExercise, type DayType, type GoalKey } from '@/lib/plan-generator';
 import type { CardioPlan } from '@/lib/cardioSelection';
 import { materializeTemplate, findManualPlan } from '@/lib/routineMaterializer';
 import { getTemplate, type TemplateContext } from '@/lib/routineTemplates';
+import { EXERCISES } from '@/lib/exercises';
 import { useGamificationStore } from './gamification.store';
 import type { Profile } from '@/db/schema';
 
@@ -39,7 +40,7 @@ interface WorkoutState {
   isLoaded: boolean;
   loadCurrentPlan: () => Promise<void>;
   generateAndSavePlan: (profile: Profile) => Promise<void>;
-  replaceExercise: (dayDbId: number, exerciseIndex: number, newExerciseId: string) => Promise<void>;
+  replaceExercise: (dayDbId: number, exerciseIndex: number, newExerciseId: string, profile: Profile) => Promise<void>;
   advanceDayIndex: () => Promise<void>;
   resetAll: () => Promise<void>;
   activateManualPlan: (context: TemplateContext, profile: Profile, equipment: string[], dislikedIds: Set<string>) => Promise<void>;
@@ -211,15 +212,27 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     }
   },
 
-  replaceExercise: async (dayDbId: number, exerciseIndex: number, newExerciseId: string) => {
+  replaceExercise: async (dayDbId: number, exerciseIndex: number, newExerciseId: string, profile: Profile) => {
     const { currentPlan } = get();
     if (!currentPlan) return;
 
     const targetDay = currentPlan.days.find(d => d.dbId === dayDbId);
     if (!targetDay) return;
 
+    const newExercise = EXERCISES.find(e => e.id === newExerciseId);
+    if (!newExercise) return;
+
+    const scheme = getRepScheme(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null);
+    const [rebuilt] = buildPlanned(
+      [newExercise],
+      newExercise.isCompound ? scheme.compoundSets  : scheme.isolationSets,
+      newExercise.isCompound ? scheme.compoundReps  : scheme.isolationReps,
+      newExercise.isCompound ? scheme.compoundRest  : scheme.isolationRest,
+      newExercise.isCompound,
+    );
+
     const updatedExercises = targetDay.exercises.map((ex, i) =>
-      i === exerciseIndex ? { ...ex, exerciseId: newExerciseId } : ex,
+      i === exerciseIndex ? rebuilt : ex,
     );
 
     await db
