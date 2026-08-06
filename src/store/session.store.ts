@@ -145,7 +145,7 @@ function buildSetState(index: number, targetReps: number, lastWeightKg: number |
 
 // ── Coach en tiempo real (determinista) ───────────────────────────────────────
 
-type EquipLocal = 'barbell' | 'dumbbell' | 'kettlebell' | 'cable' | 'machine' | 'assisted' | 'bodyweight';
+type EquipLocal = 'barbell' | 'dumbbell' | 'kettlebell' | 'cable' | 'machine' | 'assisted' | 'weighted_vest' | 'bodyweight';
 
 function getEquipLocal(exerciseId: string): EquipLocal {
   const ex = EXERCISES.find(e => e.id === exerciseId);
@@ -179,11 +179,12 @@ function getEquipLocal(exerciseId: string): EquipLocal {
   if (ex.equipment.includes('calfMachine'))          return 'machine';
   if (ex.equipment.includes('assistedMachine'))      return 'assisted';
   if (ex.equipment.includes('cardioMachine'))        return 'machine';
+  if (ex.equipment.includes('weightedVest'))         return 'weighted_vest';
   return 'bodyweight';
 }
 
 const EQUIP_INC: Record<EquipLocal, number> = {
-  barbell: 2.5, dumbbell: 2, kettlebell: 4, cable: 2.5, machine: 5, assisted: 5, bodyweight: 0,
+  barbell: 2.5, dumbbell: 2, kettlebell: 4, cable: 2.5, machine: 5, assisted: 5, weighted_vest: 1, bodyweight: 0,
 };
 
 function computeCoach(
