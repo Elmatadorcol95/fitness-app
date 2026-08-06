@@ -1797,7 +1797,7 @@ Bucle ~1.3 s sobre fondo #141A17:
     caso que fallaba) para peso y altura, flujo normal sin tocar otro
     sitio (intacto), y el caso más exigente (coma + avance inmediato).
   * **f) Backlog de pruebas de la APK preview** (lista de Juan, ampliada
-    en sesiones posteriores a 22 puntos numerados — 7 cerrados, 15
+    en sesiones posteriores a 25 puntos numerados — 11 cerrados, 14
     pendientes. NOTA: esta lista es VIVA — los ítems cerrados en
     sesiones posteriores se marcan aquí mismo con su propia fecha, sin
     reescribir la narrativa de la sesión que los originó:
@@ -1867,7 +1867,7 @@ Bucle ~1.3 s sobre fondo #141A17:
        session.store.ts — dir solo distingue isDown, nunca contempla
        isUp como caso propio ahí; señalado en auditoría de esta sesión,
        sin corregir).
-    22. ¿runProgressionAfterSession/progression.ts tiene el mismo hueco
+    22. ~~¿runProgressionAfterSession/progression.ts tiene el mismo hueco
        de clasificación de equipamiento que tenía computeCoach?
        CONFIRMADO en auditoría de esta sesión: getEquipmentType()
        (progression.ts:53-59) es AÚN MÁS limitado que el getEquipLocal()
@@ -1876,8 +1876,28 @@ Bucle ~1.3 s sobre fondo #141A17:
        barbellPlates/dumbbells/kettlebells), así que cualquier máquina
        cae en 'bodyweight' → getMinIncrement() devuelve 0 →
        roundToIncrement() redondea a la décima más cercana en vez de a
-       la granularidad real de la máquina. Sin corregir — pendiente,
-       mismo patrón de fix que #15 pero en el archivo de progresión.
+       la granularidad real de la máquina.~~ CERRADO 2026-08-06 (ver
+       entrada de esa sesión — unificación final en
+       src/lib/equipmentClassification.ts, compartido entre computeCoach
+       y computeNextTargets).
+    23. ~~weightedVest (chaleco lastrado, 9 ejercicios incl. dominadas y
+       fondos lastrados) caía en getEquipLocal como 'bodyweight' pese a
+       llevar peso real añadido.~~ CERRADO 2026-08-06 (ver entrada de esa
+       sesión — nuevo EquipLocal 'weighted_vest', inc 1kg, sin rama nueva
+       en computeCoach).
+    24. ~~Las dos funciones replaceExercise (workout.store.ts, botón
+       'Cambiar ejercicio' en Entreno; session.store.ts, botón
+       'Intercambiar' en vivo) solo cambiaban exerciseId, heredando
+       sets/reps/restSeconds/isCompound del ejercicio original.~~ CERRADO
+       2026-08-06 (ver entrada de esa sesión — reconstrucción completa
+       vía buildPlanned/buildExerciseState, con recorte automático de
+       series sobrantes si el nuevo ejercicio pide menos).
+    25. ~~El banner de calibración "Primera vez — indica tu peso de
+       partida" usaba una tercera lista de equipo hardcodeada en
+       session.tsx, desactualizada frente a getEquipLocal (no mostraba
+       el banner en máquinas del Lote 11 como pec deck).~~ CERRADO
+       2026-08-06 (ver entrada de esa sesión — isLoadedExercise ahora
+       deriva de getEquipLocal en vez de mantener su propia copia).
   * Todo verificado con `npx tsc --noEmit` limpio en cada paso de esta
     sesión.
 - Hecho: sesión 2026-08-05 — **Historial fantasma + duración real del
@@ -2087,6 +2107,139 @@ Bucle ~1.3 s sobre fondo #141A17:
     Total: 22 puntos numerados, 7 cerrados
     (`#2,#3,#4,#7,#11,#12,#15`), 15 pendientes.
   * `npx tsc --noEmit` limpio en cada paso.
+- Hecho: sesión 2026-08-06 — **Saga completa de clasificación de
+  equipamiento: RIR en peso corporal, weightedVest (#23), replaceExercise
+  x2 (#24), banner de calibración (#25), unificación final (#22)**
+  (commits `fa193e7`, `13fe334`, `5df25da`, `36dfb1a`, `47ab371`; JS
+  puro, sin módulos nativos — solo recarga). Mismo protocolo de
+  auditoría-antes-de-tocar de toda la sesión, cada paso verificado con
+  `npx tsc --noEmit` limpio y simulaciones a mano (algunas cruzadas con
+  Node real, no solo aritmética manual) antes de tocar el dispositivo:
+  * **a) RIR en la rama `bodyweight` de `computeCoach`** (`fa193e7`):
+    dentro de rango, la rama `bodyweight` siempre devolvía `null` sin
+    mirar el RIR — solo reaccionaba al tocar el techo o el mínimo de
+    reps. Ahora, dentro de rango: RIR por encima del objetivo empuja el
+    objetivo de reps hacia el techo (sin pasarlo); RIR muy bajo avisa
+    "mantén" sin cambiar el número (peso corporal puro no tiene una
+    palanca de peso que mover). El caso "bajo el mínimo" se deja
+    deliberadamente sin mirar el RIR — fallar el rango ya es la señal
+    más clara posible. **Decisión de producto confirmada por Juan en la
+    validación**: al superar ampliamente el techo de reps con RIR alto,
+    el objetivo baja al techo en vez de seguir subiendo — comportamiento
+    YA EXISTENTE en `computeCoach` (no de este cambio), revisado y
+    mantenido a propósito (evita reps infinitas, empuja a subir
+    dificultad real en vez de solo repeticiones).
+  * **b) #23 — `weightedVest` clasificado como equipo cargado**
+    (`13fe334`): los 9 ejercicios con `weightedVest` (incl.
+    `weighted_vest_pullup`/`weighted_vest_chinup`) caían en
+    `getEquipLocal` como `'bodyweight'` pese a llevar peso real añadido
+    — mismo mecanismo del bug de las máquinas del Lote 11.
+    `LOADED_REST` (descanso por defecto) ya trataba `weightedVest` como
+    equipo "cargado" — la inconsistencia confirmó que era un olvido, no
+    una decisión. A diferencia de `assistedMachine`, no hizo falta
+    ninguna rama nueva en `computeCoach`: más peso en el chaleco es más
+    difícil, misma dirección que cualquier equipo cargado normal. Nuevo
+    `EquipLocal` `'weighted_vest'`, incremento `1kg` (conservador:
+    chalecos rígidos suelen venir con peso fijo sin ajuste, los
+    modulares de placa/arena ajustan típicamente de 1kg en 1kg).
+  * **c) #24 — dos `replaceExercise` distintas no recalculaban nada al
+    cambiar de ejercicio** (`5df25da` y `36dfb1a`): `replaceExercise`
+    (`workout.store.ts`, botón "Cambiar ejercicio" en Entreno) y
+    `replaceExercise` (`session.store.ts`, botón "Intercambiar" en
+    vivo) — dos funciones DISTINTAS con el mismo hueco — solo cambiaban
+    `exerciseId`, heredando `sets`/`reps`/`restSeconds`/`isCompound` del
+    ejercicio ORIGINAL. Como `getAlternatives` no restringe por
+    `isCompound`, un intercambio podía cruzar de compuesto a aislamiento
+    (o al revés) y de barra a no-barra dentro de la misma `category`,
+    dejando reps con un rango bajo indebido, sets con el número
+    equivocado, y `restSeconds` heredado salvo que coincidiera
+    casualmente con `90`.
+    - `workout.store.ts`: `replaceExercise` recibe `profile` nuevo y
+      reconstruye el `PlannedExercise` completo con `buildPlanned` (la
+      misma función que ya usa el generador automático y el constructor
+      manual), según `getRepScheme` del objetivo del usuario y el
+      `isCompound` real del ejercicio NUEVO.
+    - `session.store.ts`: se extrajo `buildExerciseState()` del cuerpo
+      de `startSession` (el cálculo de `effMin`/`effMax`/`targetInit`/
+      `restSeconds` que antes vivía inline) para compartirla entre el
+      arranque de sesión y el intercambio en vivo — evita una tercera
+      implementación del mismo cálculo. `startSession` se refactorizó
+      para usarla sin cambiar su comportamiento (verificado por
+      regresión, campo por campo, mismo resultado). `replaceExercise`
+      (en vivo) ahora recibe `profile` y reconstruye el `ExerciseState`
+      completo con `buildPlanned` + `buildExerciseState`.
+    - **Decisión de Juan**: si el nuevo ejercicio tiene menos series
+      planificadas, las filas sobrantes se recortan automáticamente —
+      sale gratis del diseño, porque el array de series se construye
+      desde cero con el tamaño correcto en vez de heredarse.
+  * **d) #25 — banner de calibración con una tercera lista de equipo
+    independiente** (`36dfb1a`, mismo commit que el cierre de
+    `session.store.ts` del punto c): investigando un reporte de Juan (el banner
+    "Primera vez — indica tu peso de partida" no aparecía en máquinas
+    del Lote 11 como pec deck), se encontró que `isLoadedExercise`
+    (`session.tsx`) mantenía su PROPIA lista hardcodeada de equipo
+    cargado, independiente de `getEquipLocal` — desactualizada desde
+    que ese se corrigió para las máquinas del Lote 11 y
+    `assistedMachine` (ese fix solo tocó `session.store.ts`, no
+    `session.tsx`). En vez de parchear la lista a mano otra vez (se
+    desincronizaría de nuevo con el próximo equipo nuevo),
+    `getEquipLocal` se exportó desde `session.store.ts` e
+    `isLoadedExercise` ahora deriva de ella (`!== 'bodyweight'`) en vez
+    de mantener su propia copia.
+  * **e) #22 — unificación final: `EquipLocal`/`getEquipLocal`/
+    `EQUIP_INC` a un módulo compartido** (`47ab371`): `progression.ts`
+    (`getEquipmentType`/`getMinIncrement`, el sistema de progresión de
+    FIN de sesión) tenía el mismo hueco que ya se había corregido en
+    `computeCoach` — y peor: ni siquiera reconocía
+    `cableMachine`/`legPressMachine`. En vez de expandir
+    `getEquipmentType` por separado (habría sido la 4.ª copia de la
+    misma lógica, tras `getEquipLocal`, el propio `getEquipmentType`, y
+    la lista hardcodeada de `session.tsx` ya corregida en el punto d),
+    se extrajo `EquipLocal`/`getEquipLocal`/`EQUIP_INC` a un módulo
+    nuevo, `src/lib/equipmentClassification.ts`, importado ahora por
+    `session.store.ts` y `progression.ts` por igual. Necesario, no solo
+    prolijo: `session.store.ts` ya importaba de `progression.ts`, así
+    que `progression.ts` importando directo de `session.store.ts`
+    habría cerrado un ciclo real.
+    - Las Reglas 4 y 2 de `computeNextTargets` quedan intactas (son
+      agnósticas a la dirección). Las Reglas 5 (2 fallos seguidos del
+      mínimo) y 3 (tocar el techo con buen RIR) ganan una rama para
+      `equipmentType === 'assisted'` que invierte la aritmética (subir
+      asistencia si falló el mínimo, bajarla si superó el techo con
+      buen RIR, nunca menos de 1 incremento) — mismo principio ya
+      validado en el coach en vivo.
+    - Verificado con 4 simulaciones ejecutadas en Node real (no solo a
+      mano): cero regresión para barra/mancuerna/kettlebell/peso
+      corporal (mismos 4 valores compartidos de antes, sin cambios);
+      máquina normal ahora sí entra en la Regla 5 tras fallar el mínimo
+      2 veces (antes nunca se disparaba, `increment` era `0`); máquina
+      asistida sube asistencia al fallar el mínimo y la baja al ser
+      fácil, con piso en 1 incremento sin llegar nunca a 0.
+    - Validado en dispositivo físico a lo largo de varias semanas
+      reales de uso: progresión correcta en barra, máquina normal
+      subiendo peso al tocar el techo con buen RIR, y máquina asistida
+      bajando asistencia correctamente. Un caso de Juan (asistida, 20kg
+      RIR5) no bajó como se esperaba en primera instancia —
+      diagnosticado en conjunto: las repeticiones no habían tocado el
+      techo del rango esa sesión, condición real y buscada de la Regla
+      3 (solo actúa si TODAS las series llegaron al máximo), no un bug.
+  * **Con esto, las 3 copias independientes de clasificación de equipo
+    que existían en el proyecto** (`computeCoach`, el banner de
+    calibración, `progression.ts`) **quedan unificadas en una sola
+    fuente** (`src/lib/equipmentClassification.ts`).
+  * Backlog: `#15` ya estaba cerrado desde la sesión anterior (sin
+    duplicar marca); `#22` marcado CERRADO; añadidos `#23`, `#24`,
+    `#25` ya CERRADOS con fecha 2026-08-06 (encontrados y arreglados en
+    la misma sesión). Nota especial en `#19` (granularidad real de
+    incrementos por tipo de equipo — libras vs kg, discos de 5kg,
+    mancuernas de 1kg): sigue abierto, pero ahora es más barato de
+    resolver — una sola tabla `EQUIP_INC` en un solo archivo en vez de
+    varias copias — valores reales pendientes de ajustar según lo que
+    reportó Juan con fotos de gimnasio reales.
+    **Total: 25 puntos numerados, 11 cerrados
+    (`#2,#3,#4,#7,#11,#12,#15,#22,#23,#24,#25`), 14 pendientes
+    (`#1,#5,#6,#8,#9,#10,#13,#14,#16,#17,#18,#19,#20,#21`).**
+  * `npx tsc --noEmit` limpio en cada paso de esta sesión.
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
