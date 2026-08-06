@@ -200,21 +200,42 @@ function computeCoach(
   // ── Peso corporal ────────────────────────────────────────────────────────────
   if (equip === 'bodyweight') {
     if (done.actualReps < planRepsMin) {
-      // Por debajo del mínimo: recomendar bajar objetivo
+      // Por debajo del minimo: bajar objetivo. NO mira el RIR a proposito —
+      // fallar el rango ya es la señal mas clara posible, distinguir RIR
+      // aqui añadiria complejidad sin valor real.
       const safeTarget = Math.max(Math.round(done.actualReps * 0.9), 3);
       if (safeTarget < nextReps) {
         return { reps: safeTarget, kg: 0, reason: `${done.actualReps} reps (bajo rango) → apunta a ${safeTarget}` };
       }
       return null;
     }
+
     if (done.actualReps >= planRepsMax) {
-      // Al tope o por encima: sugerir progresión (nunca "mantén X")
+      // Al tope o por encima: sugerir progresión (sin cambios respecto a hoy)
       const msg = done.rir >= 2
         ? `Te quedó fácil (${done.actualReps} reps · RIR ${done.rir}) → prueba variante difícil o añade lastre`
         : `${done.actualReps} reps al límite (RIR ${done.rir}) → progresando bien`;
       return { reps: planRepsMax, kg: 0, reason: msg };
     }
-    return null; // En rango: sin cambio
+
+    // Dentro del rango — antes SIEMPRE null. Ahora usa el RIR como segunda
+    // señal, igual que ya hacen la rama generica y la rama 'assisted'.
+    if (done.rir > targetRir) {
+      // Sobró margen aunque las reps ya estuvieran en rango: empuja el
+      // objetivo hacia el techo, sin pasarlo.
+      const nextTarget = Math.min(done.actualReps + 1, planRepsMax);
+      if (nextTarget > nextReps) {
+        return { reps: nextTarget, kg: 0, reason: `${done.actualReps} reps · RIR ${done.rir} → sube el objetivo a ${nextTarget}` };
+      }
+      return null;
+    }
+
+    const serieDura = done.rir < targetRir || done.rir <= 1;
+    if (serieDura) {
+      return { reps: planRepsMin, kg: 0, reason: `${done.rir <= 1 ? 'Al límite' : 'Duro'} (RIR ${done.rir}) → mantén el objetivo` };
+    }
+
+    return null; // En rango y en objetivo: sin cambio
   }
 
   // ── Máquina asistida — la logica es INVERSA a cualquier otro equipo:
