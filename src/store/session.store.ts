@@ -2,13 +2,14 @@ import { create } from 'zustand';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { exerciseTargets, workoutSessions, sessionSets, exerciseRestPrefs } from '@/db/schema';
+import type { Profile } from '@/db/schema';
 import { hapticsLight, hapticsSuccess } from '@/lib/haptics';
 import { playRestDone } from '@/lib/sounds';
 import { runProgressionAfterSession } from '@/lib/progression';
 import { EXERCISES } from '@/lib/exercises';
 import { markExerciseUsed } from '@/lib/muscleUsage';
 import type { CardioPlan } from '@/lib/cardioSelection';
-import type { DayType } from '@/lib/plan-generator';
+import { getRepScheme, buildPlanned, type DayType, type GoalKey } from '@/lib/plan-generator';
 import type { StoredPlanDay } from './workout.store';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -63,7 +64,7 @@ interface SessionStore {
   tickRestTimer: () => void;
   finishSession: () => Promise<{ hasPR: boolean; completedSets: number; plannedSets: number }>;
   cancelSession: () => void;
-  replaceExercise: (exIdx: number, newExerciseId: string) => void;
+  replaceExercise: (exIdx: number, newExerciseId: string, profile: Profile) => Promise<void>;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -143,11 +144,46 @@ function buildSetState(index: number, targetReps: number, lastWeightKg: number |
   };
 }
 
+// Calcula los campos derivados (rango de reps efectivo, series
+// iniciales, descanso) para UN ejercicio, a partir de sus datos crudos
+// del plan y los datos ya obtenidos de progresion/ultimo set/descanso
+// personalizado. Compartida entre startSession (arranque del dia
+// completo) y replaceExercise (intercambio de un ejercicio a mitad de
+// sesion) — evita una tercera implementacion de este calculo.
+function buildExerciseState(
+  planned: { exerciseId: string; reps: string; sets: number; restSeconds: number },
+  progData: { weightKg: number | null; repsMin: number | null; targetRir: number | null },
+  lastData: { reps: number | null; weightKg: number | null },
+  customRest: number | null,
+): ExerciseState {
+  const { min: minReps, max: maxReps } = parseRepsString(planned.reps);
+  const equip = getEquipLocal(planned.exerciseId);
+  const effMin = (equip !== 'barbell' && equip !== 'bodyweight' && minReps < 8) ? 8 : minReps;
+  const effMax = (equip !== 'barbell' && equip !== 'bodyweight' && maxReps < 12) ? Math.max(maxReps, 12) : maxReps;
+  const targetMid = Math.round((effMin + effMax) / 2);
+  const targetInit = progData.repsMin ?? targetMid;
+  const restSeconds = customRest ?? computeDefaultRest(planned.exerciseId, planned.restSeconds);
+  return {
+    exerciseId:   planned.exerciseId,
+    restSeconds,
+    note:         '',
+    lastReps:     lastData.reps,
+    lastWeightKg: lastData.weightKg,
+    planRepsMin:  effMin,
+    planRepsMax:  effMax,
+    planSets:     planned.sets,
+    targetRir:    progData.targetRir ?? 3,
+    sets: Array.from({ length: planned.sets }, (_, s) =>
+      buildSetState(s, targetInit, lastData.weightKg),
+    ),
+  };
+}
+
 // ── Coach en tiempo real (determinista) ───────────────────────────────────────
 
 type EquipLocal = 'barbell' | 'dumbbell' | 'kettlebell' | 'cable' | 'machine' | 'assisted' | 'weighted_vest' | 'bodyweight';
 
-function getEquipLocal(exerciseId: string): EquipLocal {
+export function getEquipLocal(exerciseId: string): EquipLocal {
   const ex = EXERCISES.find(e => e.id === exerciseId);
   if (!ex) return 'bodyweight';
   if (ex.equipment.includes('barbellPlates'))  return 'barbell';
@@ -381,34 +417,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       day.exercises.map(ex => getCustomRest(ex.exerciseId)),
     );
 
-    const exercises: ExerciseState[] = day.exercises.map((ex, i) => {
-      const { min: minReps, max: maxReps } = parseRepsString(ex.reps);
-      const progData  = progressionDataArr[i];
-      const lastData  = lastDataArr[i];
-      const customRest = customRestArr[i];
-      // Ejercicios no-barra: aplicar mínimo 8-12 reps aunque el plan diga 3-5
-      const equip = getEquipLocal(ex.exerciseId);
-      const effMin = (equip !== 'barbell' && equip !== 'bodyweight' && minReps < 8) ? 8 : minReps;
-      const effMax = (equip !== 'barbell' && equip !== 'bodyweight' && maxReps < 12) ? Math.max(maxReps, 12) : maxReps;
-      // Pre-cargar con el punto medio del rango (~10 para 8-12) si no hay datos de progresión
-      const targetMid = Math.round((effMin + effMax) / 2);
-      const targetInit = progData.repsMin ?? targetMid;
-      const restSeconds = customRest ?? computeDefaultRest(ex.exerciseId, ex.restSeconds);
-      return {
-        exerciseId:   ex.exerciseId,
-        restSeconds,
-        note:         '',
-        lastReps:     lastData.reps,
-        lastWeightKg: lastData.weightKg,
-        planRepsMin:  effMin,
-        planRepsMax:  effMax,
-        planSets:     ex.sets,
-        targetRir:    progData.targetRir ?? 3,
-        sets: Array.from({ length: ex.sets }, (_, s) =>
-          buildSetState(s, targetInit, lastData.weightKg),
-        ),
-      };
-    });
+    const exercises: ExerciseState[] = day.exercises.map((ex, i) =>
+      buildExerciseState(
+        { exerciseId: ex.exerciseId, reps: ex.reps, sets: ex.sets, restSeconds: ex.restSeconds },
+        progressionDataArr[i],
+        lastDataArr[i],
+        customRestArr[i],
+      ),
+    );
 
     console.log('[Session] startSession complete — exercises:', exercises.length);
     set({
@@ -529,16 +545,29 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     }
   },
 
-  replaceExercise: (exIdx, newExerciseId) => {
-    const exercises  = [...get().exercises];
-    const ex         = exercises[exIdx];
-    exercises[exIdx] = {
-      ...ex,
-      exerciseId:   newExerciseId,
-      lastReps:     null,
-      lastWeightKg: null,
-      sets: ex.sets.map(s => ({ ...s, completed: false })),
-    };
+  replaceExercise: async (exIdx, newExerciseId, profile) => {
+    const exercises = [...get().exercises];
+    if (!exercises[exIdx]) return;
+
+    const newExercise = EXERCISES.find(e => e.id === newExerciseId);
+    if (!newExercise) return;
+
+    const scheme = getRepScheme(profile.goalPrimary as GoalKey, profile.goalSecondary as GoalKey | null);
+    const [newPlanned] = buildPlanned(
+      [newExercise],
+      newExercise.isCompound ? scheme.compoundSets  : scheme.isolationSets,
+      newExercise.isCompound ? scheme.compoundReps  : scheme.isolationReps,
+      newExercise.isCompound ? scheme.compoundRest  : scheme.isolationRest,
+      newExercise.isCompound,
+    );
+
+    const progData = await getTargetFromProgression(newExerciseId);
+    const lastData = progData.weightKg !== null
+      ? { reps: null, weightKg: progData.weightKg }
+      : await getLastSetData(newExerciseId);
+    const customRest = await getCustomRest(newExerciseId);
+
+    exercises[exIdx] = buildExerciseState(newPlanned, progData, lastData, customRest);
     set({ exercises });
   },
 

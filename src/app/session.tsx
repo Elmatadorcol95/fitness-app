@@ -11,7 +11,7 @@ import { ThemedText }          from '@/components/themed-text';
 import { ThemedView }          from '@/components/themed-view';
 import { VulcanDialog }        from '@/components/ui/VulcanDialog';
 import { ChangeExerciseModal } from '@/components/workout/ChangeExerciseModal';
-import { useSessionStore }     from '@/store/session.store';
+import { useSessionStore, getEquipLocal } from '@/store/session.store';
 import { useWorkoutStore }     from '@/store/workout.store';
 import { useGamificationStore } from '@/store/gamification.store';
 import { useProfileStore }     from '@/store/profile.store';
@@ -244,7 +244,7 @@ export default function SessionScreen() {
   const catIcon   = (exercise ? CAT_ICONS[exercise.category] : 'barbell-outline') as any;
 
   const isLoadedExercise = exercise
-    ? exercise.equipment.some(e => ['barbellPlates', 'dumbbells', 'kettlebells', 'cableMachine', 'legPressMachine', 'weightedVest'].includes(e))
+    ? getEquipLocal(exercise.id) !== 'bodyweight'
     : false;
 
   const bwLabel = lang === 'es' ? 'Peso corporal' : lang === 'fr' ? 'Poids du corps' : 'Bodyweight';
@@ -1044,7 +1044,7 @@ export default function SessionScreen() {
         noAlternativesText={t('tabs.training.noAlternatives')}
         onClose={() => setSwapModal(false)}
         onSelect={(newId) => {
-          replaceExercise(currentExerciseIdx, newId);
+          if (profile) replaceExercise(currentExerciseIdx, newId, profile);
           setSwapModal(false);
         }}
       />
