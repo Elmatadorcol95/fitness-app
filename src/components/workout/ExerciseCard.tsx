@@ -9,6 +9,7 @@ import { getExerciseName, EXERCISES, type ExerciseCategory } from '@/lib/exercis
 import type { PlannedExercise } from '@/lib/plan-generator';
 import { Spacing } from '@/constants/theme';
 import type { Preference } from '@/lib/exercisePreferences';
+import { useWorkoutStore } from '@/store/workout.store';
 
 const GREEN = '#3FBF7F';
 const AMBER = '#F2B450';
@@ -91,6 +92,7 @@ interface Props {
 export function ExerciseCard({ plannedEx, lastWeightKg, progressionReason, lang, onChangeExercise, bodyweightLabel, preference, onTogglePreference }: Props) {
   const router = useRouter();
   const theme  = useTheme();
+  const currentPlan = useWorkoutStore(s => s.currentPlan);
 
   const exercise = EXERCISES.find(e => e.id === plannedEx.exerciseId);
   if (!exercise) return null;
@@ -133,20 +135,24 @@ export function ExerciseCard({ plannedEx, lastWeightKg, progressionReason, lang,
             <ThemedText type="defaultSemiBold" style={styles.name} numberOfLines={2}>
               {name}
             </ThemedText>
-            <Pressable onPress={() => onTogglePreference('liked')} hitSlop={10} style={styles.prefBtn}>
-              <Ionicons
-                name={preference === 'liked' ? 'thumbs-up' : 'thumbs-up-outline'}
-                size={16}
-                color={preference === 'liked' ? GREEN : MUTED}
-              />
-            </Pressable>
-            <Pressable onPress={() => onTogglePreference('disliked')} hitSlop={10} style={styles.prefBtn}>
-              <Ionicons
-                name={preference === 'disliked' ? 'thumbs-down' : 'thumbs-down-outline'}
-                size={16}
-                color={preference === 'disliked' ? AMBER : MUTED}
-              />
-            </Pressable>
+            {currentPlan?.source !== 'manual' && (
+              <>
+                <Pressable onPress={() => onTogglePreference('liked')} hitSlop={10} style={styles.prefBtn}>
+                  <Ionicons
+                    name={preference === 'liked' ? 'thumbs-up' : 'thumbs-up-outline'}
+                    size={16}
+                    color={preference === 'liked' ? GREEN : MUTED}
+                  />
+                </Pressable>
+                <Pressable onPress={() => onTogglePreference('disliked')} hitSlop={10} style={styles.prefBtn}>
+                  <Ionicons
+                    name={preference === 'disliked' ? 'thumbs-down' : 'thumbs-down-outline'}
+                    size={16}
+                    color={preference === 'disliked' ? AMBER : MUTED}
+                  />
+                </Pressable>
+              </>
+            )}
             {onChangeExercise && (
               <Pressable onPress={onChangeExercise} hitSlop={12} style={styles.menuBtn}>
                 <Ionicons name="ellipsis-horizontal" size={20} color={MUTED} />

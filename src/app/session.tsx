@@ -89,6 +89,7 @@ function SetRow({ num, actualReps, weightKg, rir, completed, coachReason, onChan
   const [kgStr,   setKgStr]   = useState(String(weightKg));
   const [rirStr,  setRirStr]  = useState(String(rir));
   const [focused, setFocused] = useState<'reps' | 'kg' | 'rir' | null>(null);
+  const [kgSelection, setKgSelection] = useState<{ start: number; end: number } | undefined>(undefined);
 
   useEffect(() => { if (focused !== 'reps') setRepsStr(String(actualReps)); }, [actualReps, focused]);
   useEffect(() => { if (focused !== 'kg')   setKgStr(String(weightKg));     }, [weightKg,   focused]);
@@ -122,10 +123,16 @@ function SetRow({ num, actualReps, weightKg, rir, completed, coachReason, onChan
         <TextInput
           style={styles.setInput}
           keyboardType="decimal-pad"
-          selectTextOnFocus
           value={kgStr}
-          onFocus={() => setFocused('kg')}
-          onChangeText={setKgStr}
+          selection={kgSelection}
+          onFocus={() => {
+            setFocused('kg');
+            setKgSelection({ start: 0, end: kgStr.length });
+          }}
+          onChangeText={(text) => {
+            setKgStr(text);
+            setKgSelection({ start: text.length, end: text.length });
+          }}
           onEndEditing={() => {
             setFocused(null);
             const v = parseFloat(kgStr);
@@ -193,6 +200,7 @@ export default function SessionScreen() {
   } = useSessionStore();
 
   const { advanceDayIndex } = useWorkoutStore();
+  const currentPlan = useWorkoutStore(s => s.currentPlan);
   const { recordWorkout, unlockAchievement, incrementDaysTrainedThisWeek, incrementDaysFinishedThisWeek } = useGamificationStore();
   const { profile }           = useProfileStore();
   const equipment = parseEquipment(profile?.equipment);
@@ -834,6 +842,7 @@ export default function SessionScreen() {
             </View>
 
             {/* Preferencia del ejercicio actual */}
+            {currentPlan?.source !== 'manual' && (
             <View style={styles.prefSection}>
               <View style={styles.prefRow}>
                 <Pressable onPress={() => handleTogglePreference(currentEx.exerciseId, 'liked')} hitSlop={10} style={styles.prefBtn}>
@@ -855,6 +864,7 @@ export default function SessionScreen() {
                 <Ionicons name="thumbs-up" size={12} color={GREEN} /> tus favoritos aparecerán con más frecuencia. <Ionicons name="thumbs-down" size={12} color={AMBER} /> no volverán a aparecer en tu plan — puedes deshacerlo cuando quieras desde tu perfil.
               </ThemedText>
             </View>
+            )}
 
             {/* Navegación entre ejercicios */}
             <View style={styles.exNav}>

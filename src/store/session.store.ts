@@ -303,8 +303,8 @@ function computeCoach(
 
   if (done.actualReps < planRepsMin) {
     // Por debajo del rango: mantener o bajar peso
-    const dir = isDown ? `baja a ${suggested} kg` : `mantén ${suggested} kg`;
-    return { reps: done.actualReps, kg: suggested, reason: `${done.actualReps} reps (bajo mín ${planRepsMin}) → ${dir}` };
+    const dir = isUp ? `sube a ${suggested} kg` : isDown ? `baja a ${suggested} kg` : `mantén ${suggested} kg`;
+    return { reps: planRepsMin, kg: suggested, reason: `${done.actualReps} reps (bajo mín ${planRepsMin}) → ${dir}` };
   }
 
   if (done.actualReps > planRepsMax) {
@@ -418,9 +418,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       hapticsLight();
       const doneSt  = sets[setIdx];
       const nextIdx = sets.findIndex((s, i) => i > setIdx && !s.completed);
+      const equip   = getEquipLocal(ex.exerciseId);
 
       if (nextIdx !== -1) {
-        const equip = getEquipLocal(ex.exerciseId);
         const hint  = computeCoach(
           { actualReps: doneSt.actualReps, weightKg: doneSt.weightKg, rir: doneSt.rir },
           sets[nextIdx].weightKg, sets[nextIdx].actualReps,
@@ -439,6 +439,33 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
       ex.sets = sets;
       exercises[exIdx] = ex;
+
+      // Propaga a otras apariciones del MISMO ejercicio en el mismo dia
+      // (ej. "Press de hombros" 2 veces) — decision de Juan: el coach evalua
+      // y sugiere en cada instancia hermana igual que ya hace dentro de la
+      // misma, no solo copia el peso en crudo.
+      exercises.forEach((other, otherIdx) => {
+        if (otherIdx === exIdx) return;
+        if (other.exerciseId !== ex.exerciseId) return;
+        const otherSets = [...other.sets];
+        const otherNextIdx = otherSets.findIndex(s => !s.completed);
+        if (otherNextIdx === -1) return;
+        const otherHint = computeCoach(
+          { actualReps: doneSt.actualReps, weightKg: doneSt.weightKg, rir: doneSt.rir },
+          otherSets[otherNextIdx].weightKg, otherSets[otherNextIdx].actualReps,
+          other.planRepsMin, other.planRepsMax, equip,
+          other.targetRir,
+        );
+        otherSets[otherNextIdx] = {
+          ...otherSets[otherNextIdx],
+          coachReason: otherHint?.reason,
+          ...(otherHint
+            ? { actualReps: otherHint.reps, ...(otherHint.kg > 0 ? { weightKg: otherHint.kg } : {}) }
+            : { actualReps: doneSt.actualReps, weightKg: doneSt.weightKg }),
+        };
+        exercises[otherIdx] = { ...other, sets: otherSets };
+      });
+
       set({ exercises, restTimerSeconds: ex.restSeconds, restTimerRunning: true });
     } else {
       ex.sets = sets;
