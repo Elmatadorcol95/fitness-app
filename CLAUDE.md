@@ -1797,7 +1797,7 @@ Bucle ~1.3 s sobre fondo #141A17:
     caso que fallaba) para peso y altura, flujo normal sin tocar otro
     sitio (intacto), y el caso más exigente (coma + avance inmediato).
   * **f) Backlog de pruebas de la APK preview** (lista de Juan, ampliada
-    en sesiones posteriores a 25 puntos numerados — 11 cerrados, 14
+    en sesiones posteriores a 27 puntos numerados — 17 cerrados, 10
     pendientes. NOTA: esta lista es VIVA — los ítems cerrados en
     sesiones posteriores se marcan aquí mismo con su propia fecha, sin
     reescribir la narrativa de la sesión que los originó:
@@ -1831,11 +1831,14 @@ Bucle ~1.3 s sobre fondo #141A17:
     12. ~~Historial fantasma: un día sin ninguna serie completada aparece
        igual en el historial con 0 series.~~ CERRADO 2026-08-05 (ver
        entrada de esa sesión, item a).
-    13. Like/dislike de ejercicios sigue apareciendo como opción en
+    13. ~~Like/dislike de ejercicios sigue apareciendo como opción en
        rutinas del constructor manual, donde no tiene sentido (el
-       usuario ya elige el ejercicio a mano).
-    14. Cuando la app pasa a segundo plano, el cronómetro de descanso se
-       detiene y deja de contar.
+       usuario ya elige el ejercicio a mano).~~ CERRADO 2026-08-07 (ver
+       entrada de esa sesión — oculto en las 2 pantallas donde aparecía
+       sin condición: sesión en vivo y ExerciseCard en Entreno).
+    14. ~~Cuando la app pasa a segundo plano, el cronómetro de descanso se
+       detiene y deja de contar.~~ CERRADO 2026-08-07 (ver entrada de esa
+       sesión — ancla de timestamp real restTimerEndAt + AppState).
     15. ~~El "coach" en vivo (recomendación de peso/reps entre series) no
        funcionaba bien: peso cayendo a 0 en máquinas de gimnasio nuevas,
        máquina asistida sin lógica propia, RIR ignorado con reps ya en
@@ -1845,10 +1848,12 @@ Bucle ~1.3 s sobre fondo #141A17:
     16. No hay instrucciones escritas para los ejercicios en el botón
        "Guía" de la sesión en vivo — sigue diciendo "próximamente" (ver
        FASE 9b en "Estado actual").
-    17. Si un ejercicio se repite el mismo día (ej. press de hombros en
+    17. ~~Si un ejercicio se repite el mismo día (ej. press de hombros en
        máquina dos veces), el peso puesto en la 1.ª vez no migra
        automáticamente a la 2.ª — hay que volver a teclearlo. Debería
-       verse la progresión al instante.
+       verse la progresión al instante.~~ CERRADO 2026-08-07 (ver entrada
+       de esa sesión — completeSet propaga peso/reps/coach a toda
+       instancia hermana con el mismo exerciseId).
     18. No se puede elegir libremente qué día entrenar — el orden del
        ciclo (ej. día 1 pull, día 2 push, día 3 legs) es obligatorio, sin
        poder empezar por legs. Fusiona con #6 — Juan confirma que
@@ -1859,14 +1864,17 @@ Bucle ~1.3 s sobre fondo #141A17:
        discos de barra son de 5 en 5 kg; las mancuernas, de 1 en 1 kg.
        Pendiente: ajustar la granularidad real de EQUIP_INC por tipo de
        equipo, no un único valor por EquipLocal.
-    20. El campo de peso (Kg) en la sesión en vivo reselecciona todo el
+    20. ~~El campo de peso (Kg) en la sesión en vivo reselecciona todo el
        texto tras cada tecla, impidiendo escribir números de 2+ dígitos
-       sin que se borren los dígitos anteriores.
-    21. El texto "mantén X kg" en computeCoach es engañoso cuando en
+       sin que se borren los dígitos anteriores.~~ CERRADO 2026-08-07 (ver
+       entrada de esa sesión — diagnosticado con logs reales en 2 rondas;
+       causa real: onSelectionChange propio deshacía la selección recién
+       fijada).
+    21. ~~El texto "mantén X kg" en computeCoach es engañoso cuando en
        realidad el peso sugerido sube (rama "bajo mín" de computeCoach,
        session.store.ts — dir solo distingue isDown, nunca contempla
        isUp como caso propio ahí; señalado en auditoría de esta sesión,
-       sin corregir).
+       sin corregir).~~ CERRADO 2026-08-07 (ver entrada de esa sesión).
     22. ~~¿runProgressionAfterSession/progression.ts tiene el mismo hueco
        de clasificación de equipamiento que tenía computeCoach?
        CONFIRMADO en auditoría de esta sesión: getEquipmentType()
@@ -1898,6 +1906,19 @@ Bucle ~1.3 s sobre fondo #141A17:
        el banner en máquinas del Lote 11 como pec deck).~~ CERRADO
        2026-08-06 (ver entrada de esa sesión — isLoadedExercise ahora
        deriva de getEquipLocal en vez de mantener su propia copia).
+    26. ~~En la rama "bajo el mínimo" de un ejercicio cargado,
+       computeCoach devolvía reps: done.actualReps (las reps recién
+       falladas) en vez de reps: planRepsMin (el objetivo real) —
+       inconsistente con todas las demás ramas de la función. Bug nuevo
+       encontrado por Juan validando el #21, no una idea preexistente.~~
+       CERRADO 2026-08-07 (ver entrada de esa sesión).
+    27. Notificación local puntual con sonido (vía expo-notifications)
+       cuando el descanso termina con la app en segundo plano —
+       identificada, no implementada. (Nota aparte, no forma parte del
+       conteo de 27 puntos: idea "#28" — notificación PERSISTENTE con
+       cronómetro en vivo, tipo foreground service — DESCARTADA a
+       propósito por Juan el 2026-08-07, demasiado compleja para el
+       valor que aporta. No retomar sin petición explícita futura.)
   * Todo verificado con `npx tsc --noEmit` limpio en cada paso de esta
     sesión.
 - Hecho: sesión 2026-08-05 — **Historial fantasma + duración real del
@@ -2239,6 +2260,107 @@ Bucle ~1.3 s sobre fondo #141A17:
     **Total: 25 puntos numerados, 11 cerrados
     (`#2,#3,#4,#7,#11,#12,#15,#22,#23,#24,#25`), 14 pendientes
     (`#1,#5,#6,#8,#9,#10,#13,#14,#16,#17,#18,#19,#20,#21`).**
+  * `npx tsc --noEmit` limpio en cada paso de esta sesión.
+- Hecho: sesión 2026-08-07 — **5 arreglos en sesión en vivo + cronómetro
+  de descanso con ancla real** (commits `cd97934`, `9240566`; JS puro,
+  sin módulos nativos — solo recarga). Mismo protocolo de
+  auditoría-antes-de-tocar de toda la sesión, cada paso verificado con
+  `npx tsc --noEmit` limpio y, para el cronómetro, simulación matemática
+  antes de tocar el dispositivo:
+  * **a) commit `cd97934` — 5 arreglos (session.tsx, session.store.ts,
+    ExerciseCard.tsx)**:
+    - **#13 — like/dislike oculto en modo manual, en las 2 pantallas
+      donde aparecía sin condición**: el primer intento (sesión anterior)
+      solo cubrió la sesión en vivo (`session.tsx`); Juan encontró que
+      persistía en la tarjeta de Entreno (`ExerciseCard.tsx`). Ambas
+      ahora condicionadas por `currentPlan?.source !== 'manual'`
+      (`useWorkoutStore` importado en `ExerciseCard.tsx`, no estaba
+      disponible antes). Sigue visible en modo automático.
+      `ChangeExerciseModal` y la pantalla dedicada de preferencias
+      quedan sin tocar a propósito, no decidido todavía. El botón
+      conserva efecto real sobre el motor de generación en modo manual
+      (sigue filtrando recomendaciones futuras en los puntos ya
+      conectados) — se oculta solo de la UI, por decisión de Juan.
+    - **#17 — propagación entre instancias repetidas del mismo
+      ejercicio**: cuando el mismo ejercicio aparece 2 veces el mismo día
+      (2 entradas separadas en `exercises[]`, antes completamente
+      aisladas entre sí — confirmado en auditoría previa), completar una
+      serie en la 1.ª aparición ahora propaga peso/reps Y la evaluación
+      completa de `computeCoach` a la siguiente serie pendiente de cada
+      aparición hermana (`exercises.forEach` sobre las que comparten
+      `exerciseId`, dentro de `completeSet`) — decisión de Juan: simetría
+      total, no solo copia en crudo. Cada instancia conserva su propio
+      `planRepsMin`/`planRepsMax`/`targetRir` (nunca se fuerzan desde la
+      instancia origen). `equip` se movió fuera del scope local del
+      `if (nextIdx !== -1)` para poder reutilizarse en el bloque de
+      propagación.
+    - **#20 — campo Kg reseleccionaba todo el texto tras cada tecla**:
+      diagnosticado con logs reales en dispositivo, en 2 rondas (no solo
+      lectura de código). 1.ª hipótesis — control manual de `selection`
+      conviviendo con `selectTextOnFocus` — insuficiente por sí sola
+      porque ambos peleaban entre sí (`selectTextOnFocus` se reaplicaba
+      tras cada cambio). 2.ª ronda de logs reveló la causa real: el
+      propio `onSelectionChange` del campo deshacía la selección recién
+      fijada, reaccionando a un evento intermedio de Android en vez del
+      final. Arreglado quitando `selectTextOnFocus` Y `onSelectionChange`
+      por completo — la selección se gestiona solo en `onFocus`
+      (selecciona todo el texto a mano) y `onChangeText` (cursor al final
+      tras cada tecla), sin escuchar el retorno del sistema.
+    - **#21 — texto "mantén X kg" engañoso cuando el peso sugerido en
+      realidad sube**: corregido a "sube a X kg" cuando `isUp` (variable
+      que ya existía en el mismo bloque de `computeCoach`, sin usar en
+      esa rama).
+    - **#26 (nuevo) — reps sin actualizar en la rama "bajo el mínimo"**:
+      bug encontrado por Juan validando el #21. `computeCoach` devolvía
+      `reps: done.actualReps` (las reps recién falladas) en vez de
+      `reps: planRepsMin` (el objetivo real) — inconsistente con TODAS
+      las demás ramas de la misma función (sobre máximo, serieDura,
+      isUp, isDown — todas devuelven `planRepsMin`). Alineado.
+  * **b) commit `9240566` — cronómetro de descanso corregido (#14)**:
+    `restTimerSeconds` decrementaba 1 en cada tick de un `setInterval`,
+    sin ningún anclaje a un reloj real — Android suspende el
+    `setInterval` en segundo plano (comportamiento normal del sistema), y
+    el tiempo pasado se perdía: al volver, el contador retomaba donde se
+    había quedado, no donde debería estar. Añadido `restTimerEndAt`
+    (timestamp de fin, `number | null`), calculado al arrancar el timer y
+    recalculado en cada tick como
+    `Math.round((restTimerEndAt - Date.now()) / 1000)`, en vez de restar
+    1 ciegamente. Los 2 puntos que arrancan el timer (`startRestTimer` y
+    `completeSet`, que también lo arma por su cuenta al completar una
+    serie) y `adjustRest` (±15s) actualizan el ancla junto con el número
+    mostrado. `AppState` (primera vez que se usa en el proyecto —
+    confirmado por grep, 0 usos previos) añadido en un `useEffect` nuevo
+    y separado del `useEffect` del `setInterval` (que sigue corriendo
+    igual, cada segundo, ahora solo recalculando en vez de restar) para
+    corregir el número en pantalla en el instante de volver a la app, sin
+    esperar al siguiente tick natural.
+    - Verificado con simulación antes de tocar el dispositivo:
+      `startRestTimer(90)` en t=0, 30s de "segundo plano" simulados
+      (t=5000 a t=35000, sin ningún tick) — con la lógica nueva, el
+      primer tick al volver da 55 (90-35=55, correcto); con la lógica
+      vieja habría dado 89 (resta 1 sin importar el tiempo real
+      transcurrido), que es el bug reportado por Juan.
+  * Validado en dispositivo físico (ambos commits): like/dislike oculto
+    en manual en las 2 pantallas y visible en automático; peso y coach
+    propagados entre instancias repetidas; campo de peso acepta números
+    de 2+ dígitos y sigue seleccionando todo al primer toque; mensaje de
+    subida correcto; reps objetivo actualizadas tras fallar el mínimo;
+    tiempo real de descanso reflejado al volver de otra app; sonido y
+    vibración se disparan correctamente si el descanso terminó durante la
+    ausencia; ±15s siguen sincronizados con el ancla nueva.
+  * Backlog: `#13`, `#14`, `#17`, `#20`, `#21` marcados CERRADOS con
+    fecha 2026-08-07 (ambos commits de esta sesión son del mismo día,
+    confirmado por `git log --format=%ad`); añadido `#26` (el bug de
+    reps) ya CERRADO con la misma fecha; añadido `#27` (notificación
+    local puntual vía `expo-notifications` cuando el descanso termina en
+    segundo plano) como pendiente — identificado, no implementado. Idea
+    "#28" (notificación PERSISTENTE con cronómetro en vivo, tipo
+    foreground service) DESCARTADA a propósito por Juan — demasiado
+    compleja para el valor que aporta; no forma parte del conteo de
+    puntos numerados, no retomar sin petición explícita futura.
+    **Total: 27 puntos numerados, 17 cerrados
+    (`#2,#3,#4,#7,#11,#12,#13,#14,#15,#17,#20,#21,#22,#23,#24,#25,#26`),
+    10 pendientes (`#1,#5,#6,#8,#9,#10,#16,#18,#19,#27`).**
   * `npx tsc --noEmit` limpio en cada paso de esta sesión.
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
