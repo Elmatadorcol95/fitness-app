@@ -1,5 +1,5 @@
 import {
-  BackHandler, FlatList, KeyboardAvoidingView, Modal, Platform,
+  AppState, BackHandler, FlatList, KeyboardAvoidingView, Modal, Platform,
   Pressable, ScrollView, StyleSheet, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -298,6 +298,13 @@ export default function SessionScreen() {
     }, 1000);
     return () => clearInterval(id);
   }, [startTime]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') tickRestTimer();
+    });
+    return () => sub.remove();
+  }, []);
 
   // Android back button
   useEffect(() => {

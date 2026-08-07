@@ -47,6 +47,7 @@ interface SessionStore {
   exercises: ExerciseState[];
   restTimerSeconds: number;
   restTimerRunning: boolean;
+  restTimerEndAt: number | null;
   trainingContext: 'gym' | 'home' | null;
   cardio: CardioPlan;
   sessionDayType: DayType | null;
@@ -344,11 +345,12 @@ function computeCoach(
 
 const EMPTY_STATE: Pick<SessionStore,
   'isActive' | 'planId' | 'planDayId' | 'startTime' | 'currentExerciseIdx' |
-  'exercises' | 'restTimerSeconds' | 'restTimerRunning' | 'trainingContext' |
+  'exercises' | 'restTimerSeconds' | 'restTimerRunning' | 'restTimerEndAt' | 'trainingContext' |
   'cardio' | 'sessionDayType'
 > = {
   isActive: false, planId: null, planDayId: null, startTime: null,
   currentExerciseIdx: 0, exercises: [], restTimerSeconds: 0, restTimerRunning: false,
+  restTimerEndAt: null,
   trainingContext: null,
   cardio: { gym: [], homeSessions: [] }, sessionDayType: null,
 };
@@ -466,7 +468,12 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         exercises[otherIdx] = { ...other, sets: otherSets };
       });
 
-      set({ exercises, restTimerSeconds: ex.restSeconds, restTimerRunning: true });
+      set({
+        exercises,
+        restTimerSeconds: ex.restSeconds,
+        restTimerRunning: true,
+        restTimerEndAt: Date.now() + ex.restSeconds * 1000,
+      });
     } else {
       ex.sets = sets;
       exercises[exIdx] = ex;
@@ -507,27 +514,36 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     ex.restSeconds   = Math.max(15, ex.restSeconds + delta);
     exercises[exIdx] = ex;
     // Si el timer está corriendo para este ejercicio, ajustar también el timer
-    const { restTimerRunning, restTimerSeconds } = get();
+    const { restTimerRunning, restTimerSeconds, restTimerEndAt } = get();
     if (restTimerRunning) {
-      set({ exercises, restTimerSeconds: Math.max(0, restTimerSeconds + delta) });
+      set({
+        exercises,
+        restTimerSeconds: Math.max(0, restTimerSeconds + delta),
+        restTimerEndAt: restTimerEndAt !== null ? restTimerEndAt + delta * 1000 : null,
+      });
     } else {
       set({ exercises });
     }
     saveCustomRest(ex.exerciseId, ex.restSeconds);
   },
 
-  startRestTimer: (seconds) => set({ restTimerSeconds: seconds, restTimerRunning: true }),
-  stopRestTimer:  ()        => set({ restTimerRunning: false }),
+  startRestTimer: (seconds) => set({
+    restTimerSeconds: seconds,
+    restTimerRunning: true,
+    restTimerEndAt: Date.now() + seconds * 1000,
+  }),
+  stopRestTimer:  ()        => set({ restTimerRunning: false, restTimerEndAt: null }),
 
   tickRestTimer: () => {
-    const { restTimerSeconds, restTimerRunning } = get();
-    if (!restTimerRunning) return;
-    if (restTimerSeconds <= 1) {
+    const { restTimerRunning, restTimerEndAt } = get();
+    if (!restTimerRunning || restTimerEndAt === null) return;
+    const remaining = Math.max(0, Math.round((restTimerEndAt - Date.now()) / 1000));
+    if (remaining <= 0) {
       hapticsSuccess();
       playRestDone();
-      set({ restTimerSeconds: 0, restTimerRunning: false });
+      set({ restTimerSeconds: 0, restTimerRunning: false, restTimerEndAt: null });
     } else {
-      set({ restTimerSeconds: restTimerSeconds - 1 });
+      set({ restTimerSeconds: remaining });
     }
   },
 
