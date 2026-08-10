@@ -2362,6 +2362,79 @@ Bucle ~1.3 s sobre fondo #141A17:
     (`#2,#3,#4,#7,#11,#12,#13,#14,#15,#17,#20,#21,#22,#23,#24,#25,#26`),
     10 pendientes (`#1,#5,#6,#8,#9,#10,#16,#18,#19,#27`).**
   * `npx tsc --noEmit` limpio en cada paso de esta sesión.
+- Hecho: sesión 2026-08-10 — **Texto honesto de lesiones (#1) + rediseño
+  de máquinas de pila en el coach (#19)** (commits `6443ae4`, `1ad40c7`,
+  `4ea70ed`; JS puro, sin módulos nativos — solo recarga):
+  * **a) #1** (`6443ae4`) — auditoría exhaustiva (`grep` sobre
+    `plan-generator.ts` y `muscleBasedSelection.ts`, cero resultados)
+    confirmó que `profile.injuries` (texto libre, `StepInjuries.tsx`)
+    nunca tuvo ningún efecto sobre la generación del plan — se guarda y
+    se muestra de vuelta en 2 pantallas (Resumen del onboarding, Perfil)
+    y ahí termina. El subtítulo original prometía "para adaptar tu
+    plan", lo cual era falso. **Decisión de Juan**: no construir un
+    filtro automático — interpretar texto libre de lesiones para
+    excluir ejercicios se acerca a dar consejo médico automatizado,
+    terreno que se prefiere no pisar — sino corregir el texto para ser
+    honestos sobre qué hace el campo hoy. Nuevo subtítulo (es/en/fr):
+    describe el campo como nota personal en el perfil, visible para
+    quien el usuario decida compartirlo (ej. un entrenador que adapte
+    la rutina) — texto escrito en avance sobre la función de compartir
+    real (el sistema de amigos está en pausa, nada es compartible hoy),
+    decisión consciente de Juan porque la app solo tiene un usuario (él
+    mismo) en este momento. **REVISAR antes de que la beta abra a otros
+    usuarios**, para confirmar que compartir perfil ya funcione de
+    verdad antes de que alguien más lea este texto.
+  * **b) #9** — investigado en la misma sesión, sin cambios de código:
+    los 19 items reales de `HOME_EQUIPMENT` (excluyendo `bodyweight`)
+    tienen entre 2 y 29 ejercicios asociados cada uno en el catálogo,
+    ninguno huérfano. `bodyweight` con 0 ejercicios es intencional (ni
+    siquiera es un `EquipmentKey` válido) y ya estaba documentado en el
+    propio código — no un descuido. Sin cambios necesarios.
+  * **c) #19 — REDISEÑADO, no solo ajustado** (`1ad40c7` + `4ea70ed`):
+    `EQUIP_INC` (`equipmentClassification.ts`) le ponía un número fijo
+    en kg a `machine`/`cable`/`assisted` que no podía coincidir de forma
+    fiable con el bloque real de ninguna máquina concreta (varía por
+    máquina/gimnasio/país). Se investigó y descartó convertir solo el
+    incremento interno a partir de libras (10lb→4.5kg): Juan encontró un
+    diseño mejor. `computeCoach` (`session.store.ts`) y
+    `computeNextTargets` (`progression.ts`) ahora, para estos 3 tipos,
+    no calculan ningún peso — describen la DIRECCIÓN ("sube/baja al
+    siguiente bloque", "sube/baja la asistencia") y dejan que el usuario
+    anote el peso real que lee en su máquina, mismo mecanismo que
+    `bodyweight` ya usaba (`kg: 0`, el campo conserva su valor hasta que
+    el usuario lo actualiza). `assisted` gana un umbral (peso ≤ 5kg) que
+    cambia el mensaje a "prueba la variante sin ayuda" en vez de seguir
+    pidiendo bajar de bloque. `barbell`/`dumbbell`/`kettlebell`/
+    `weighted_vest` no cambian de mecanismo — pero `barbell` y
+    `dumbbell` sí ganan sus incrementos reales confirmados por Juan
+    (`4ea70ed`, commit separado del rediseño): discos de barra mínimos
+    de 2.5kg cargados simétricamente = salto real de 5kg (`2.5→5`);
+    mancuernas de 1kg (`2→1`). `kettlebell` (4kg) y `weighted_vest`
+    (1kg) ya eran correctos, sin cambio.
+    - Verificado exhaustivamente antes del dispositivo: regresión
+      confirmada para barra (55kg, idéntico al #22) y mancuerna
+      (incremento normal sin tocar la dirección), más 5 simulaciones de
+      los casos nuevos (machine/cable/assisted con RIR y reps variados).
+    - Validado en dispositivo físico: máquina/cable con mensaje de
+      dirección y peso NO auto-rellenado; asistida con el umbral de 5kg
+      funcionando; barra y mancuerna sin cambios de mecanismo.
+    - Idea de Juan para una sesión futura (**#30**, backlog): que el
+      coach "aprenda" el incremento real de cada máquina observando el
+      salto que el usuario teclea tras un mensaje de dirección, y
+      empiece a sugerir un número concreto por ejercicio. Depende de que
+      el #19 ya esté en producción una temporada.
+  * **d) Backlog**: `#1`, `#9`, `#19` marcados CERRADOS con fecha
+    2026-08-10. Añadido `#29` (soporte real de libras en la sesión en
+    vivo — hoy `session.tsx`/`session.store.ts`/`progression.ts` operan
+    siempre en kg sin conversión, ver auditoría de esta sesión; alcance
+    mapeado pero sin empezar) y `#30` (aprendizaje del incremento real
+    por ejercicio, ver punto c) como pendientes nuevos.
+    **Total: 29 puntos numerados (la numeración llega hasta #30 — #28
+    se descartó antes de asignarse y nunca contó, igual que antes), 20
+    cerrados
+    (`#1,#2,#3,#4,#7,#9,#11,#12,#13,#14,#15,#17,#19,#20,#21,#22,#23,#24,#25,#26`),
+    9 pendientes (`#5,#6,#8,#10,#16,#18,#27,#29,#30`).**
+  * `npx tsc --noEmit` limpio en cada paso de esta sesión.
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
