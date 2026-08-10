@@ -355,7 +355,7 @@
     },
     "injuries": {
       "title": "Blessures ou limitations",
-      "subtitle": "Optionnel — décrivez toute douleur ou limitation pour adapter votre programme",
+      "subtitle": "Facultatif — enregistré dans votre profil, visible par vous et par toute personne avec qui vous choisissez de le partager (comme un coach qui adapte votre routine).",
       "placeholder": "Ex : douleur au genou droit, pas de squat profond..."
     },
     "musclePriorities": {

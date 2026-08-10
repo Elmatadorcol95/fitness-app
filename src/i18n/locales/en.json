@@ -355,7 +355,7 @@
     },
     "injuries": {
       "title": "Injuries or limitations",
-      "subtitle": "Optional — describe any pain or limitation to adapt your plan",
+      "subtitle": "Optional — saved in your profile, visible to you and anyone you choose to share it with (like a coach adapting your routine).",
       "placeholder": "E.g. right knee pain, cannot do deep squats..."
     },
     "musclePriorities": {

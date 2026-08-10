@@ -355,7 +355,7 @@
     },
     "injuries": {
       "title": "Lesiones o limitaciones",
-      "subtitle": "Opcional — describe cualquier dolor o limitación para adaptar tu plan",
+      "subtitle": "Opcional — queda guardado en tu perfil, visible para ti y para aquellos con quienes decidas compartirlo (por ejemplo, un entrenador que adapte tu rutina).",
       "placeholder": "Ej: dolor en la rodilla derecha, no puedo hacer sentadillas profundas..."
     },
     "musclePriorities": {
