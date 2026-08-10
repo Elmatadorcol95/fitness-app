@@ -104,26 +104,29 @@ export function computeNextTargets(input: ProgressionInput): ProgressionOutput {
   // ── Regla 5: por debajo del rango mínimo ─────────────────────────────────
   if (missedBtm) {
     const newBelow = sessionsBelowRange + 1;
-    if (newBelow >= 2 && workWeight > 0 && increment > 0) {
-      if (equipmentType === 'assisted') {
-        const newWeight = roundToIncrement(workWeight + increment, increment);
+    if (newBelow >= 2 && workWeight > 0) {
+      const isPinMachine = equipmentType === 'machine' || equipmentType === 'cable' || equipmentType === 'assisted';
+      if (isPinMachine) {
+        const dir = equipmentType === 'assisted' ? 'sube al siguiente bloque (más asistencia)' : 'baja al bloque anterior (menos peso)';
         return {
           targetSets: planSets, targetRepsMin: planRepsMin, targetRepsMax: planRepsMax,
-          targetWeightKg: newWeight, targetRir, sessionsBelowRange: 0, sessionCount: newCount,
-          reason: `Dos sesiones seguidas sin llegar al mínimo (${planRepsMin} reps) → más asistencia: ${newWeight} kg para volver al rango.`,
+          targetWeightKg: workWeight, targetRir, sessionsBelowRange: 0, sessionCount: newCount,
+          reason: `Dos sesiones seguidas sin llegar al mínimo (${planRepsMin} reps) → ${dir} y anota el peso que marque.`,
         };
       }
-      const newWeight = roundToIncrement(workWeight * 0.9, increment);
-      return {
-        targetSets:         planSets,
-        targetRepsMin:      planRepsMin,
-        targetRepsMax:      planRepsMax,
-        targetWeightKg:     newWeight,
-        targetRir,
-        sessionsBelowRange: 0,
-        sessionCount:       newCount,
-        reason: `Dos sesiones seguidas sin llegar al mínimo (${planRepsMin} reps) → bajamos a ${newWeight} kg para volver al rango.`,
-      };
+      if (increment > 0) {
+        const newWeight = roundToIncrement(workWeight * 0.9, increment);
+        return {
+          targetSets:         planSets,
+          targetRepsMin:      planRepsMin,
+          targetRepsMax:      planRepsMax,
+          targetWeightKg:     newWeight,
+          targetRir,
+          sessionsBelowRange: 0,
+          sessionCount:       newCount,
+          reason: `Dos sesiones seguidas sin llegar al mínimo (${planRepsMin} reps) → bajamos a ${newWeight} kg para volver al rango.`,
+        };
+      }
     }
     return {
       ...unchanged,
@@ -138,18 +141,19 @@ export function computeNextTargets(input: ProgressionInput): ProgressionOutput {
   if (allHitTop) {
     if (Math.round(avgRir) >= targetRir) {
       // Regla 3: subir peso
-      if (equipmentType === 'assisted') {
-        const newWeight = Math.max(roundToIncrement(workWeight - increment, increment), increment);
-        if (newWeight === workWeight) {
+      const isPinMachine = equipmentType === 'machine' || equipmentType === 'cable' || equipmentType === 'assisted';
+      if (isPinMachine) {
+        if (equipmentType === 'assisted' && workWeight <= 5) {
           return {
             ...unchanged, sessionsBelowRange: 0, sessionCount: newCount, targetWeightKg: workWeight,
             reason: `${planRepsMax} reps en todas las series con RIR ${Math.round(avgRir)} → ya casi sin asistencia, prueba la variante sin ayuda.`,
           };
         }
+        const dir = equipmentType === 'assisted' ? 'baja al bloque anterior (menos asistencia)' : 'sube al siguiente bloque (más peso)';
         return {
           targetSets: planSets, targetRepsMin: planRepsMin, targetRepsMax: planRepsMax,
-          targetWeightKg: newWeight, targetRir, sessionsBelowRange: 0, sessionCount: newCount,
-          reason: `${planRepsMax} reps en todas las series con RIR ${Math.round(avgRir)} → menos asistencia: ${newWeight} kg.`,
+          targetWeightKg: workWeight, targetRir, sessionsBelowRange: 0, sessionCount: newCount,
+          reason: `${planRepsMax} reps en todas las series con RIR ${Math.round(avgRir)} → ${dir} y anota el peso que marque.`,
         };
       }
       if (increment === 0) {

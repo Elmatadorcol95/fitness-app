@@ -235,34 +235,50 @@ function computeCoach(
     return null; // En rango y en objetivo: sin cambio
   }
 
-  // ── Máquina asistida — la logica es INVERSA a cualquier otro equipo:
-  // mas peso/asistencia = mas facil, no mas dificil. Rama dedicada en vez
-  // de invertir la formula de e1rm (pensada para carga real, no aplica
-  // aqui). Nunca retorna kg:0 — completeSet solo propaga el peso cuando
-  // hint.kg > 0, asi que el piso se queda en 1 incremento, nunca cero.
-  // Usa RIR como señal ademas de reps (igual que la rama generica de
-  // abajo), no solo si se toco el techo/piso de reps — sin esto, unas
-  // reps "en rango" con RIR muy alto/bajo no disparaban nada.
-  if (equip === 'assisted') {
-    const incAssisted = EQUIP_INC.assisted;
+  // ── Maquinas de pila con pin (machine, cable) — el incremento real de
+  // cada bloque es desconocido e imposible de adivinar con fiabilidad
+  // (varia por maquina/gimnasio/pais). Se describe la DIRECCION, no un
+  // numero — el usuario anota el peso real que lee en la maquina.
+  // kg:0 siempre a proposito: completeSet solo propaga el peso cuando
+  // hint.kg > 0, asi que el campo conserva lo que ya tenia hasta que el
+  // usuario lo actualice el mismo (mismo mecanismo que 'bodyweight').
+  if (equip === 'machine' || equip === 'cable') {
     const serieDura = done.rir < targetRir || done.rir <= 1;
 
     const tooHard = done.actualReps < planRepsMin || serieDura;
     if (tooHard) {
-      const suggested = done.weightKg + incAssisted;
-      return { reps: Math.max(done.actualReps, planRepsMin), kg: suggested, reason: `${done.actualReps} reps (RIR ${done.rir}) → más asistencia: ${suggested} kg` };
+      return { reps: Math.max(done.actualReps, planRepsMin), kg: 0, reason: `${done.actualReps} reps (RIR ${done.rir}) → baja al bloque anterior (menos peso) y anota el peso que marque` };
     }
 
     const tooEasy = done.actualReps >= planRepsMax || done.rir > targetRir;
     if (tooEasy) {
-      const suggested = Math.max(done.weightKg - incAssisted, incAssisted);
-      if (suggested === done.weightKg) {
-        return { reps: planRepsMax, kg: suggested, reason: `Fácil (RIR ${done.rir}) → ya casi sin asistencia, prueba la variante sin ayuda` };
-      }
-      return { reps: planRepsMin, kg: suggested, reason: `Fácil (${done.actualReps} reps · RIR ${done.rir}) → menos asistencia: ${suggested} kg` };
+      return { reps: planRepsMin, kg: 0, reason: `Fácil (${done.actualReps} reps · RIR ${done.rir}) → sube al siguiente bloque (más peso) y anota el peso que marque` };
     }
 
-    return null; // reps en rango y RIR en el objetivo: sin cambio
+    return null;
+  }
+
+  // ── Maquina asistida — mismo mecanismo de pin que arriba, pero la
+  // asistencia es inversa: sube el pin = mas ayuda = mas facil.
+  if (equip === 'assisted') {
+    const serieDura = done.rir < targetRir || done.rir <= 1;
+
+    const tooHard = done.actualReps < planRepsMin || serieDura;
+    if (tooHard) {
+      return { reps: Math.max(done.actualReps, planRepsMin), kg: 0, reason: `${done.actualReps} reps (RIR ${done.rir}) → sube al siguiente bloque (más asistencia) y anota el peso que marque` };
+    }
+
+    const tooEasy = done.actualReps >= planRepsMax || done.rir > targetRir;
+    if (tooEasy) {
+      // Umbral bajo: si ya casi no hay asistencia, sugerir la variante
+      // sin ayuda en vez de seguir pidiendo bajar de bloque.
+      if (done.weightKg <= 5) {
+        return { reps: planRepsMax, kg: 0, reason: `Fácil (RIR ${done.rir}) → ya casi sin asistencia, prueba la variante sin ayuda` };
+      }
+      return { reps: planRepsMin, kg: 0, reason: `Fácil (${done.actualReps} reps · RIR ${done.rir}) → baja al bloque anterior (menos asistencia) y anota el peso que marque` };
+    }
+
+    return null;
   }
 
   // ── Ejercicio cargable ───────────────────────────────────────────────────────
