@@ -39,5 +39,5 @@ export function getEquipLocal(exerciseId: string): EquipLocal {
 }
 
 export const EQUIP_INC: Record<EquipLocal, number> = {
-  barbell: 2.5, dumbbell: 2, kettlebell: 4, cable: 2.5, machine: 5, assisted: 5, weighted_vest: 1, bodyweight: 0,
+  barbell: 5, dumbbell: 1, kettlebell: 4, cable: 2.5, machine: 5, assisted: 5, weighted_vest: 1, bodyweight: 0,
 };
