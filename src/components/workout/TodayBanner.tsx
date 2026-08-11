@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { useWorkoutStore } from '@/store/workout.store';
+import { useWorkoutStore, getSelectedDay } from '@/store/workout.store';
 import { Spacing } from '@/constants/theme';
 
 const GREEN  = '#3FBF7F';
@@ -52,8 +52,27 @@ export function TodayBanner() {
     );
   }
 
-  const activeIdx = currentPlan.activeDayIndex % currentPlan.days.length;
-  const today     = currentPlan.days[activeIdx];
+  const trainableDays = currentPlan.days.filter(d => d.exercises.length > 0);
+
+  if (trainableDays.length === 0) {
+    return (
+      <Pressable onPress={navigate}>
+        <ThemedView type="backgroundElement" style={styles.card}>
+          <Ionicons name="barbell-outline" size={20} color={MUTED} />
+          <View style={styles.texts}>
+            <ThemedText style={styles.prefix}>{t('workout.todayBanner.prefix')}</ThemedText>
+            <ThemedText themeColor="textSecondary" style={styles.dayName}>
+              {t('workout.noTrainableDays.title')}
+            </ThemedText>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={GREEN} />
+        </ThemedView>
+      </Pressable>
+    );
+  }
+
+  const { day: today } = getSelectedDay(currentPlan.selectedDayId, trainableDays);
+  const dayPosition = currentPlan.days.findIndex(d => d.dbId === today.dbId);
 
   return (
     <Pressable onPress={navigate} style={({ pressed }) => pressed && styles.pressed}>
@@ -70,7 +89,7 @@ export function TodayBanner() {
           <ThemedText type="defaultSemiBold" style={styles.dayName}>
             {t(`workout.days.${today.dayType}`)}
             {' · '}
-            {t('workout.planDay', { current: activeIdx + 1, total: currentPlan.days.length })}
+            {t('workout.planDay', { current: dayPosition + 1, total: currentPlan.days.length })}
           </ThemedText>
         </View>
         <ThemedText style={styles.viewBtn}>{t('workout.todayBanner.view')}</ThemedText>
