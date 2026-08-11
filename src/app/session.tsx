@@ -199,7 +199,7 @@ export default function SessionScreen() {
     tickRestTimer, finishSession, cancelSession, replaceExercise,
   } = useSessionStore();
 
-  const { advanceDayIndex } = useWorkoutStore();
+  const { advanceToNextDay } = useWorkoutStore();
   const currentPlan = useWorkoutStore(s => s.currentPlan);
   const { recordWorkout, unlockAchievement, incrementDaysTrainedThisWeek, incrementDaysFinishedThisWeek } = useGamificationStore();
   const { profile }           = useProfileStore();
@@ -430,6 +430,12 @@ export default function SessionScreen() {
 
   const doFinish = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0];
+    // Capturado ANTES de finishSession(): esta resetea el store a
+    // EMPTY_STATE (planDayId: null) al terminar, así que hay que leerlo
+    // ahora o se pierde. Estable incluso si el filtro E-3/rutina ancla
+    // sustituyó los ejercicios (resolveEffectiveDay en training.tsx
+    // conserva el dbId del día ancla al sustituir).
+    const justTrainedDayId = useSessionStore.getState().planDayId;
     const { hasPR, completedSets, plannedSets } = await finishSession();
 
     // Fase 2 Paso 2: dispara el prompt de estiramiento vía store global —NO
@@ -457,8 +463,8 @@ export default function SessionScreen() {
     // completaron (a diferencia de incrementDaysTrainedThisWeek).
     incrementDaysFinishedThisWeek();
 
-    await advanceDayIndex();
-  }, [finishSession, unlockAchievement, recordWorkout, incrementDaysTrainedThisWeek, incrementDaysFinishedThisWeek, advanceDayIndex, sessionDayType, equipment, trainingContext]);
+    await advanceToNextDay(justTrainedDayId);
+  }, [finishSession, unlockAchievement, recordWorkout, incrementDaysTrainedThisWeek, incrementDaysFinishedThisWeek, advanceToNextDay, sessionDayType, equipment, trainingContext]);
 
   function handleFinish() {
     const pending = exercises.reduce(

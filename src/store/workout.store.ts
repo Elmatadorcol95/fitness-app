@@ -10,7 +10,8 @@ import { EXERCISES } from '@/lib/exercises';
 import { useGamificationStore } from './gamification.store';
 import type { Profile } from '@/db/schema';
 
-const ACTIVE_DAY_KEY = 'workout_active_day_index';
+const ACTIVE_DAY_KEY = 'workout_active_day_index'; // legacy — solo lectura, para el backfill una vez
+const SELECTED_DAY_KEY = 'workout_selected_day_id';
 
 // StoredPlanDay extiende PlanDayData con el id de la fila en plan_days.
 // Necesario para poder actualizar ejercicios concretos en SQLite.
@@ -29,6 +30,14 @@ export interface StoredPlan {
   daysPerWeek: number;
   minutesPerSession: number;
   days: StoredPlanDay[];
+  // Fuente de verdad real: el id de la fila de plan_days seleccionada, no
+  // una posición. null solo antes de que exista ningún día entrenable
+  // seleccionado (instalación nueva sin plan todavía).
+  selectedDayId: number | null;
+  // Derivado de selectedDayId, mantenido SOLO por compatibilidad con
+  // WorkoutCard.tsx (sin importadores — código muerto) y TodayBanner.tsx
+  // (pantalla Hoy) — ninguno forma parte de este refactor. No usar en
+  // código nuevo: usar selectedDayId + getSelectedDay().
   activeDayIndex: number;
   source: 'auto' | 'manual';
   context: 'gym' | 'home' | null;
@@ -41,7 +50,8 @@ interface WorkoutState {
   loadCurrentPlan: () => Promise<void>;
   generateAndSavePlan: (profile: Profile) => Promise<void>;
   replaceExercise: (dayDbId: number, exerciseIndex: number, newExerciseId: string, profile: Profile) => Promise<void>;
-  advanceDayIndex: () => Promise<void>;
+  advanceToNextDay: (justTrainedDayId: number | null) => Promise<void>;
+  backfillSelectedDayId: () => Promise<void>;
   resetAll: () => Promise<void>;
   activateManualPlan: (context: TemplateContext, profile: Profile, equipment: string[], dislikedIds: Set<string>) => Promise<void>;
   syncManualPlanIfActive: (context: TemplateContext, profile: Profile, equipment: string[], dislikedIds: Set<string>, forceCardioRefreshDayIndex?: number) => Promise<{ skippedDayIndexes: number[] }>;
@@ -49,16 +59,46 @@ interface WorkoutState {
   backToAutoPlan: (profile: Profile) => Promise<void>;
 }
 
-async function getActiveDayIndex(): Promise<number> {
-  const rows = await db.select().from(gamificationMeta).where(eq(gamificationMeta.key, ACTIVE_DAY_KEY));
-  return Number(rows[0]?.value ?? 0);
+async function getSelectedDayId(): Promise<number | null> {
+  const rows = await db.select().from(gamificationMeta).where(eq(gamificationMeta.key, SELECTED_DAY_KEY));
+  if (!rows[0]) return null;
+  const parsed = Number(rows[0].value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
-async function saveActiveDayIndex(value: number): Promise<void> {
+async function saveSelectedDayId(dayId: number): Promise<void> {
   await db
     .insert(gamificationMeta)
-    .values({ key: ACTIVE_DAY_KEY, value: String(value) })
-    .onConflictDoUpdate({ target: gamificationMeta.key, set: { value: String(value) } });
+    .values({ key: SELECTED_DAY_KEY, value: String(dayId) })
+    .onConflictDoUpdate({ target: gamificationMeta.key, set: { value: String(dayId) } });
+}
+
+// Único punto de resolución por id, mismo fallback en todos lados: si el id
+// guardado no aparece entre los días entrenables (borrado, o un día que se
+// quedó sin ejercicios tras editar la plantilla manual), cae al primer día
+// entrenable sin preguntar nada.
+export function getSelectedDay(
+  selectedDayId: number | null,
+  trainableDays: StoredPlanDay[],
+): { day: StoredPlanDay; index: number } {
+  if (selectedDayId !== null) {
+    const idx = trainableDays.findIndex(d => d.dbId === selectedDayId);
+    if (idx !== -1) return { day: trainableDays[idx], index: idx };
+  }
+  // TODO Paso 2: reemplazar por diálogo de elección en el punto exacto del fallback.
+  return { day: trainableDays[0], index: 0 };
+}
+
+// activeDayIndex (compat): posición del día resuelto (mismo fallback de
+// getSelectedDay) dentro del array COMPLETO de días, no solo los
+// entrenables — así es como lo consumen WorkoutCard.tsx/TodayBanner.tsx
+// (`days[activeDayIndex % days.length]`).
+function deriveActiveDayIndex(days: StoredPlanDay[], selectedDayId: number | null): number {
+  const trainableDays = days.filter(d => d.exercises.length > 0);
+  if (trainableDays.length === 0) return 0;
+  const { day: resolvedDay } = getSelectedDay(selectedDayId, trainableDays);
+  const idx = days.findIndex(d => d.dbId === resolvedDay.dbId);
+  return idx !== -1 ? idx : 0;
 }
 
 function mapDayRows(dayRows: (typeof planDays.$inferSelect)[]): StoredPlanDay[] {
@@ -99,7 +139,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         .from(planDays)
         .where(eq(planDays.planId, plan.id));
 
-      const activeDayIndex = await getActiveDayIndex();
+      const days = mapDayRows(dayRows);
+      const selectedDayId = await getSelectedDayId();
 
       set({
         currentPlan: {
@@ -108,8 +149,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           goalSecondary: plan.goalSecondary,
           daysPerWeek: plan.daysPerWeek,
           minutesPerSession: plan.minutesPerSession,
-          activeDayIndex,
-          days: mapDayRows(dayRows),
+          selectedDayId,
+          activeDayIndex: deriveActiveDayIndex(days, selectedDayId),
+          days,
           source: plan.source as 'auto' | 'manual',
           context: plan.context as 'gym' | 'home' | null,
         },
@@ -190,7 +232,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       // ahora sí es seguro desactivar los planes anteriores.
       await db.update(workoutPlans).set({ isActive: 0 }).where(ne(workoutPlans.id, savedPlan.id));
 
-      await saveActiveDayIndex(0);
+      const days = mapDayRows(savedDayRows);
+      const selectedDayId = days.find(d => d.exercises.length > 0)?.dbId ?? null;
+      if (selectedDayId !== null) await saveSelectedDayId(selectedDayId);
       await useGamificationStore.getState().resetDaysTrainedThisWeek();
       await useGamificationStore.getState().resetDaysFinishedThisWeek();
 
@@ -201,8 +245,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           goalSecondary:     plan.goalSecondary,
           daysPerWeek:       plan.daysPerWeek,
           minutesPerSession: plan.minutesPerSession,
-          activeDayIndex:    0,
-          days: mapDayRows(savedDayRows),
+          selectedDayId,
+          activeDayIndex:    deriveActiveDayIndex(days, selectedDayId),
+          days,
           source: savedPlan.source as 'auto' | 'manual',
           context: savedPlan.context as 'gym' | 'home' | null,
         },
@@ -250,12 +295,40 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     });
   },
 
-  advanceDayIndex: async () => {
+  // Recibe el dbId del día que se acaba de entrenar (planDayId de la
+  // sesión, estable incluso si el filtro E-3/rutina ancla sustituyó los
+  // ejercicios — ver resolveEffectiveDay en training.tsx) y avanza al
+  // siguiente día entrenable EN ORDEN (currentPlan.days ya viene ordenado
+  // por dayIndex ascendente desde mapDayRows). Mismo comportamiento
+  // observable que el índice ciego anterior: siempre avanza uno, con
+  // vuelta al principio al llegar al final.
+  advanceToNextDay: async (justTrainedDayId: number | null) => {
     const { currentPlan } = get();
     if (!currentPlan) return;
-    const next = currentPlan.activeDayIndex + 1;
-    await saveActiveDayIndex(next);
-    set({ currentPlan: { ...currentPlan, activeDayIndex: next } });
+    const trainableDays = currentPlan.days.filter(d => d.exercises.length > 0);
+    if (trainableDays.length === 0) return;
+
+    const idx = justTrainedDayId !== null
+      ? trainableDays.findIndex(d => d.dbId === justTrainedDayId)
+      : -1;
+    if (idx === -1) {
+      if (justTrainedDayId === null) {
+        console.warn('[Workout] advanceToNextDay: justTrainedDayId es null — cae a nextIdx=0. trainableDays:', trainableDays.map(d => d.dbId));
+      } else {
+        console.warn('[Workout] advanceToNextDay: justTrainedDayId', justTrainedDayId, 'no encontrado en trainableDays — cae a nextIdx=0. trainableDays:', trainableDays.map(d => d.dbId));
+      }
+    }
+    const nextIdx = idx !== -1 ? (idx + 1) % trainableDays.length : 0;
+    const nextDay = trainableDays[nextIdx];
+
+    await saveSelectedDayId(nextDay.dbId);
+    set({
+      currentPlan: {
+        ...currentPlan,
+        selectedDayId: nextDay.dbId,
+        activeDayIndex: deriveActiveDayIndex(currentPlan.days, nextDay.dbId),
+      },
+    });
   },
 
   resetAll: async () => {
@@ -310,11 +383,13 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
 
       await materializeTemplate(context, profile, equipment, dislikedIds, targetPlan.id, generatedAtNew);
 
-      await saveActiveDayIndex(0);
+      const dayRows = await db.select().from(planDays).where(eq(planDays.planId, targetPlan.id));
+      const days = mapDayRows(dayRows);
+      const selectedDayId = days.find(d => d.exercises.length > 0)?.dbId ?? null;
+      if (selectedDayId !== null) await saveSelectedDayId(selectedDayId);
       await useGamificationStore.getState().resetDaysTrainedThisWeek();
       await useGamificationStore.getState().resetDaysFinishedThisWeek();
 
-      const dayRows = await db.select().from(planDays).where(eq(planDays.planId, targetPlan.id));
       set({
         currentPlan: {
           id:                targetPlan.id,
@@ -322,8 +397,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           goalSecondary:     targetPlan.goalSecondary,
           daysPerWeek:       targetPlan.daysPerWeek,
           minutesPerSession: targetPlan.minutesPerSession,
-          activeDayIndex:    0,
-          days: mapDayRows(dayRows),
+          selectedDayId,
+          activeDayIndex:    deriveActiveDayIndex(days, selectedDayId),
+          days,
           source: targetPlan.source as 'auto' | 'manual',
           context: targetPlan.context as 'gym' | 'home' | null,
         },
@@ -356,9 +432,10 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       const { skippedDayIndexes } = await materializeTemplate(context, profile, equipment, dislikedIds, activePlan.id, activePlan.generatedAt, forceCardioRefreshDayIndex);
 
       const dayRows = await db.select().from(planDays).where(eq(planDays.planId, activePlan.id));
+      const days = mapDayRows(dayRows);
       set(state => ({
         currentPlan: state.currentPlan
-          ? { ...state.currentPlan, days: mapDayRows(dayRows) }
+          ? { ...state.currentPlan, days, activeDayIndex: deriveActiveDayIndex(days, state.currentPlan.selectedDayId) }
           : state.currentPlan,
       }));
 
@@ -391,11 +468,13 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
 
       await materializeTemplate(context, profile, equipment, dislikedIds, activePlan.id, generatedAtNew);
 
-      await saveActiveDayIndex(0);
+      const dayRows = await db.select().from(planDays).where(eq(planDays.planId, activePlan.id));
+      const days = mapDayRows(dayRows);
+      const selectedDayId = days.find(d => d.exercises.length > 0)?.dbId ?? null;
+      if (selectedDayId !== null) await saveSelectedDayId(selectedDayId);
       await useGamificationStore.getState().resetDaysTrainedThisWeek();
       await useGamificationStore.getState().resetDaysFinishedThisWeek();
 
-      const dayRows = await db.select().from(planDays).where(eq(planDays.planId, activePlan.id));
       set({
         currentPlan: {
           id:                activePlan.id,
@@ -403,8 +482,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           goalSecondary:     activePlan.goalSecondary,
           daysPerWeek:       activePlan.daysPerWeek,
           minutesPerSession: activePlan.minutesPerSession,
-          activeDayIndex:    0,
-          days: mapDayRows(dayRows),
+          selectedDayId,
+          activeDayIndex:    deriveActiveDayIndex(days, selectedDayId),
+          days,
           source: activePlan.source as 'auto' | 'manual',
           context: activePlan.context as 'gym' | 'home' | null,
         },
@@ -422,5 +502,39 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   // (default del schema) — no hace falta ningún flag aparte para marcarlo.
   backToAutoPlan: async (profile) => {
     await get().generateAndSavePlan(profile);
+  },
+
+  // Backfill único — instalaciones de antes de este refactor tienen el
+  // contador ciego bajo ACTIVE_DAY_KEY pero nunca escribieron
+  // SELECTED_DAY_KEY. Traduce el índice viejo al id real del día
+  // equivalente con la MISMA fórmula que training.tsx usaba para decidir
+  // "hoy" (índice % trainableDays.length), una sola vez — no vuelve a
+  // correr en arranques siguientes porque SELECTED_DAY_KEY ya queda
+  // escrito. No borra la clave vieja (mismo criterio que el backfill de
+  // auth_user_id en _layout.tsx, por si hay que revertir).
+  backfillSelectedDayId: async () => {
+    const alreadyMigrated = await db.select().from(gamificationMeta).where(eq(gamificationMeta.key, SELECTED_DAY_KEY));
+    if (alreadyMigrated[0]) return;
+
+    const oldRows = await db.select().from(gamificationMeta).where(eq(gamificationMeta.key, ACTIVE_DAY_KEY));
+    if (!oldRows[0]) return;
+
+    const { currentPlan } = get();
+    if (!currentPlan) return;
+
+    const trainableDays = currentPlan.days.filter(d => d.exercises.length > 0);
+    if (trainableDays.length === 0) return;
+
+    const oldIndex = Number(oldRows[0].value ?? 0);
+    const equivDay = trainableDays[oldIndex % trainableDays.length];
+
+    await saveSelectedDayId(equivDay.dbId);
+    set({
+      currentPlan: {
+        ...currentPlan,
+        selectedDayId: equivDay.dbId,
+        activeDayIndex: deriveActiveDayIndex(currentPlan.days, equivDay.dbId),
+      },
+    });
   },
 }));

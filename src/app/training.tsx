@@ -12,7 +12,7 @@ import { ThemedView } from '@/components/themed-view';
 import { VulcanSymbol } from '@/components/icons/VulcanSymbol';
 import { ExerciseCard } from '@/components/workout/ExerciseCard';
 import { ChangeExerciseModal } from '@/components/workout/ChangeExerciseModal';
-import { useWorkoutStore, type StoredPlanDay } from '@/store/workout.store';
+import { useWorkoutStore, getSelectedDay, type StoredPlanDay } from '@/store/workout.store';
 import { useSessionStore } from '@/store/session.store';
 import { useProfileStore } from '@/store/profile.store';
 import { useGamificationStore } from '@/store/gamification.store';
@@ -191,25 +191,24 @@ export default function TrainingScreen() {
       }
       setTargetMap(map);
     })();
-  }, [isDbReady, currentPlan?.id, currentPlan?.activeDayIndex]);
+  }, [isDbReady, currentPlan?.id, currentPlan?.selectedDayId]);
 
   useEffect(() => {
     if (!isDbReady) return;
     getAllPreferences().then(setPreferencesMap);
-  }, [isDbReady, currentPlan?.id, currentPlan?.activeDayIndex]);
+  }, [isDbReady, currentPlan?.id, currentPlan?.selectedDayId]);
 
   // Punto 1 — rutina ancla para location:'both': si el plan activo es
   // manual y el usuario elige entrenar HOY en el contexto que NO es el
   // ancla, sustituye el día completo (no ejercicio-por-ejercicio) por el
   // día correspondiente de la plantilla del otro contexto, emparejado por
   // ÍNDICE con módulo — mismo criterio que ya usa el ancla para decidir
-  // "qué día toca" (activeDayIndex % length). Puramente en memoria: nunca
+  // "qué día toca" (getSelectedDay sobre selectedDayId). Puramente en memoria: nunca
   // escribe en plan_days, nunca resetea el ciclo ni el contador semanal.
   // Si la plantilla del otro contexto no existe o no tiene ningún día
   // entrenable, cae al filtro E-3 de siempre (substituted: false).
   async function resolveEffectiveDay(context: 'gym' | 'home' | null): Promise<{ day: StoredPlanDay; substituted: boolean }> {
-    const activeIdx = currentPlan!.activeDayIndex % trainableDays.length;
-    const anchorDay  = trainableDays[activeIdx];
+    const { day: anchorDay, index: activeIdx } = getSelectedDay(currentPlan!.selectedDayId, trainableDays);
     if (currentPlan!.source === 'manual' && context && context !== currentPlan!.context && profile) {
       const otherTemplateDays = await getTemplate(context);
       const trainableOtherDays = otherTemplateDays.filter(d => d.slots.some(s => s.exerciseId !== null));
@@ -470,8 +469,7 @@ export default function TrainingScreen() {
   }
 
   // ── Plan activo ──────────────────────────────────────────────────────────────
-  const activeIdx  = currentPlan.activeDayIndex % trainableDays.length;
-  const today      = trainableDays[activeIdx];
+  const { day: today, index: activeIdx } = getSelectedDay(currentPlan.selectedDayId, trainableDays);
   const otherDays  = trainableDays.filter((_, i) => i !== activeIdx);
   const estMin     = estimateDuration(today.exercises) + estimateCardioDuration(today.cardio);
   const totalSets_ = countSets(today.exercises);

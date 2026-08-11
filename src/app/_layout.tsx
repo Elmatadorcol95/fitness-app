@@ -207,6 +207,7 @@ export default function RootLayout() {
         useProfileStore.getState().setLoading(false);
       }
       await useWorkoutStore.getState().loadCurrentPlan();
+      await useWorkoutStore.getState().backfillSelectedDayId();
       await useGamificationStore.getState().loadGamification();
       useProfileStore.getState().setDbReady(true);
     })();
