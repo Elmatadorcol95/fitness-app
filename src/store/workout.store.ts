@@ -51,6 +51,7 @@ interface WorkoutState {
   generateAndSavePlan: (profile: Profile) => Promise<void>;
   replaceExercise: (dayDbId: number, exerciseIndex: number, newExerciseId: string, profile: Profile) => Promise<void>;
   advanceToNextDay: (justTrainedDayId: number | null) => Promise<void>;
+  selectDay: (dayId: number) => Promise<void>;
   backfillSelectedDayId: () => Promise<void>;
   resetAll: () => Promise<void>;
   activateManualPlan: (context: TemplateContext, profile: Profile, equipment: string[], dislikedIds: Set<string>) => Promise<void>;
@@ -327,6 +328,25 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         ...currentPlan,
         selectedDayId: nextDay.dbId,
         activeDayIndex: deriveActiveDayIndex(currentPlan.days, nextDay.dbId),
+      },
+    });
+  },
+
+  // Selección directa por el usuario (Paso 2b) — persiste el id elegido
+  // sin recorrer trainableDays buscando "el siguiente" (a diferencia de
+  // advanceToNextDay). El llamador (OtherDayCard en training.tsx) ya
+  // garantiza que dayId pertenece a un día entrenable real, porque solo
+  // se ofrece a elegir desde esa lista.
+  selectDay: async (dayId: number) => {
+    const { currentPlan } = get();
+    if (!currentPlan) return;
+
+    await saveSelectedDayId(dayId);
+    set({
+      currentPlan: {
+        ...currentPlan,
+        selectedDayId: dayId,
+        activeDayIndex: deriveActiveDayIndex(currentPlan.days, dayId),
       },
     });
   },

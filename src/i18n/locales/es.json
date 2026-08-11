@@ -170,6 +170,9 @@
       "changeEx": "Cambiar",
       "changeExTitle": "Elegir ejercicio alternativo",
       "noAlternatives": "No hay alternativas para tu equipamiento actual",
+      "selectDay": "Elegir",
+      "staleDayBanner": "El día que tenías elegido ya no tiene ejercicios. Elige uno de los de abajo.",
+      "staleDayBannerDismiss": "Cerrar aviso",
       "weekComplete": {
         "title": "¡Semana completada! 🎉",
         "subtitle": "Entrenaste tus {{days}} días esta semana.",

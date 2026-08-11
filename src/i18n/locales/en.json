@@ -170,6 +170,9 @@
       "changeEx": "Change",
       "changeExTitle": "Choose an alternative exercise",
       "noAlternatives": "No alternatives for your current equipment",
+      "selectDay": "Choose",
+      "staleDayBanner": "The day you had selected no longer has exercises. Choose one from the list below.",
+      "staleDayBannerDismiss": "Dismiss notice",
       "weekComplete": {
         "title": "Week complete! 🎉",
         "subtitle": "You trained your {{days}} days this week.",

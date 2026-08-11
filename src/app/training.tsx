@@ -66,16 +66,15 @@ function countSets(exercises: PlannedExercise[]): number {
 
 interface OtherDayCardProps {
   day: StoredPlanDay;
-  index: number;
-  total: number;
   isExpanded: boolean;
   onToggle: () => void;
+  onSelectDay: () => void;
   onChangeEx?: (exIdx: number) => void;
   lang: 'es' | 'en' | 'fr';
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-function OtherDayCard({ day, index, total, isExpanded, onToggle, onChangeEx, lang, t }: OtherDayCardProps) {
+function OtherDayCard({ day, isExpanded, onToggle, onSelectDay, onChangeEx, lang, t }: OtherDayCardProps) {
   return (
     <ThemedView type="backgroundElement" style={styles.otherDayCard}>
       <Pressable onPress={onToggle} style={styles.otherDayHeader}>
@@ -86,9 +85,12 @@ function OtherDayCard({ day, index, total, isExpanded, onToggle, onChangeEx, lan
           </ThemedText>
         </View>
         <View style={styles.otherDayRight}>
-          <ThemedText themeColor="textSecondary" style={styles.otherDayIndex}>
-            {t('workout.planDay', { current: index + 1, total })}
-          </ThemedText>
+          <Pressable
+            onPress={onSelectDay}
+            style={({ pressed }) => [styles.selectDayBtn, pressed && { opacity: 0.6 }]}
+          >
+            <ThemedText style={styles.selectDayBtnText}>{t('tabs.training.selectDay')}</ThemedText>
+          </Pressable>
           <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={MUTED} />
         </View>
       </Pressable>
@@ -150,6 +152,10 @@ export default function TrainingScreen() {
   const isWarmupActive      = useWarmupStore(s => s.active);
 
   const [expandedOtherDay, setExpandedOtherDay] = useState<number | null>(null);
+  // Atado al id inválido específico, no un booleano suelto: si
+  // selectedDayId cambia a OTRO id igualmente inválido, el banner debe
+  // volver a aparecer en vez de quedar descartado para siempre.
+  const [dismissedStaleDayId, setDismissedStaleDayId] = useState<number | null>(null);
   const [changeModal, setChangeModal] = useState({
     visible: false, dayDbId: 0, exIdx: 0, exId: '',
   });
@@ -471,6 +477,15 @@ export default function TrainingScreen() {
   // ── Plan activo ──────────────────────────────────────────────────────────────
   const { day: today, index: activeIdx } = getSelectedDay(currentPlan.selectedDayId, trainableDays);
   const otherDays  = trainableDays.filter((_, i) => i !== activeIdx);
+
+  // Día guardado que ya no existe entre los entrenables (editado a 0
+  // ejercicios, borrado, etc.) — getSelectedDay() ya cayó al fallback
+  // silencioso arriba; este banner es el aviso real que faltaba (Paso 2b).
+  const staleSelectedDayId =
+    currentPlan.selectedDayId !== null && !trainableDays.some(d => d.dbId === currentPlan.selectedDayId)
+      ? currentPlan.selectedDayId
+      : null;
+  const showStaleDayBanner = staleSelectedDayId !== null && dismissedStaleDayId !== staleSelectedDayId;
   const estMin     = estimateDuration(today.exercises) + estimateCardioDuration(today.cardio);
   const totalSets_ = countSets(today.exercises);
   const isPullRelevantDay = today.dayType === 'pull' || today.dayType === 'upper';
@@ -520,6 +535,24 @@ export default function TrainingScreen() {
             </View>
           ) : (
           <>
+          {/* ── Aviso: el día guardado ya no tiene ejercicios ── */}
+          {showStaleDayBanner && (
+            <View style={styles.staleDayBanner}>
+              <Ionicons name="information-circle-outline" size={15} color={AMBER} />
+              <ThemedText style={styles.staleDayBannerText}>
+                {t('tabs.training.staleDayBanner')}
+              </ThemedText>
+              <Pressable
+                onPress={() => setDismissedStaleDayId(staleSelectedDayId)}
+                hitSlop={8}
+                accessibilityLabel={t('tabs.training.staleDayBannerDismiss')}
+                style={({ pressed }) => pressed && { opacity: 0.6 }}
+              >
+                <Ionicons name="close" size={16} color={AMBER} />
+              </Pressable>
+            </View>
+          )}
+
           {/* ── Plan header ── */}
           <View style={styles.planHeader}>
             <View style={styles.planHeaderLeft}>
@@ -543,7 +576,7 @@ export default function TrainingScreen() {
                 {t(`workout.days.${today.dayType}`)}
               </ThemedText>
               <ThemedText themeColor="textSecondary" style={styles.dayCounter}>
-                {t('workout.planDay', { current: activeIdx + 1, total: trainableDays.length })}
+                {t('workout.planDay', { current: daysFinishedThisWeek + 1, total: trainableDays.length })}
               </ThemedText>
             </View>
             <View style={styles.dayStats}>
@@ -644,10 +677,9 @@ export default function TrainingScreen() {
                   <OtherDayCard
                     key={day.dbId}
                     day={day}
-                    index={rawIdx}
-                    total={trainableDays.length}
                     isExpanded={isExpanded}
                     onToggle={() => setExpandedOtherDay(isExpanded ? null : rawIdx)}
+                    onSelectDay={() => useWorkoutStore.getState().selectDay(day.dbId)}
                     onChangeEx={currentPlan.source === 'manual' ? undefined : (exIdx) => setChangeModal({
                       visible: true,
                       dayDbId: day.dbId,
@@ -891,6 +923,15 @@ const styles = StyleSheet.create({
   },
   noPullBannerText: { flex: 1, fontSize: 12, color: AMBER, lineHeight: 18 },
 
+  // Aviso: día guardado ya no entrenable (Paso 2b)
+  staleDayBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
+    backgroundColor: AMBER + '14', borderRadius: Spacing.two,
+    borderLeftWidth: 3, borderLeftColor: AMBER,
+    paddingHorizontal: Spacing.three, paddingVertical: Spacing.two,
+  },
+  staleDayBannerText: { flex: 1, fontSize: 12, color: AMBER, lineHeight: 18 },
+
   // Iniciar
   startBtn: {
     backgroundColor: GREEN, borderRadius: Spacing.three,
@@ -917,7 +958,6 @@ const styles = StyleSheet.create({
   otherDayLeft:    { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   otherDayRight:   { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   otherDayName:    { fontSize: 14 },
-  otherDayIndex:   { fontSize: 13 },
   otherDayExList:  { paddingHorizontal: Spacing.three, paddingBottom: Spacing.two },
   otherDayExRow:   {
     flexDirection: 'row', alignItems: 'center',
@@ -930,6 +970,11 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.one, borderWidth: 1, borderColor: GREEN + '44',
   },
   miniChangeBtnText: { fontSize: 11, color: GREEN },
+  selectDayBtn:      {
+    paddingHorizontal: Spacing.two, paddingVertical: 3,
+    borderRadius: Spacing.one, borderWidth: 1, borderColor: GREEN + '44',
+  },
+  selectDayBtnText:  { fontSize: 11, color: GREEN },
   otherDayCardioSummary: { fontSize: 12, color: AMBER },
 
   // Cardio card (hoy)

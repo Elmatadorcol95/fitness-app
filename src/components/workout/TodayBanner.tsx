@@ -6,6 +6,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useWorkoutStore, getSelectedDay } from '@/store/workout.store';
+import { useGamificationStore } from '@/store/gamification.store';
 import { Spacing } from '@/constants/theme';
 
 const GREEN  = '#3FBF7F';
@@ -24,6 +25,7 @@ export function TodayBanner() {
   const router = useRouter();
   const { t } = useTranslation();
   const { currentPlan, isLoaded } = useWorkoutStore();
+  const daysFinishedThisWeek = useGamificationStore(s => s.daysFinishedThisWeek);
 
   const navigate = () => router.navigate('/training');
 
@@ -72,7 +74,6 @@ export function TodayBanner() {
   }
 
   const { day: today } = getSelectedDay(currentPlan.selectedDayId, trainableDays);
-  const dayPosition = currentPlan.days.findIndex(d => d.dbId === today.dbId);
 
   return (
     <Pressable onPress={navigate} style={({ pressed }) => pressed && styles.pressed}>
@@ -89,7 +90,7 @@ export function TodayBanner() {
           <ThemedText type="defaultSemiBold" style={styles.dayName}>
             {t(`workout.days.${today.dayType}`)}
             {' · '}
-            {t('workout.planDay', { current: dayPosition + 1, total: currentPlan.days.length })}
+            {t('workout.planDay', { current: daysFinishedThisWeek + 1, total: trainableDays.length })}
           </ThemedText>
         </View>
         <ThemedText style={styles.viewBtn}>{t('workout.todayBanner.view')}</ThemedText>
