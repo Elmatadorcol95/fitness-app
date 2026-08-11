@@ -233,6 +233,10 @@ Bucle ~1.3 s sobre fondo #141A17:
   solo la de índice más alto (hoy ese máximo lo tiene la entrada 1, no la 8).
   Si no se cumple, la migración nueva nunca se aplicará en ningún dispositivo
   que ya tenga migraciones previas instaladas.
+- **Copy en español — tuteo, nunca voseo**: toda la copy visible de la app
+  (es.json y cualquier texto nuevo) usa tuteo ("tienes", "elige", "confirma"),
+  no voseo ("tenés", "elegí", "confirmá"). Aplica a título, mensajes de
+  error, botones, banners — cualquier string dirigido al usuario.
 
 ## Estado actual
 - Hecho: estructura base de Expo.
