@@ -12,7 +12,7 @@ import { ThemedView } from '@/components/themed-view';
 import { VulcanSymbol } from '@/components/icons/VulcanSymbol';
 import { ExerciseCard } from '@/components/workout/ExerciseCard';
 import { ChangeExerciseModal } from '@/components/workout/ChangeExerciseModal';
-import { useWorkoutStore, getSelectedDay, type StoredPlanDay } from '@/store/workout.store';
+import { useWorkoutStore, getSelectedDay, isDayCompleted, type StoredPlanDay } from '@/store/workout.store';
 import { useSessionStore } from '@/store/session.store';
 import { useProfileStore } from '@/store/profile.store';
 import { useGamificationStore } from '@/store/gamification.store';
@@ -67,6 +67,7 @@ function countSets(exercises: PlannedExercise[]): number {
 interface OtherDayCardProps {
   day: StoredPlanDay;
   isExpanded: boolean;
+  isCompleted: boolean;
   onToggle: () => void;
   onSelectDay: () => void;
   onChangeEx?: (exIdx: number) => void;
@@ -74,7 +75,7 @@ interface OtherDayCardProps {
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-function OtherDayCard({ day, isExpanded, onToggle, onSelectDay, onChangeEx, lang, t }: OtherDayCardProps) {
+function OtherDayCard({ day, isExpanded, isCompleted, onToggle, onSelectDay, onChangeEx, lang, t }: OtherDayCardProps) {
   return (
     <ThemedView type="backgroundElement" style={styles.otherDayCard}>
       <Pressable onPress={onToggle} style={styles.otherDayHeader}>
@@ -85,12 +86,22 @@ function OtherDayCard({ day, isExpanded, onToggle, onSelectDay, onChangeEx, lang
           </ThemedText>
         </View>
         <View style={styles.otherDayRight}>
-          <Pressable
-            onPress={onSelectDay}
-            style={({ pressed }) => [styles.selectDayBtn, pressed && { opacity: 0.6 }]}
-          >
-            <ThemedText style={styles.selectDayBtnText}>{t('tabs.training.selectDay')}</ThemedText>
-          </Pressable>
+          {/* Paso 2c (#6+#18): día ya completo al 100% en este ciclo — badge
+              en vez de botón de selección. El resto de la tarjeta (expandir/
+              contraer para ver ejercicios) sigue funcionando igual. */}
+          {isCompleted ? (
+            <View style={styles.completedBadge}>
+              <Ionicons name="checkmark-circle" size={13} color={GREEN} />
+              <ThemedText style={styles.completedBadgeText}>{t('tabs.training.dayCompletedBadge')}</ThemedText>
+            </View>
+          ) : (
+            <Pressable
+              onPress={onSelectDay}
+              style={({ pressed }) => [styles.selectDayBtn, pressed && { opacity: 0.6 }]}
+            >
+              <ThemedText style={styles.selectDayBtnText}>{t('tabs.training.selectDay')}</ThemedText>
+            </Pressable>
+          )}
           <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={MUTED} />
         </View>
       </Pressable>
@@ -678,6 +689,7 @@ export default function TrainingScreen() {
                     key={day.dbId}
                     day={day}
                     isExpanded={isExpanded}
+                    isCompleted={isDayCompleted(day.dbId, currentPlan.completedDayIds)}
                     onToggle={() => setExpandedOtherDay(isExpanded ? null : rawIdx)}
                     onSelectDay={() => useWorkoutStore.getState().selectDay(day.dbId)}
                     onChangeEx={currentPlan.source === 'manual' ? undefined : (exIdx) => setChangeModal({
@@ -975,6 +987,12 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.one, borderWidth: 1, borderColor: GREEN + '44',
   },
   selectDayBtnText:  { fontSize: 11, color: GREEN },
+  completedBadge:    {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: Spacing.two, paddingVertical: 3,
+    borderRadius: Spacing.one, borderWidth: 1, borderColor: GREEN + '44',
+  },
+  completedBadgeText: { fontSize: 11, color: GREEN },
   otherDayCardioSummary: { fontSize: 12, color: AMBER },
 
   // Cardio card (hoy)

@@ -171,6 +171,7 @@
       "changeExTitle": "Elegir ejercicio alternativo",
       "noAlternatives": "No hay alternativas para tu equipamiento actual",
       "selectDay": "Elegir",
+      "dayCompletedBadge": "Completado",
       "staleDayBanner": "El día que tenías elegido ya no tiene ejercicios. Elige uno de los de abajo.",
       "staleDayBannerDismiss": "Cerrar aviso",
       "weekComplete": {

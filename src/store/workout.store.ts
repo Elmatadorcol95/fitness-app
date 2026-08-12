@@ -12,6 +12,10 @@ import type { Profile } from '@/db/schema';
 
 const ACTIVE_DAY_KEY = 'workout_active_day_index'; // legacy — solo lectura, para el backfill una vez
 const SELECTED_DAY_KEY = 'workout_selected_day_id';
+// Deliberadamente sin la palabra "week": esto es el ciclo actual del plan,
+// no una semana de calendario (ver PASO 0-BIS/0-TER — daysFinishedThisWeek
+// tampoco lo es, a pesar del nombre).
+const COMPLETED_DAYS_KEY = 'workout_completed_day_ids';
 
 // StoredPlanDay extiende PlanDayData con el id de la fila en plan_days.
 // Necesario para poder actualizar ejercicios concretos en SQLite.
@@ -41,6 +45,11 @@ export interface StoredPlan {
   activeDayIndex: number;
   source: 'auto' | 'manual';
   context: 'gym' | 'home' | null;
+  // Paso 2c (#6+#18): ids (plan_days.id / StoredPlanDay.dbId) de los días
+  // que ya llegaron al 100% de sus series en el ciclo actual. Se vacía cada
+  // vez que arranca un ciclo nuevo (generateAndSavePlan, activateManualPlan,
+  // startNextManualCycle) — nunca es una semana de calendario.
+  completedDayIds: number[];
 }
 
 interface WorkoutState {
@@ -52,6 +61,7 @@ interface WorkoutState {
   replaceExercise: (dayDbId: number, exerciseIndex: number, newExerciseId: string, profile: Profile) => Promise<void>;
   advanceToNextDay: (justTrainedDayId: number | null) => Promise<void>;
   selectDay: (dayId: number) => Promise<void>;
+  markDayCompleted: (dayId: number) => Promise<void>;
   backfillSelectedDayId: () => Promise<void>;
   resetAll: () => Promise<void>;
   activateManualPlan: (context: TemplateContext, profile: Profile, equipment: string[], dislikedIds: Set<string>) => Promise<void>;
@@ -72,6 +82,37 @@ async function saveSelectedDayId(dayId: number): Promise<void> {
     .insert(gamificationMeta)
     .values({ key: SELECTED_DAY_KEY, value: String(dayId) })
     .onConflictDoUpdate({ target: gamificationMeta.key, set: { value: String(dayId) } });
+}
+
+// Primer precedente en el proyecto de un ARRAY dentro de gamification_meta
+// (PASO 0-TER, punto 3: sin precedente previo en esta tabla — JSON.stringify/
+// parse sí es patrón establecido en otras tablas, ej. profile.equipment).
+// Un JSON corrupto o con un formato antiguo cae a array vacío en vez de
+// romper el arranque de la app.
+async function getCompletedDayIds(): Promise<number[]> {
+  const rows = await db.select().from(gamificationMeta).where(eq(gamificationMeta.key, COMPLETED_DAYS_KEY));
+  if (!rows[0]) return [];
+  try {
+    const parsed = JSON.parse(rows[0].value);
+    return Array.isArray(parsed) ? parsed.filter((n): n is number => typeof n === 'number') : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveCompletedDayIds(dayIds: number[]): Promise<void> {
+  const value = JSON.stringify(dayIds);
+  await db
+    .insert(gamificationMeta)
+    .values({ key: COMPLETED_DAYS_KEY, value })
+    .onConflictDoUpdate({ target: gamificationMeta.key, set: { value } });
+}
+
+// Único punto de verdad para "¿este día ya está completo?" — reutilizado en
+// selectDay, advanceToNextDay y OtherDayCard (training.tsx). No reimplementar
+// el .includes() por separado en ninguno de los tres.
+export function isDayCompleted(dayId: number, completedDayIds: number[]): boolean {
+  return completedDayIds.includes(dayId);
 }
 
 // Único punto de resolución por id, mismo fallback en todos lados: si el id
@@ -142,6 +183,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
 
       const days = mapDayRows(dayRows);
       const selectedDayId = await getSelectedDayId();
+      const completedDayIds = await getCompletedDayIds();
 
       set({
         currentPlan: {
@@ -155,6 +197,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           days,
           source: plan.source as 'auto' | 'manual',
           context: plan.context as 'gym' | 'home' | null,
+          completedDayIds,
         },
         isLoaded: true,
       });
@@ -238,6 +281,12 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       if (selectedDayId !== null) await saveSelectedDayId(selectedDayId);
       await useGamificationStore.getState().resetDaysTrainedThisWeek();
       await useGamificationStore.getState().resetDaysFinishedThisWeek();
+      // Paso 2c (#6+#18): un plan nuevo es un ciclo nuevo — ningún día
+      // arranca ya completo. Persistido explícitamente (no basta con el
+      // completedDayIds:[] del set() de abajo): si no se escribe [] aquí,
+      // el próximo loadCurrentPlan() en un arranque futuro leería de vuelta
+      // los ids del ciclo ANTERIOR desde gamification_meta.
+      await saveCompletedDayIds([]);
 
       set({
         currentPlan: {
@@ -251,6 +300,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           days,
           source: savedPlan.source as 'auto' | 'manual',
           context: savedPlan.context as 'gym' | 'home' | null,
+          completedDayIds: [],
         },
       });
     } finally {
@@ -319,8 +369,21 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         console.warn('[Workout] advanceToNextDay: justTrainedDayId', justTrainedDayId, 'no encontrado en trainableDays — cae a nextIdx=0. trainableDays:', trainableDays.map(d => d.dbId));
       }
     }
-    const nextIdx = idx !== -1 ? (idx + 1) % trainableDays.length : 0;
-    const nextDay = trainableDays[nextIdx];
+    // Paso 2c (#6+#18): el índice "siguiente" de siempre es el punto de
+    // partida de una búsqueda cíclica del primer día NO completo (los días
+    // parciales sí califican — solo se salta los que llegaron al 100%).
+    // Si tras recorrer las trainableDays.length posiciones ninguno califica
+    // (los completó todos), nextDay se queda en su valor inicial — el mismo
+    // fallback ciego de siempre, sin lanzar error ni dejar de avanzar.
+    const baseIdx = idx !== -1 ? (idx + 1) % trainableDays.length : 0;
+    let nextDay = trainableDays[baseIdx];
+    for (let step = 0; step < trainableDays.length; step++) {
+      const candidate = trainableDays[(baseIdx + step) % trainableDays.length];
+      if (!isDayCompleted(candidate.dbId, currentPlan.completedDayIds)) {
+        nextDay = candidate;
+        break;
+      }
+    }
 
     await saveSelectedDayId(nextDay.dbId);
     set({
@@ -337,9 +400,20 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   // advanceToNextDay). El llamador (OtherDayCard en training.tsx) ya
   // garantiza que dayId pertenece a un día entrenable real, porque solo
   // se ofrece a elegir desde esa lista.
+  //
+  // Paso 2c (#6+#18): si el día ya llegó al 100% en este ciclo, no hace
+  // nada — ni escritura ni set(). OtherDayCard ya no ofrece el botón de
+  // selección para un día completo (ver training.tsx), así que este guard
+  // es una segunda barrera, no el mecanismo principal — deja rastro con
+  // console.warn si algo llega a llamarlo de todas formas.
   selectDay: async (dayId: number) => {
     const { currentPlan } = get();
     if (!currentPlan) return;
+
+    if (isDayCompleted(dayId, currentPlan.completedDayIds)) {
+      console.warn('[Workout] selectDay: día', dayId, 'ya completo — ignorado');
+      return;
+    }
 
     await saveSelectedDayId(dayId);
     set({
@@ -347,6 +421,25 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         ...currentPlan,
         selectedDayId: dayId,
         activeDayIndex: deriveActiveDayIndex(currentPlan.days, dayId),
+      },
+    });
+  },
+
+  // Paso 2c (#6+#18): marca un día como completo al 100% en el ciclo
+  // actual. Idempotente (no duplica si ya estaba). Llamada desde
+  // doFinish() en session.tsx con el mismo criterio que ya usa `perfect`
+  // (plannedSets > 0 && completedSets >= plannedSets).
+  markDayCompleted: async (dayId: number) => {
+    const { currentPlan } = get();
+    if (!currentPlan) return;
+    if (isDayCompleted(dayId, currentPlan.completedDayIds)) return;
+
+    const nextCompleted = [...currentPlan.completedDayIds, dayId];
+    await saveCompletedDayIds(nextCompleted);
+    set({
+      currentPlan: {
+        ...currentPlan,
+        completedDayIds: nextCompleted,
       },
     });
   },
@@ -409,6 +502,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       if (selectedDayId !== null) await saveSelectedDayId(selectedDayId);
       await useGamificationStore.getState().resetDaysTrainedThisWeek();
       await useGamificationStore.getState().resetDaysFinishedThisWeek();
+      // Paso 2c (#6+#18): activar (crear o reactivar) un plan manual es
+      // también el INICIO de un ciclo — mismo criterio que generateAndSavePlan.
+      await saveCompletedDayIds([]);
 
       set({
         currentPlan: {
@@ -422,6 +518,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           days,
           source: targetPlan.source as 'auto' | 'manual',
           context: targetPlan.context as 'gym' | 'home' | null,
+          completedDayIds: [],
         },
       });
     } finally {
@@ -494,6 +591,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       if (selectedDayId !== null) await saveSelectedDayId(selectedDayId);
       await useGamificationStore.getState().resetDaysTrainedThisWeek();
       await useGamificationStore.getState().resetDaysFinishedThisWeek();
+      // Paso 2c (#6+#18): "generar próxima semana" en modo manual también
+      // arranca un ciclo nuevo — mismo criterio que las otras 2 funciones.
+      await saveCompletedDayIds([]);
 
       set({
         currentPlan: {
@@ -507,6 +607,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           days,
           source: activePlan.source as 'auto' | 'manual',
           context: activePlan.context as 'gym' | 'home' | null,
+          completedDayIds: [],
         },
       });
     } finally {

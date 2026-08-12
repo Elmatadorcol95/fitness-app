@@ -2439,6 +2439,94 @@ Bucle ~1.3 s sobre fondo #141A17:
     (`#1,#2,#3,#4,#7,#9,#11,#12,#13,#14,#15,#17,#19,#20,#21,#22,#23,#24,#25,#26`),
     9 pendientes (`#5,#6,#8,#10,#16,#18,#27,#29,#30`).**
   * `npx tsc --noEmit` limpio en cada paso de esta sesión.
+- Hecho: sesión 2026-08-12 — **Paso 2c (#6+#18): bloqueo de reselección de
+  días ya completos al 100% en el ciclo actual** (JS puro, sin módulos
+  nativos — solo recarga). Precedido de 3 rondas de auditoría de solo
+  lectura dentro de la misma conversación (evidencia literal de esquema,
+  migraciones y funciones ya existentes antes de escribir una sola línea
+  de código nuevo — mismo protocolo "Paso 0" de siempre):
+  * **Decisiones tomadas con evidencia, no supuestos**:
+    - Sin precedente previo de un ARRAY dentro de `gamification_meta`
+      (confirmado con grep antes de decidir el formato) — JSON.stringify/
+      parse sí es patrón ya establecido en otras tablas
+      (`profile.equipment`, `profile.musclePriorities`), reutilizado aquí
+      por primera vez en `gamification_meta`.
+    - `generateAndSavePlan`, `activateManualPlan` y `startNextManualCycle`
+      reconstruyen `currentPlan` ENTERO sin spread (confirmado línea por
+      línea antes de tocarlas) — por eso las 3 necesitan
+      `saveCompletedDayIds([])` explícito Y `completedDayIds: []` literal
+      en su `set()`; no basta con heredarlo como sí pasa en
+      `selectDay()`/`advanceToNextDay()`, que sí usan spread.
+    - `selectDay()` confirmado con único llamador real (`OtherDayCard` en
+      training.tsx) antes de tocarla.
+  * **Qué se construyó**: campo nuevo `completedDayIds: number[]` en
+    `StoredPlan` (`workout.store.ts`), clave nueva
+    `workout_completed_day_ids` en `gamification_meta` (deliberadamente
+    sin la palabra "week" — esto es el CICLO actual del plan, no una
+    semana de calendario, misma lección ya aprendida con
+    `daysFinishedThisWeek`). Helper único exportado `isDayCompleted(dayId,
+    completedDayIds)`, reutilizado en `selectDay()`, `advanceToNextDay()`
+    y `OtherDayCard` — nunca reimplementado el `.includes()` por separado
+    en ninguno de los tres.
+    - `selectDay()`: si el día ya está en `completedDayIds`, no escribe en
+      SQLite ni cambia el estado — solo `console.warn`, como segunda
+      barrera (la primera es que `OtherDayCard` ya no ofrece el botón para
+      un día completo).
+    - `advanceToNextDay()`: en vez de saltar siempre al índice
+      `(idx+1)%length`, busca cíclicamente desde ahí el primer día NO
+      completo — los días PARCIALES sí califican, decisión de producto ya
+      tomada, sin tocar. Si los recorre todos y ninguno califica (ciclo
+      100% completo), cae exactamente al mismo valor que el código viejo
+      — verificado a mano que es un fallback IDÉNTICO, no solo "algún
+      valor válido".
+    - `markDayCompleted(dayId)`: acción nueva, idempotente, llamada desde
+      `doFinish()` en `session.tsx` con el mismo criterio que ya usa
+      `perfect` (`plannedSets > 0 && completedSets >= plannedSets` —
+      unificado en una sola variable `dayFullyCompleted` en vez de
+      duplicar la condición dos veces).
+    - `OtherDayCard` (`training.tsx`): prop `isCompleted` nueva —
+      sustituye el botón "Elegir" por un badge (ícono `checkmark-circle` +
+      texto, claves i18n `tabs.training.dayCompletedBadge` es/en/fr) SOLO
+      en el botón de selección; expandir/contraer la tarjeta para ver
+      ejercicios sigue funcionando igual.
+    - `loadCurrentPlan()`: carga `completedDayIds` en el mismo punto y con
+      el mismo mecanismo que ya carga `selectedDayId` (lectura directa de
+      `gamification_meta`, antes de que corra `loadGamification()`).
+  * **Qué se validó**: 4 trazas manuales con estado inventado y las
+    funciones reales (bloqueo directo con warning; avance saltando 3 días
+    completos y aterrizando en el único pendiente, desde cualquiera de los
+    3 puntos de partida; los 4 días completos cae al fallback IDÉNTICO al
+    comportamiento anterior a este cambio; reseteo confirmado con una
+    lectura fresca de `gamification_meta` simulando un reinicio de app,
+    no solo con la llamada de reseteo). `npx tsc --noEmit` limpio en cada
+    paso. Validado en el dispositivo físico de Juan: badge visible en el
+    día completo, la tarjeta sigue expandiéndose/contrayéndose con
+    normalidad, un día parcial sigue mostrando "Elegir" sin ningún
+    bloqueo, y "Semana completada" sigue apareciendo igual que siempre al
+    cerrar el ciclo.
+  * **Backlog** — pendiente, nada de esto se toca en este commit:
+    - Étapa 3 del propio chantier #6+#18 (retomar ejercicios pendientes,
+      el ítem #6 de la lista de arriba): confirmado en dispositivo que, al
+      reseleccionar un día parcial, la sesión arranca vacía — las series
+      ya hechas persisten bien en `session_sets`/historial pero no se
+      restauran en la sesión en vivo. Comportamiento esperado, sin
+      relación con este commit — Étapa 3 nunca se ha empezado.
+    - Añadido **#34**: confirmado en dispositivo por Juan que repetir el
+      mismo día varias veces sin tocar los otros cierra la semana igual
+      (`daysFinishedThisWeek` cuenta sesiones terminadas, no días
+      distintos al 100%). Posible dirección de arreglo anotada para
+      cuando se retome: cerrar la semana solo cuando TODOS los días
+      entrenables estén en `completedDayIds`.
+    - Añadido **#35 (nuevo)**: opción de generar semana nueva de forma
+      anticipada, con aviso explícito de progreso pendiente, cuando el
+      usuario ya entró a todos los días sin completarlos todos.
+    - **Total: 31 puntos numerados en este documento (la numeración de
+      Juan llega hasta #35 — #28, #31, #32 y #33 no tienen entrada en
+      este documento, mismo criterio ya aplicado a #28 en sesiones
+      anteriores), 20 cerrados
+      (`#1,#2,#3,#4,#7,#9,#11,#12,#13,#14,#15,#17,#19,#20,#21,#22,#23,#24,#25,#26`),
+      11 pendientes
+      (`#5,#6,#8,#10,#16,#18,#27,#29,#30,#34,#35`).**
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 

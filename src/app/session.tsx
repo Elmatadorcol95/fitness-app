@@ -199,7 +199,7 @@ export default function SessionScreen() {
     tickRestTimer, finishSession, cancelSession, replaceExercise,
   } = useSessionStore();
 
-  const { advanceToNextDay } = useWorkoutStore();
+  const { advanceToNextDay, markDayCompleted } = useWorkoutStore();
   const currentPlan = useWorkoutStore(s => s.currentPlan);
   const { recordWorkout, unlockAchievement, incrementDaysTrainedThisWeek, incrementDaysFinishedThisWeek } = useGamificationStore();
   const { profile }           = useProfileStore();
@@ -452,9 +452,12 @@ export default function SessionScreen() {
     if (hasPR) unlockAchievement('personal_record');
 
     const ratio = plannedSets > 0 ? completedSets / plannedSets : 0;
+    // Mismo criterio para "perfect" (gate de logros/racha) y para el marcado
+    // de día completo del Paso 2c (#6+#18) — una sola condición, no dos
+    // copias del mismo cálculo.
+    const dayFullyCompleted = plannedSets > 0 && completedSets >= plannedSets;
     if (ratio >= 0.5) {
-      const perfect = plannedSets > 0 && completedSets >= plannedSets;
-      recordWorkout(today, { perfect });
+      recordWorkout(today, { perfect: dayFullyCompleted });
       incrementDaysTrainedThisWeek();
     }
 
@@ -463,8 +466,15 @@ export default function SessionScreen() {
     // completaron (a diferencia de incrementDaysTrainedThisWeek).
     incrementDaysFinishedThisWeek();
 
+    // Paso 2c (#6+#18): bloquea la reselección de un día ya completo al
+    // 100% en este ciclo. Misma protección ante justTrainedDayId === null
+    // que ya usa advanceToNextDay() — sin id no hay qué marcar.
+    if (dayFullyCompleted && justTrainedDayId !== null) {
+      await markDayCompleted(justTrainedDayId);
+    }
+
     await advanceToNextDay(justTrainedDayId);
-  }, [finishSession, unlockAchievement, recordWorkout, incrementDaysTrainedThisWeek, incrementDaysFinishedThisWeek, advanceToNextDay, sessionDayType, equipment, trainingContext]);
+  }, [finishSession, unlockAchievement, recordWorkout, incrementDaysTrainedThisWeek, incrementDaysFinishedThisWeek, markDayCompleted, advanceToNextDay, sessionDayType, equipment, trainingContext]);
 
   function handleFinish() {
     const pending = exercises.reduce(
