@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '@/db';
-import { exerciseTargets, workoutSessions, sessionSets, exerciseRestPrefs } from '@/db/schema';
+import { exerciseTargets, workoutSessions, sessionSets, exerciseRestPrefs, workoutPlans } from '@/db/schema';
 import type { Profile } from '@/db/schema';
 import { hapticsLight, hapticsSuccess } from '@/lib/haptics';
 import { playRestDone } from '@/lib/sounds';
@@ -23,6 +23,10 @@ export interface SetState {
   rir: number;
   completed: boolean;
   coachReason?: string;
+  // Étapa 3 (#6+#18): true solo en una serie restaurada de una sesión
+  // anterior de ESTE ciclo (ver getRestoredSets/startSession). Ausente/false
+  // en cualquier serie normal — mismo patrón opcional que coachReason.
+  isRestored?: boolean;
 }
 
 export interface ExerciseState {
@@ -133,6 +137,59 @@ async function getTargetFromProgression(exerciseId: string): Promise<{ weightKg:
   } catch {
     return { weightKg: null, repsMin: null, targetRir: null };
   }
+}
+
+// Étapa 3 (#6+#18): busca series ya completadas en sesiones ANTERIORES de
+// este mismo ciclo para el mismo día de plan (day.dbId), para restaurarlas
+// como de solo lectura al reabrir un día parcial. Modo automático: los
+// plan_days.dbId nunca se repiten entre ciclos (confirmado en auditoría
+// previa), así que cualquier sesión con este planDayId es válida sin más
+// filtro. Modo manual: plan_days SÍ se reutiliza entre ciclos
+// (materializeTemplate), así que se filtra además por
+// workout_sessions.created_at >= generatedAt del plan activo — mismo
+// cycleStart que ya usa hasSessionForPlanDay en routineMaterializer.ts.
+// Lookup por "exerciseId:setNumber" — si el mismo par aparece en más de una
+// fila (raro), se queda con la última que gane la iteración, sin desambiguar.
+async function getRestoredSets(
+  planDayId: number,
+  planId: number,
+): Promise<Map<string, { actualReps: number; weightKg: number; rir: number }>> {
+  const map = new Map<string, { actualReps: number; weightKg: number; rir: number }>();
+  try {
+    const [planRow] = await db
+      .select({ source: workoutPlans.source, generatedAt: workoutPlans.generatedAt })
+      .from(workoutPlans)
+      .where(eq(workoutPlans.id, planId))
+      .limit(1);
+
+    const conditions = [eq(workoutSessions.planDayId, planDayId), eq(sessionSets.completed, 1)];
+    if (planRow?.source === 'manual') {
+      conditions.push(gte(workoutSessions.createdAt, planRow.generatedAt));
+    }
+
+    const rows = await db
+      .select({
+        exerciseId:      sessionSets.exerciseId,
+        setNumber:       sessionSets.setNumber,
+        actualReps:      sessionSets.actualReps,
+        weightKg:        sessionSets.weightKg,
+        perceivedEffort: sessionSets.perceivedEffort,
+      })
+      .from(sessionSets)
+      .innerJoin(workoutSessions, eq(sessionSets.sessionId, workoutSessions.id))
+      .where(and(...conditions));
+
+    for (const row of rows) {
+      map.set(`${row.exerciseId}:${row.setNumber}`, {
+        actualReps: row.actualReps ?? 0,
+        weightKg:   row.weightKg ?? 0,
+        rir:        row.perceivedEffort ?? 0,
+      });
+    }
+  } catch (err) {
+    console.error('[Session] Error cargando series restauradas:', err);
+  }
+  return map;
 }
 
 function buildSetState(index: number, targetReps: number, lastWeightKg: number | null): SetState {
@@ -403,7 +460,27 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       ),
     );
 
-    console.log('[Session] startSession complete — exercises:', exercises.length);
+    // Étapa 3 (#6+#18): restaura como completadas/solo-lectura las series de
+    // este día que ya se guardaron en una sesión anterior de este ciclo.
+    const restoredMap = await getRestoredSets(day.dbId, planId);
+    if (restoredMap.size > 0) {
+      for (const ex of exercises) {
+        ex.sets = ex.sets.map(s => {
+          const restored = restoredMap.get(`${ex.exerciseId}:${s.setNumber}`);
+          if (!restored) return s;
+          return {
+            ...s,
+            completed:  true,
+            actualReps: restored.actualReps,
+            weightKg:   restored.weightKg,
+            rir:        restored.rir,
+            isRestored: true,
+          };
+        });
+      }
+    }
+
+    console.log('[Session] startSession complete — exercises:', exercises.length, 'restored:', restoredMap.size);
     set({
       isActive: true, planId, planDayId: day.dbId,
       startTime: Date.now(), currentExerciseIdx: 0,
@@ -596,11 +673,19 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
     console.log('[Session] finishSession — exercises:', exercises.length);
 
-    const completedSetsCount = exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.completed).length, 0);
-    if (completedSetsCount === 0) {
+    // Étapa 3 (#6+#18), punto C.1: el guard de sesión fantasma (#12) cuenta
+    // SOLO series NUEVAS (no restauradas) — un día ya restaurado al que no se
+    // le añade trabajo nuevo no debe crear una fila en workout_sessions.
+    const newCompletedSetsCount = exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.completed && !s.isRestored).length, 0);
+    if (newCompletedSetsCount === 0) {
       const plannedSets = exercises.reduce((acc, ex) => acc + ex.planSets, 0);
+      // El ratio que ve el llamador (doFinish → dayFullyCompleted/perfect/
+      // markDayCompleted) debe reflejar el progreso TOTAL del día, restaurado
+      // incluido — por eso aquí NO se devuelve 0 a secas, se cuenta todo lo
+      // completado igual que en el camino normal más abajo.
+      const completedSets = exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.completed).length, 0);
       set({ ...EMPTY_STATE });
-      return { hasPR: false, completedSets: 0, plannedSets };
+      return { hasPR: false, completedSets, plannedSets };
     }
 
     try {
@@ -624,6 +709,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     let setsCount = 0;
     for (const ex of exercises) {
       for (const s of ex.sets) {
+        // Punto C.2: una serie restaurada ya existe en session_sets (viene de
+        // la sesión anterior que la restauró) — insertarla de nuevo la duplicaría.
+        if (s.isRestored) continue;
         const base = {
           sessionId: session.id, exerciseId: ex.exerciseId, setNumber: s.setNumber,
           targetReps: s.targetReps, actualReps: s.actualReps, weightKg: s.weightKg,
@@ -641,8 +729,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     }
     console.log('[Session] guardadas', setsCount, 'series');
 
+    // Punto C.4: solo marca uso si hay al menos una serie NUEVA completada —
+    // la rotación de variedad por músculo debe reaccionar a trabajo de hoy,
+    // no a progreso ya contabilizado en una sesión anterior.
     for (const ex of exercises) {
-      if (ex.sets.some(s => s.completed)) {
+      if (ex.sets.some(s => s.completed && !s.isRestored)) {
         const exercise = EXERCISES.find(e => e.id === ex.exerciseId);
         if (exercise) {
           try {
@@ -657,17 +748,23 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     let hasPR = false;
     if (planId !== null) {
       try {
+        // Punto C.3: progresión y detección de PR miran SOLO lo nuevo de hoy
+        // — lo restaurado ya se evaluó (y ya actualizó exercise_targets) la
+        // vez que se completó de verdad.
         const result = await runProgressionAfterSession(exercises.map(ex => ({
           exerciseId:    ex.exerciseId,
           planRepsMin:   ex.planRepsMin,
           planRepsMax:   ex.planRepsMax,
           planSets:      ex.planSets,
-          completedSets: ex.sets.filter(s => s.completed).map(s => ({ actualReps: s.actualReps, weightKg: s.weightKg, rir: s.rir })),
+          completedSets: ex.sets.filter(s => s.completed && !s.isRestored).map(s => ({ actualReps: s.actualReps, weightKg: s.weightKg, rir: s.rir })),
         })));
         hasPR = result.hasPR;
       } catch {}
     }
 
+    // Ratio final (dayFullyCompleted/perfect/markDayCompleted en doFinish):
+    // cuenta TODAS las series completadas, restauradas o no — sin cambios
+    // respecto al comportamiento anterior a esta Étapa.
     const plannedSets = exercises.reduce((acc, ex) => acc + ex.planSets, 0);
     const completedSets = exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.completed).length, 0);
 

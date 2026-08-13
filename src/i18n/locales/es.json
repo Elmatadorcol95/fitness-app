@@ -436,6 +436,7 @@
       "noHistory": "Sin historial previo",
       "prevEx": "Anterior",
       "nextEx": "Siguiente",
+      "restoredBanner": "Ya completaste {{done}} de {{total}} series de este día.",
       "finishIncompleteTitle": "¿Terminar sin completar?",
       "finishIncompleteMsg": "Te faltan {{count}} series por completar en {{exercises}} ejercicios. ¿Seguro que quieres terminar?",
       "rirHelpTitle": "Repeticiones en reserva (RIR)",

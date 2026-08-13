@@ -1819,10 +1819,12 @@ Bucle ~1.3 s sobre fondo #141A17:
        2026-08-05 (ver entrada "sesión 2026-08-05 (continuación)",
        item b).
     5. Priorizar máquinas sobre peso corporal en gimnasio.
-    6. Retomar ejercicios no completados del día anterior. (Ver también
-       #18 — Juan confirma que ambos puntos se resuelven juntos con el
-       cambio de "elegir día libremente", en preparación fuera de esta
-       sesión.)
+    6. ~~Retomar ejercicios no completados del día anterior.~~ CERRADO
+       2026-08-13 (Étapa 3 del chantier #6+#18, la pieza final y original
+       de este punto — `isRestored` en `SetState` + `getRestoredSets()`
+       en `session.store.ts`: al reabrir un día parcial, las series ya
+       completadas en una sesión anterior del mismo ciclo se restauran de
+       solo lectura, con banner ámbar informativo del conteo).
     7. ~~Usuario pide 60 min de entreno, el plan generado dura ~33 min.~~
        CERRADO 2026-08-05 (ver entrada de esa sesión, item b).
     8. Poder cambiar días/duración de entreno después del onboarding.
@@ -1858,10 +1860,14 @@ Bucle ~1.3 s sobre fondo #141A17:
        verse la progresión al instante.~~ CERRADO 2026-08-07 (ver entrada
        de esa sesión — completeSet propaga peso/reps/coach a toda
        instancia hermana con el mismo exerciseId).
-    18. No se puede elegir libremente qué día entrenar — el orden del
+    18. ~~No se puede elegir libremente qué día entrenar — el orden del
        ciclo (ej. día 1 pull, día 2 push, día 3 legs) es obligatorio, sin
-       poder empezar por legs. Fusiona con #6 — Juan confirma que
-       prepara este cambio en paralelo, fuera de esta sesión.
+       poder empezar por legs.~~ CERRADO 2026-08-13 — entregado por las
+       Étapas 1 a 2c del chantier #6+#18 (2026-08-11/12: selector de día
+       directo por id real de `plan_days`, banner de día obsoleto,
+       contador semanal real, y bloqueo de reselección de días ya
+       completos al 100%). Mantenido abierto a propósito hasta la Étapa 3
+       (punto #6, arriba) por decisión de Juan, para cerrar ambos juntos.
     19. El coach asume incrementos de peso de 1 en 1 kg, pero las
        máquinas de gimnasio reales incrementan de 15 en 15 libras (o 10
        en 10, según máquina) — el kg mostrado es la conversión. Los
@@ -2527,6 +2533,92 @@ Bucle ~1.3 s sobre fondo #141A17:
       (`#1,#2,#3,#4,#7,#9,#11,#12,#13,#14,#15,#17,#19,#20,#21,#22,#23,#24,#25,#26`),
       11 pendientes
       (`#5,#6,#8,#10,#16,#18,#27,#29,#30,#34,#35`).**
+- Hecho: sesión 2026-08-13 — **Étapa 3 (#6+#18): retomar series ya
+  completadas al reabrir un día parcial — CIERRA el chantier #6+#18
+  COMPLETO** (JS puro, sin módulos nativos — solo recarga). Precedida de
+  Paso 0 de solo lectura (código literal de `SetRow`, `handleFinish`/
+  cálculo de pendientes, `runProgressionAfterSession()` completa,
+  `markExerciseUsed()`) y de una ronda de verificación aparte donde Juan
+  pidió el diff completo sin resumir antes de aprobar el diseño:
+  * **Causa raíz**: al reseleccionar desde "Tu ciclo" un día con progreso
+    parcial (Paso 2b/2c ya permitían volver a él sin bloqueo si no estaba
+    al 100%), `startSession()` reconstruía `exercises` solo a partir del
+    plan — el trabajo ya guardado en `session_sets`/historial de una
+    sesión anterior del mismo ciclo no se reflejaba en la sesión en vivo,
+    así que el día "arrancaba vacío" aunque ya tuviera series completadas.
+  * **Qué se construyó**:
+    - Campo nuevo `isRestored?: boolean` en `SetState` (mismo patrón
+      opcional que `coachReason`).
+    - `getRestoredSets(planDayId, planId)` en `session.store.ts`: hace
+      `join` de `session_sets` con `workout_sessions` filtrando por
+      `plan_day_id` y `completed=1`. Filtro de fecha CONDICIONAL: en modo
+      automático, ningún filtro extra (`plan_days.dbId` nunca se repite
+      entre ciclos — confirmado en auditoría de solo lectura de esta
+      misma sesión); en modo manual, se añade
+      `workout_sessions.created_at >= generatedAt` del plan activo,
+      porque `materializeTemplate` SÍ reutiliza la misma fila de
+      `plan_days` entre ciclos (mismo `cycleStart` que ya usa
+      `hasSessionForPlanDay` en `routineMaterializer.ts`).
+    - `startSession()`: tras construir `exercises` con `buildExerciseState`
+      (sin tocarla — la comparte `replaceExercise`), aplica el resultado
+      de `getRestoredSets` por `(exerciseId, setNumber)`, marcando
+      `completed:true, isRestored:true` y sobrescribiendo
+      `actualReps`/`weightKg`/`rir` con lo guardado (nunca `targetReps`,
+      que sigue viniendo del plan).
+    - `finishSession()`, 4 puntos que ahora excluyen `isRestored`: (1) el
+      guard de sesión fantasma (#12) cuenta solo series NUEVAS — un día
+      100% restaurado sin trabajo nuevo no crea fila en
+      `workout_sessions`, pero el `completedSets` que devuelve en ese
+      caso temprano SÍ sigue sumando lo restaurado, para no mentirle al
+      ratio que alimenta `dayFullyCompleted`/`markDayCompleted` (Paso 2c);
+      (2) el loop de inserción en `session_sets` salta las series
+      restauradas (ya existen, insertarlas de nuevo las duplicaría); (3)
+      `runProgressionAfterSession` solo recibe series nuevas — la
+      progresión y la detección de PR de lo restaurado ya se calcularon
+      la vez que se completó de verdad; (4) `markExerciseUsed` solo se
+      llama si hay al menos una serie nueva completada.
+    - UI (`session.tsx`): `SetRow` con prop `isRestored` — inputs de
+      reps/kg/RIR con `editable={false}`, checkbox `disabled`, icono
+      candado en vez de check, fila más atenuada que una serie completada
+      normal. Banner ámbar no bloqueante (mismo patrón que
+      `calibBanner`/`noPullBanner`) con el conteo a nivel de SERIES
+      ("Ya completaste X de Y series de este día"), visible solo si hay
+      alguna serie restaurada. 3 claves i18n nuevas (es/en/fr).
+  * **Qué se validó**: 4 trazas manuales contra el código real (día
+    virgen sin cambios de comportamiento; dos sesiones sobre el mismo día
+    sin duplicar `session_sets` ni recalcular PR de lo ya evaluado;
+    sesión antigua de un ciclo manual ANTERIOR excluida correctamente por
+    el filtro `created_at >= generatedAt`; guard de sesión fantasma
+    respetado con 4/5 ejercicios restaurados y cero trabajo nuevo, sin
+    crear fila en `workout_sessions`). `runProgressionAfterSession()`
+    revisada completa a pedido de Juan, confirmando que el corte por
+    `completedSets.length === 0` ocurre antes de cualquier cálculo de 1RM/PR.
+    `npx tsc --noEmit` limpio en cada paso; `git diff` confirmado acotado
+    a los 5 archivos permitidos. Validado en el dispositivo físico de
+    Juan: serie ya hecha aparece marcada con candado y no responde al
+    toque, banner con el conteo correcto, resto del día completable con
+    normalidad, historial sin series duplicadas tras terminar.
+  * **CIERRE FORMAL DEL CHANTIER #6+#18**: con esta Étapa 3 quedan
+    cerrados también, en la lista maestra de arriba, el punto **#6**
+    (retomar ejercicios no completados — entregado íntegro en esta pieza)
+    y el punto **#18** (elegir libremente qué día entrenar — entregado en
+    las Étapas 1 a 2c, 2026-08-11/12, mantenido abierto a propósito hasta
+    que esta última pieza terminara, decisión de Juan).
+  * **Pendiente, sin relación con este commit** (constancia únicamente,
+    documentados aquí por primera vez con número — **#32**: sospecha de
+    bug de fecha UTC en `finishSession`/`getWeekStart` sin confirmar
+    todavía; **#33**: columna `workout_sessions.completed` posiblemente
+    vestigial, siempre en 1 en la práctica desde `finishSession`; **#36**:
+    filas huérfanas de `plan_days` en modo automático — `generateAndSavePlan`
+    nunca borra las de un plan desactivado, se acumulan indefinidamente,
+    ver sección "Constructor de rutina propia" más abajo) — ninguno
+    investigado ni tocado en esta sesión.
+    - **Total: 34 puntos numerados en este documento (la numeración de
+      Juan llega hasta #36 — #28 y #31 siguen sin entrada, mismo criterio
+      de siempre), 22 cerrados
+      (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26`),
+      12 pendientes
+      (`#5,#8,#10,#16,#27,#29,#30,#32,#33,#34,#35,#36`).**
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 

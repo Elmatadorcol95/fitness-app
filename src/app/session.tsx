@@ -78,13 +78,16 @@ interface SetRowProps {
   rir: number;
   completed: boolean;
   coachReason?: string;
+  // Étapa 3 (#6+#18): serie restaurada de una sesión anterior de este ciclo —
+  // de solo lectura, no responde a ningún toque.
+  isRestored?: boolean;
   onChangeReps:   (v: number) => void;
   onChangeWeight: (v: number) => void;
   onChangeRir:    (v: number) => void;
   onComplete:     () => void;
 }
 
-function SetRow({ num, actualReps, weightKg, rir, completed, coachReason, onChangeReps, onChangeWeight, onChangeRir, onComplete }: SetRowProps) {
+function SetRow({ num, actualReps, weightKg, rir, completed, coachReason, isRestored, onChangeReps, onChangeWeight, onChangeRir, onComplete }: SetRowProps) {
   const [repsStr, setRepsStr] = useState(String(actualReps));
   const [kgStr,   setKgStr]   = useState(String(weightKg));
   const [rirStr,  setRirStr]  = useState(String(rir));
@@ -100,14 +103,15 @@ function SetRow({ num, actualReps, weightKg, rir, completed, coachReason, onChan
 
   return (
     <View>
-      <View style={[styles.setRow, completed && styles.setRowDone]}>
+      <View style={[styles.setRow, completed && styles.setRowDone, isRestored && styles.setRowRestored]}>
         <ThemedText themeColor="textSecondary" style={styles.setNum}>{num}</ThemedText>
 
-        {/* Reps — siempre editable */}
+        {/* Reps — editable, salvo serie restaurada (solo lectura) */}
         <TextInput
-          style={styles.setInput}
+          style={[styles.setInput, isRestored && styles.setInputRestored]}
           keyboardType="numeric"
           selectTextOnFocus
+          editable={!isRestored}
           value={repsStr}
           onFocus={() => setFocused('reps')}
           onChangeText={setRepsStr}
@@ -119,10 +123,11 @@ function SetRow({ num, actualReps, weightKg, rir, completed, coachReason, onChan
           }}
         />
 
-        {/* Kg — siempre editable */}
+        {/* Kg — editable, salvo serie restaurada (solo lectura) */}
         <TextInput
-          style={styles.setInput}
+          style={[styles.setInput, isRestored && styles.setInputRestored]}
           keyboardType="decimal-pad"
+          editable={!isRestored}
           value={kgStr}
           selection={kgSelection}
           onFocus={() => {
@@ -141,11 +146,12 @@ function SetRow({ num, actualReps, weightKg, rir, completed, coachReason, onChan
           }}
         />
 
-        {/* RIR — siempre editable, color dinámico */}
+        {/* RIR — editable, salvo serie restaurada (solo lectura), color dinámico */}
         <TextInput
-          style={[styles.setInput, styles.setInputRir, { color: ririColor }]}
+          style={[styles.setInput, styles.setInputRir, isRestored && styles.setInputRestored, { color: ririColor }]}
           keyboardType="numeric"
           selectTextOnFocus
+          editable={!isRestored}
           value={rirStr}
           onFocus={() => setFocused('rir')}
           onChangeText={setRirStr}
@@ -158,19 +164,24 @@ function SetRow({ num, actualReps, weightKg, rir, completed, coachReason, onChan
         />
 
         {/* Toggle checkmark — vuelca los tres campos al store ANTES de completar,
-            por si el teclado sigue abierto (onEndEditing no habría disparado aún). */}
-        <Pressable onPress={() => {
-          const rVal = parseInt(repsStr, 10);
-          if (!isNaN(rVal) && rVal > 0) onChangeReps(rVal);
-          const kVal = parseFloat(kgStr);
-          if (!isNaN(kVal) && kVal >= 0) onChangeWeight(kVal);
-          const rirVal = parseInt(rirStr, 10);
-          if (!isNaN(rirVal) && rirVal >= 0) onChangeRir(rirVal);
-          onComplete();
-        }} style={[styles.checkBtn, completed && styles.checkBtnDone]}>
+            por si el teclado sigue abierto (onEndEditing no habría disparado aún).
+            Deshabilitado del todo si es una serie restaurada. */}
+        <Pressable
+          disabled={isRestored}
+          onPress={() => {
+            const rVal = parseInt(repsStr, 10);
+            if (!isNaN(rVal) && rVal > 0) onChangeReps(rVal);
+            const kVal = parseFloat(kgStr);
+            if (!isNaN(kVal) && kVal >= 0) onChangeWeight(kVal);
+            const rirVal = parseInt(rirStr, 10);
+            if (!isNaN(rirVal) && rirVal >= 0) onChangeRir(rirVal);
+            onComplete();
+          }}
+          style={[styles.checkBtn, completed && styles.checkBtnDone]}
+        >
           <Ionicons
-            name={completed ? 'checkmark' : 'ellipse-outline'}
-            size={22}
+            name={isRestored ? 'lock-closed' : completed ? 'checkmark' : 'ellipse-outline'}
+            size={isRestored ? 18 : 22}
             color={completed ? '#04261A' : MUTED}
           />
         </Pressable>
@@ -198,6 +209,11 @@ export default function SessionScreen() {
     addSet, removeSet, updateNote, adjustRest, startRestTimer, stopRestTimer,
     tickRestTimer, finishSession, cancelSession, replaceExercise,
   } = useSessionStore();
+
+  // Étapa 3 (#6+#18): conteo a nivel de SERIES para el banner de retomado —
+  // no cambia mientras dura la sesión (isRestored solo se asigna al arrancar).
+  const restoredSetsCount = exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.isRestored).length, 0);
+  const totalSetsCount    = exercises.reduce((acc, ex) => acc + ex.sets.length, 0);
 
   const { advanceToNextDay, markDayCompleted } = useWorkoutStore();
   const currentPlan = useWorkoutStore(s => s.currentPlan);
@@ -708,6 +724,18 @@ export default function SessionScreen() {
           >
             {!showingCardio && (
             <>
+            {/* Étapa 3 (#6+#18): aviso de series restauradas — describe el
+                estado actual del día, no un evento puntual, sin acción de
+                cerrar necesaria (mismo patrón que noPullBanner en training.tsx). */}
+            {restoredSetsCount > 0 && (
+              <View style={styles.restoredBanner}>
+                <Ionicons name="information-circle-outline" size={15} color={AMBER} />
+                <ThemedText style={styles.restoredBannerText}>
+                  {t('workout.session.restoredBanner', { done: restoredSetsCount, total: totalSetsCount })}
+                </ThemedText>
+              </View>
+            )}
+
             {/* Ejercicio actual */}
             <View style={[styles.exHero, { backgroundColor: catColor + '18' }]}>
               <Ionicons name={catIcon} size={56} color={catColor} />
@@ -835,6 +863,7 @@ export default function SessionScreen() {
                 rir={s.rir}
                 completed={s.completed}
                 coachReason={s.coachReason}
+                isRestored={s.isRestored}
                 onChangeReps={v =>   updateSetField(currentExerciseIdx, setIdx, 'actualReps', v)}
                 onChangeWeight={v => updateSetField(currentExerciseIdx, setIdx, 'weightKg', v)}
                 onChangeRir={v =>   updateSetField(currentExerciseIdx, setIdx, 'rir', v)}
@@ -1367,6 +1396,18 @@ const styles = StyleSheet.create({
   },
   calibText: { flex: 1, fontSize: 12, color: AMBER, lineHeight: 18 },
 
+  // Étapa 3 (#6+#18): aviso de series restauradas — mismo tratamiento visual
+  // que calibBanner/noPullBanner (training.tsx): ámbar, borde izquierdo, sin
+  // botón de cerrar porque describe el estado actual, no un evento puntual.
+  restoredBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
+    backgroundColor: AMBER + '14', borderRadius: Spacing.two,
+    borderLeftWidth: 3, borderLeftColor: AMBER,
+    paddingHorizontal: Spacing.three, paddingVertical: Spacing.two,
+    marginBottom: Spacing.two,
+  },
+  restoredBannerText: { flex: 1, fontSize: 12, color: AMBER, lineHeight: 18 },
+
   // Note
   noteInput: {
     backgroundColor: BG2, borderRadius: Spacing.two,
@@ -1428,12 +1469,16 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two, gap: 4,
   },
   setRowDone: { opacity: 0.75 },
+  // Étapa 3 (#6+#18): serie restaurada — más apagada que una recién
+  // completada (0.75), para distinguir "de solo lectura" de "hecha hoy".
+  setRowRestored: { opacity: 0.55 },
   setNum:     { width: 24, fontSize: 13, textAlign: 'center' },
   setInput: {
     flex: 1, height: 38, textAlign: 'center', fontSize: 16, fontWeight: '600',
     color: '#F1F4F1', backgroundColor: BG2, borderRadius: Spacing.one,
     borderWidth: 1, borderColor: '#FFFFFF14',
   },
+  setInputRestored: { color: MUTED },
   setInputRir: { flex: 0, width: 52 },
   checkBtn: {
     width: 40, height: 40, borderRadius: 20,

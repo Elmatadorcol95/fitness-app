@@ -436,6 +436,7 @@
       "noHistory": "No previous history",
       "prevEx": "Previous",
       "nextEx": "Next",
+      "restoredBanner": "You already completed {{done}} of {{total}} sets for this day.",
       "finishIncompleteTitle": "Finish without completing?",
       "finishIncompleteMsg": "You have {{count}} incomplete sets across {{exercises}} exercises. Are you sure you want to finish?",
       "rirHelpTitle": "Reps in Reserve (RIR)",
