@@ -421,6 +421,8 @@
       "removeSet": "- Serie",
       "skipRest": "Omitir",
       "startRest": "Descanso: {{sec}} s",
+      "restNotifTitle": "¡Descanso terminado!",
+      "restNotifBody": "Vuelve a la app para tu siguiente serie.",
       "finishSession": "Finalizar",
       "finishConfirmTitle": "¿Terminar entrenamiento?",
       "finishConfirmMsg": "Se guardarán todas las series completadas.",

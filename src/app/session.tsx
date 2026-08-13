@@ -23,6 +23,7 @@ import { TimedChecklistItem } from '@/components/warmup/TimedChecklistItem';
 import { selectCardio, createCardioCycleState, type CardioPlan, type PlannedCardioBlock } from '@/lib/cardioSelection';
 import { hapticsSuccess } from '@/lib/haptics';
 import { playRestDone } from '@/lib/sounds';
+import { requestNotificationPermission } from '@/lib/notifications';
 import { Spacing } from '@/constants/theme';
 import { getAllPreferences, togglePreference, type Preference } from '@/lib/exercisePreferences';
 
@@ -208,6 +209,7 @@ export default function SessionScreen() {
     setCurrentExercise, updateSetField, completeSet,
     addSet, removeSet, updateNote, adjustRest, startRestTimer, stopRestTimer,
     tickRestTimer, finishSession, cancelSession, replaceExercise,
+    scheduleRestNotification, cancelRestNotification,
   } = useSessionStore();
 
   // Étapa 3 (#6+#18): conteo a nivel de SERIES para el banner de retomado —
@@ -306,6 +308,14 @@ export default function SessionScreen() {
     getAllPreferences().then(setPreferencesMap);
   }, []);
 
+  // #27: pide el permiso de notificaciones una sola vez al montar, sin
+  // bloquear el render — el SO no repite el diálogo si el usuario ya
+  // respondió antes (otorgado o denegado), así que no hace falta guardar
+  // ningún flag propio de "ya se pidió".
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
+
   // Cronómetro + rest timer (cada segundo)
   useEffect(() => {
     const id = setInterval(() => {
@@ -315,12 +325,37 @@ export default function SessionScreen() {
     return () => clearInterval(id);
   }, [startTime]);
 
+  // #27: id de la notificación de fin de descanso programada al pasar a
+  // segundo plano (null si no hay ninguna pendiente).
+  const restNotifIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active') tickRestTimer();
+      if (nextState === 'background') {
+        // Leído directo del store (getState()), no de la variable
+        // restTimerRunning ya desestructurada arriba en el cuerpo del
+        // componente — este efecto monta una sola vez ([] de deps), así
+        // que esa variable sería un closure obsoleto con el valor de la
+        // primera renderización, no el valor real en este instante.
+        if (useSessionStore.getState().restTimerRunning) {
+          scheduleRestNotification(
+            t('workout.session.restNotifTitle'),
+            t('workout.session.restNotifBody'),
+          ).then(id => { restNotifIdRef.current = id; });
+        }
+      } else if (nextState === 'active') {
+        // Cancela cualquier notificación programada, haya alguna pendiente
+        // o no (cancelRestNotification/cancelScheduledNotification son
+        // no-op seguros con id null) — SIEMPRE antes de tickRestTimer(),
+        // para no dejar sonar una notificación de un descanso que ya se
+        // va a corregir con el tick inmediato.
+        cancelRestNotification(restNotifIdRef.current);
+        restNotifIdRef.current = null;
+        tickRestTimer();
+      }
     });
     return () => sub.remove();
-  }, []);
+  }, [t, scheduleRestNotification, cancelRestNotification, tickRestTimer]);
 
   // Android back button
   useEffect(() => {

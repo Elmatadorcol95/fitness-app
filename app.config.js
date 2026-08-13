@@ -63,6 +63,7 @@ export default {
       'expo-image',
       'expo-sharing',
       'expo-audio',
+      'expo-notifications',
     ],
     experiments: {
       typedRoutes: true,

@@ -421,6 +421,8 @@
       "removeSet": "- Série",
       "skipRest": "Ignorer",
       "startRest": "Repos : {{sec}} s",
+      "restNotifTitle": "Repos terminé !",
+      "restNotifBody": "Retournez dans l'application pour votre prochaine série.",
       "finishSession": "Terminer",
       "finishConfirmTitle": "Terminer la séance ?",
       "finishConfirmMsg": "Toutes les séries complétées seront sauvegardées.",

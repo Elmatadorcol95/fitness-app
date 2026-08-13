@@ -2619,6 +2619,40 @@ Bucle ~1.3 s sobre fondo #141A17:
       (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26`),
       12 pendientes
       (`#5,#8,#10,#16,#27,#29,#30,#32,#33,#34,#35,#36`).**
+- **#27 — IMPLEMENTADO Y COMITEADO, SIN VALIDAR EN DISPOSITIVO** (commit
+  `wip(coach): notificacion local fin de descanso en 2do plano (#27) —
+  pendiente validar en dispositivo`; excepción deliberada de Juan a la
+  regla habitual de validar antes de comitear — trabajo empujado a
+  propósito para retomarlo desde la otra PC vía `git pull`). **No
+  marcado como cerrado en el backlog de arriba hasta que se valide.**
+  * Qué se construyó: `expo-notifications` (primer módulo nativo del
+    proyecto) programa una notificación local al pasar a segundo plano
+    con el timer de descanso corriendo, usando `restTimerEndAt` como
+    referencia — sonido por defecto del sistema, sin canal de Android
+    propio (Opción 1). `src/lib/notifications.ts` nuevo (mismo patrón
+    defensivo que `haptics.ts`/`sounds.ts`); acciones
+    `scheduleRestNotification`/`cancelRestNotification` en
+    `session.store.ts`; en `session.tsx`, permiso pedido una vez al
+    montar sin bloquear render, y rama `background`/`active` en el
+    `useEffect` de `AppState` ya existente (cancela SIEMPRE antes de
+    `tickRestTimer()` al volver a primer plano). Margen de tolerancia de
+    -5s en `scheduleRestNotification` para no perder el aviso si el
+    descanso termina en el instante exacto de ir a segundo plano.
+  * **PENDIENTE — build nueva de EAS antes de poder probar nada de esto**
+    (`eas build --profile preview --platform android` — se puede lanzar
+    desde cualquiera de las 2 PCs, el build corre en la nube de Expo, no
+    importa cuál lo dispare). Los 3 casos a validar en dispositivo real:
+    1. Notificación real al pasar a segundo plano con el descanso
+       corriendo.
+    2. Volver a primer plano antes de tiempo: no debe sonar nada, y el
+       número del descanso en pantalla debe corregirse solo.
+    3. Comportamiento correcto tanto si el permiso de notificaciones se
+       otorga como si se deniega (sin crashear, sin error visible).
+  * `npx tsc --noEmit` limpio en cada paso de la implementación — es lo
+    único verificado hasta ahora.
+  * **Próximo paso**: cuando se valide en cualquiera de las 2 PCs, un
+    commit nuevo y chico confirma la validación — este commit no se
+    enmienda, para no complicar el sync entre las 2 máquinas.
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 

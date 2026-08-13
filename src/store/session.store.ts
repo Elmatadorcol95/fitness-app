@@ -5,6 +5,7 @@ import { exerciseTargets, workoutSessions, sessionSets, exerciseRestPrefs, worko
 import type { Profile } from '@/db/schema';
 import { hapticsLight, hapticsSuccess } from '@/lib/haptics';
 import { playRestDone } from '@/lib/sounds';
+import { scheduleRestDoneNotification, cancelScheduledNotification } from '@/lib/notifications';
 import { runProgressionAfterSession } from '@/lib/progression';
 import { EXERCISES } from '@/lib/exercises';
 import { getEquipLocal, EQUIP_INC, type EquipLocal } from '@/lib/equipmentClassification';
@@ -68,6 +69,14 @@ interface SessionStore {
   startRestTimer: (seconds: number) => void;
   stopRestTimer: () => void;
   tickRestTimer: () => void;
+  // #27: programa/cancela la notificación local de fin de descanso. title/body
+  // ya vienen traducidos del llamador (session.tsx) — ningún store del proyecto
+  // importa i18n hoy (confirmado por auditoría, sin precedente), así que la
+  // traducción se queda en la capa de UI; el store solo decide SI corresponde
+  // programar (mirando restTimerRunning/restTimerEndAt) y llama al módulo de
+  // notificaciones, igual que ya hace con playRestDone/hapticsSuccess.
+  scheduleRestNotification: (title: string, body: string) => Promise<string | null>;
+  cancelRestNotification: (id: string | null) => Promise<void>;
   finishSession: () => Promise<{ hasPR: boolean; completedSets: number; plannedSets: number }>;
   cancelSession: () => void;
   replaceExercise: (exIdx: number, newExerciseId: string, profile: Profile) => Promise<void>;
@@ -626,6 +635,24 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     restTimerEndAt: Date.now() + seconds * 1000,
   }),
   stopRestTimer:  ()        => set({ restTimerRunning: false, restTimerEndAt: null }),
+
+  // #27: solo programa si el timer sigue corriendo EN ESTE INSTANTE (leído
+  // vía get(), no de un valor capturado antes) — mismo cálculo de segundos
+  // restantes que ya usa tickRestTimer contra restTimerEndAt.
+  scheduleRestNotification: async (title, body) => {
+    const { restTimerRunning, restTimerEndAt } = get();
+    if (!restTimerRunning || restTimerEndAt === null) return null;
+    const secondsFromNow = (restTimerEndAt - Date.now()) / 1000;
+    // Margen de tolerancia: si el descanso terminó hace muy poco (≤5s), sigue
+    // mereciendo un aviso casi inmediato — solo bloquea si ya es demasiado
+    // viejo (ej. volver de segundo plano 10 min después).
+    if (secondsFromNow <= -5) return null;
+    return scheduleRestDoneNotification(secondsFromNow, title, body);
+  },
+
+  cancelRestNotification: async (id) => {
+    await cancelScheduledNotification(id);
+  },
 
   tickRestTimer: () => {
     const { restTimerRunning, restTimerEndAt } = get();

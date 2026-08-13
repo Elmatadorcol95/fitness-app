@@ -421,6 +421,8 @@
       "removeSet": "- Set",
       "skipRest": "Skip",
       "startRest": "Rest: {{sec}} s",
+      "restNotifTitle": "Rest is over!",
+      "restNotifBody": "Go back to the app for your next set.",
       "finishSession": "Finish",
       "finishConfirmTitle": "Finish workout?",
       "finishConfirmMsg": "All completed sets will be saved.",
