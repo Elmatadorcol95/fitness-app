@@ -2766,6 +2766,30 @@ Bucle ~1.3 s sobre fondo #141A17:
     después de este — depende de que este hook ya exista en el
     historial de Git. `routineBuilder.tsx` (los 2 campos de cardio del
     constructor manual) queda sin tocar, pieza futura aparte.
+- Hecho: sesión 2026-08-14 (continuación) — **#39, parte 2/2**: retrofit
+  de `EditableStepper` (altura/peso del onboarding, `StepPhysical.tsx`)
+  al hook compartido, mismo commit que este texto,
+  `fix(coach): unifica seleccion de texto en altura/peso del onboarding (#39)`:
+  * **Causa raíz**: mismo bug del #20/#37/#39 (`selectTextOnFocus`
+    reaplicándose en cada tecla en Android) en `EditableStepper`,
+    encontrado en la auditoría completa del repo del #39.
+  * **Decisión**: retrofit al hook compartido ya creado y comiteado en
+    `f139494` (`src/hooks/use-text-selection.ts`, `useTextSelection()`)
+    — sin inventar una implementación local nueva, un solo mecanismo
+    para los 7 campos afectados en total (los 6 de `session.tsx` + este).
+  * **Validado**: traza a mano confirmando que `sel.moveCursorToEnd()`
+    se agrega DESPUÉS de `onCommit(text)` dentro del mismo
+    `onChangeText`, sin interferir con el mecanismo del #2 (guardar en
+    cada tecla, no solo en `onBlur`) — `onCommit(text)` sigue
+    disparándose exactamente igual, antes de la línea nueva. Validado
+    en dispositivo (recarga con Metro, sin build nueva): sin
+    reselección al escribir 2+ dígitos en altura/peso, y el valor no se
+    pierde al tocar "Siguiente" justo después de escribir.
+  * `npx tsc --noEmit` limpio.
+  * **#39 sigue ABIERTO como punto de backlog** — falta
+    `routineBuilder.tsx` (2 campos de cardio del constructor manual,
+    mismo hook), última pieza pendiente, commit aparte. No cerrar hasta
+    que esa pieza también esté hecha.
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 

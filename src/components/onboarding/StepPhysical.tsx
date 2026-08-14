@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { useProfileStore } from '@/store/profile.store';
 import { useTheme } from '@/hooks/use-theme';
+import { useTextSelection } from '@/hooks/use-text-selection';
 import { cmToFtIn, kgToLb, lbToKg } from '@/lib/units';
 
 const GREEN    = '#3FBF7F';
@@ -94,10 +95,12 @@ function EditableStepper({ displayValue, editValue, onDec, onInc, canDec, canInc
   const theme  = useTheme();
   const [focused,  setFocused]  = useState(false);
   const [rawText,  setRawText]  = useState('');
+  const sel = useTextSelection();
 
   const handleFocus = () => {
     setRawText(editValue);
     setFocused(true);
+    sel.selectAll(editValue);
   };
 
   const handleBlur = () => {
@@ -126,14 +129,14 @@ function EditableStepper({ displayValue, editValue, onDec, onInc, canDec, canInc
           },
         ]}
         value={focused ? rawText : displayValue}
-        onChangeText={(text) => { setRawText(text); onCommit(text); }}
+        selection={sel.selection}
+        onChangeText={(text) => { setRawText(text); onCommit(text); sel.moveCursorToEnd(text); }}
         onFocus={handleFocus}
         onBlur={handleBlur}
         keyboardType="decimal-pad"
         textAlign="center"
         returnKeyType="done"
         onSubmitEditing={handleBlur}
-        selectTextOnFocus
       />
 
       <Pressable
