@@ -66,6 +66,11 @@ interface SessionStore {
   removeSet: (exIdx: number) => void;
   updateNote: (exIdx: number, note: string) => void;
   adjustRest: (exIdx: number, delta: number) => void;
+  // #37: sincroniza SOLO en memoria (sin escritura a la base) mientras el
+  // usuario teclea en el campo de descanso — restInputStr (UI) y
+  // ex.restSeconds (store, usado por completeSet al arrancar el timer)
+  // eran dos fuentes de verdad separadas hasta ahora.
+  setRestSecondsLive: (exIdx: number, seconds: number) => void;
   startRestTimer: (seconds: number) => void;
   stopRestTimer: () => void;
   tickRestTimer: () => void;
@@ -113,7 +118,7 @@ async function getCustomRest(exerciseId: string): Promise<number | null> {
   } catch { return null; }
 }
 
-async function saveCustomRest(exerciseId: string, restSeconds: number): Promise<void> {
+export async function saveCustomRest(exerciseId: string, restSeconds: number): Promise<void> {
   try {
     await db.insert(exerciseRestPrefs)
       .values({ exerciseId, restSeconds, updatedAt: Date.now() })
@@ -607,6 +612,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   updateNote: (exIdx, note) => {
     const exercises  = [...get().exercises];
     exercises[exIdx] = { ...exercises[exIdx], note };
+    set({ exercises });
+  },
+
+  setRestSecondsLive: (exIdx, seconds) => {
+    const exercises = [...get().exercises];
+    if (!exercises[exIdx]) return;
+    exercises[exIdx] = { ...exercises[exIdx], restSeconds: seconds };
     set({ exercises });
   },
 

@@ -2679,6 +2679,53 @@ Bucle ~1.3 s sobre fondo #141A17:
     (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27`),
     13 pendientes
     (`#5,#8,#10,#16,#29,#30,#32,#33,#34,#35,#36,#37,#38`).
+- Hecho: sesión 2026-08-14 (continuación) — **#37 CERRADO**: descanso
+  personalizado respeta la duración tipeada + corrige reselección de
+  texto (mismo commit que este texto, `fix(coach): descanso
+  personalizado respeta duracion tipeada + corrige reseleccion (#37)`):
+  * **Causa raíz, dos bugs distintos resueltos en la misma pieza**:
+    (a) `completeSet()` (`session.store.ts`) arrancaba el descanso
+    leyendo `ex.restSeconds` del store, pero `restInputStr` (pantalla) y
+    `ex.restSeconds` (store) eran dos fuentes de verdad separadas, unidas
+    solo por `applyRestInput()` en `onEndEditing`/`onSubmitEditing` —
+    completar una serie sin sacar el foco del campo usaba el valor
+    viejo, no el recién tipeado. (b) al resolver (a) con sincronización
+    en vivo por tecla (`setRestSecondsLive`, acción nueva), resurgió el
+    bug de reselección de texto ya visto en el **#20** (campo Kg de
+    `SetRow`) — mismo síntoma exacto, campo distinto: `selectTextOnFocus`
+    se reaplica en cada tecla en Android, no solo al enfocar.
+  * **Camino recorrido** (incluida la vuelta en falso, documentada tal
+    cual pasó, no escondida): primer intento contra (b) con un guard
+    (`isTypingRestRef`) que evitaba un eco redundante de un `useEffect`
+    de sincronización — resolvía un problema real pero DISTINTO al
+    síntoma visible; validado en dispositivo por Juan, confirmó que no
+    arreglaba la reselección. Segunda vuelta: aplicar el patrón EXACTO
+    ya usado en el campo Kg (`selection` + recálculo manual en
+    `onFocus`/`onChangeText`, sin `selectTextOnFocus`), confirmado línea
+    por línea idéntico al de Kg antes de aplicarlo — no una variación
+    propia. Las dos piezas conviven en el resultado final: el guard
+    sigue siendo necesario (evita el eco real hacia `restInputStr`), el
+    patrón de selección (`restSelection`) resuelve el síntoma visible
+    que Juan reportó.
+  * Nueva acción `setRestSecondsLive(exIdx, seconds)` en
+    `session.store.ts` — sincroniza SOLO en memoria (sin escritura a la
+    base) en cada tecla, acotada al rango 1-600 ya usado en el resto del
+    campo (evita que un valor fuera de rango tipeado a mitad de camino
+    contamine el "último valor válido" que lee el fallback de
+    `applyRestInput`). `saveCustomRest` exportada para persistir directo
+    desde `applyRestInput()` sin pasar por `adjustRest`/su cálculo de
+    delta (que con el store ya sincronizado en vivo, siempre habría dado
+    0).
+  * Validado en dispositivo (recarga con Metro, sin build nueva): tecleo
+    de 2+ dígitos sin reselección de texto, ±15s y cambio de ejercicio
+    sin cambios de comportamiento, y el caso original del #37 (completar
+    una serie sin sacar el foco del campo de descanso) arrancando el
+    temporizador con el valor recién tipeado, no con el default.
+  * `npx tsc --noEmit` limpio en cada paso.
+  * Total actualizado: 24 cerrados
+    (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#37`),
+    12 pendientes
+    (`#5,#8,#10,#16,#29,#30,#32,#33,#34,#35,#36,#38`).
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 

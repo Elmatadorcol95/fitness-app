@@ -11,7 +11,7 @@ import { ThemedText }          from '@/components/themed-text';
 import { ThemedView }          from '@/components/themed-view';
 import { VulcanDialog }        from '@/components/ui/VulcanDialog';
 import { ChangeExerciseModal } from '@/components/workout/ChangeExerciseModal';
-import { useSessionStore } from '@/store/session.store';
+import { useSessionStore, saveCustomRest } from '@/store/session.store';
 import { useWorkoutStore }     from '@/store/workout.store';
 import { useGamificationStore } from '@/store/gamification.store';
 import { useProfileStore }     from '@/store/profile.store';
@@ -207,7 +207,7 @@ export default function SessionScreen() {
     restTimerSeconds, restTimerRunning, trainingContext,
     cardio, sessionDayType,
     setCurrentExercise, updateSetField, completeSet,
-    addSet, removeSet, updateNote, adjustRest, startRestTimer, stopRestTimer,
+    addSet, removeSet, updateNote, adjustRest, setRestSecondsLive, startRestTimer, stopRestTimer,
     tickRestTimer, finishSession, cancelSession, replaceExercise,
     scheduleRestNotification, cancelRestNotification,
   } = useSessionStore();
@@ -242,6 +242,17 @@ export default function SessionScreen() {
   const [swapModal, setSwapModal]   = useState(false);
   const [guideExId, setGuideExId]   = useState<string | null>(null);
   const [restInputStr, setRestInputStr] = useState(() => String(currentEx?.restSeconds ?? 90));
+  // #37: mismo patrón que kgSelection en SetRow (líneas ~96/133-140) — sin
+  // esto, selectTextOnFocus se reaplica en cada tecla en Android (causa real
+  // del #20 en el campo Kg) y reselecciona todo el texto en vez de dejar el
+  // cursor al final.
+  const [restSelection, setRestSelection] = useState<{ start: number; end: number } | undefined>(undefined);
+  // #37: NO arregla la reselección (eso lo hace restSelection, arriba) — solo
+  // evita que el useEffect de sincronización de abajo pise restInputStr con
+  // un eco redundante del mismo valor que el propio tecleo (handleRestInputChange)
+  // ya escribió, en el re-render que su setRestSecondsLive() dispara
+  // (useSessionStore sin selector, ver Paso 0 de esta ronda).
+  const isTypingRestRef = useRef(false);
   const [finishState,  setFinishState]  = useState<'idle' | 'confirm' | 'incomplete'>('idle');
   const [pendingCount, setPendingCount] = useState(0);
   const [pendingExerciseCount, setPendingExerciseCount] = useState(0);
@@ -373,6 +384,15 @@ export default function SessionScreen() {
 
   // Sincroniza el campo de descanso con el valor del store (cambia tras ±15s o al cambiar ejercicio)
   useEffect(() => {
+    // #37: NO arregla la reselección (eso lo hace restSelection, ver su
+    // propio estado más arriba) — este guard solo evita que este efecto pise
+    // restInputStr con un eco redundante del mismo valor que el propio
+    // tecleo (handleRestInputChange) ya escribió, en el re-render que su
+    // setRestSecondsLive() dispara (useSessionStore sin selector, Paso 0).
+    if (isTypingRestRef.current) {
+      isTypingRestRef.current = false;
+      return;
+    }
     if (currentEx) setRestInputStr(String(currentEx.restSeconds));
   }, [currentEx?.restSeconds, currentExerciseIdx]);
 
@@ -468,14 +488,37 @@ export default function SessionScreen() {
 
   // ── Acciones ──────────────────────────────────────────────────────────────────
 
+  // #37: sincroniza el store EN VIVO en cada tecla (sin escritura a la
+  // base) — completeSet() lee ex.restSeconds directo del store al
+  // arrancar el descanso, así que si el usuario toca el check sin sacar
+  // el foco del campo antes, el store ya debe tener el valor tipeado.
+  // Rango 1-600 (no solo >=1): mismo límite que ya usan applyRestInput y
+  // el botón play (líneas 485/877) — sin el tope superior aquí, un valor
+  // fuera de rango (ej. "9999") contaminaría ex.restSeconds en vivo, y el
+  // fallback de applyRestInput (currentEx?.restSeconds) recuperaría ese
+  // mismo valor corrupto en vez del último válido.
+  function handleRestInputChange(text: string) {
+    setRestInputStr(text);
+    setRestSelection({ start: text.length, end: text.length });
+    const v = parseInt(text, 10);
+    if (!isNaN(v) && v >= 1 && v <= 600) {
+      isTypingRestRef.current = true;
+      setRestSecondsLive(currentExerciseIdx, v);
+    }
+  }
+
   function applyRestInput() {
     const v = parseInt(restInputStr, 10);
     if (v >= 1 && v <= 600) {
-      const delta = v - (currentEx?.restSeconds ?? 90);
-      if (delta !== 0) adjustRest(currentExerciseIdx, delta);
+      // El store ya está sincronizado por handleRestInputChange — aquí solo
+      // falta persistir en SQLite (equivalente a lo que adjustRest hace vía
+      // saveCustomRest, sin pasar por su cálculo de delta).
+      if (currentEx) saveCustomRest(currentEx.exerciseId, v);
       setRestInputStr(String(v));
     } else {
-      setRestInputStr(String(currentEx?.restSeconds ?? 90));
+      const fallback = currentEx?.restSeconds ?? 90;
+      setRestInputStr(String(fallback));
+      setRestSecondsLive(currentExerciseIdx, fallback);
     }
   }
 
@@ -847,10 +890,11 @@ export default function SessionScreen() {
                     style={styles.restEditInput}
                     keyboardType="numeric"
                     value={restInputStr}
-                    onChangeText={setRestInputStr}
+                    selection={restSelection}
+                    onFocus={() => setRestSelection({ start: 0, end: restInputStr.length })}
+                    onChangeText={handleRestInputChange}
                     onEndEditing={applyRestInput}
                     onSubmitEditing={applyRestInput}
-                    selectTextOnFocus
                     returnKeyType="done"
                   />
                   <ThemedText themeColor="textSecondary" style={styles.restStartText}>s</ThemedText>
