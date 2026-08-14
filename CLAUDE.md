@@ -2726,6 +2726,46 @@ Bucle ~1.3 s sobre fondo #141A17:
     (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#37`),
     12 pendientes
     (`#5,#8,#10,#16,#29,#30,#32,#33,#34,#35,#36,#38`).
+- Hecho: sesión 2026-08-14 (continuación) — **#39, parte 1/2**: hook
+  compartido de selección de texto (`src/hooks/use-text-selection.ts`,
+  mismo commit que este texto,
+  `fix(coach): unifica seleccion de texto en Reps/RIR/cardio + retrofit
+  Kg/descanso (#39)`):
+  * **Causa raíz**: mismo bug del #20/#37 (`selectTextOnFocus`
+    reaplicándose en cada tecla en Android, no solo al enfocar)
+    encontrado en auditoría completa del repo en 6 lugares más — 4 en
+    `session.tsx` (Reps, RIR, minutos de cardio de gimnasio, segundos de
+    cardio de casa), 2 en `routineBuilder.tsx` (minutos/segundos de
+    bloque de cardio del constructor manual) y altura/peso del
+    onboarding (`StepPhysical.tsx`).
+  * **Decisión**: en vez de copiar el parche a mano una cuarta vez, se
+    extrajo un hook compartido — `src/hooks/use-text-selection.ts`,
+    mismo patrón de ubicación que `use-android-back.ts`. Primitiva
+    indexada `useIndexedTextSelection()` (`Record<index, {start,end}>`)
+    + envoltorio de campo único `useTextSelection()` que fija índice 0,
+    para no duplicar el cálculo entre un campo suelto y un array de
+    campos (los 2 de cardio son indexados por bloque/sesión real, no un
+    solo campo por pantalla). El hook SOLO encapsula selección
+    (seleccionar todo al enfocar, cursor al final al tipear) — la
+    validación y el commit de cada campo siguen siendo propias de cada
+    uno, sin unificar.
+  * **Aplicado** a Reps y RIR (`SetRow`) y a los 2 campos de cardio de
+    `session.tsx` (antes sin ningún mecanismo de selección, solo
+    `selectTextOnFocus`). **Retrofit** de Kg (#20) y descanso por
+    ejercicio (#37) al mismo hook — sin cambio funcional, ambos ya
+    tenían su propia implementación local del mismo mecanismo byte a
+    byte igual; ahora los 6 campos comparten una sola implementación.
+  * **Validado en dispositivo** (recarga con Metro, sin build nueva):
+    Reps, RIR, minutos de cardio de gimnasio y segundos de cardio de
+    casa sin reselección; Kg y descanso por ejercicio funcionando
+    exactamente igual que antes del retrofit.
+  * `npx tsc --noEmit` limpio en cada paso.
+  * **Pendiente — parte 2/2**: `StepPhysical.tsx` (altura/peso del
+    onboarding) ya tiene el mismo fix aplicado y validado en dispositivo
+    (misma sesión), pero se comitea en un commit APARTE inmediatamente
+    después de este — depende de que este hook ya exista en el
+    historial de Git. `routineBuilder.tsx` (los 2 campos de cardio del
+    constructor manual) queda sin tocar, pieza futura aparte.
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 

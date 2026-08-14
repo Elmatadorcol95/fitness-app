@@ -26,6 +26,7 @@ import { playRestDone } from '@/lib/sounds';
 import { requestNotificationPermission } from '@/lib/notifications';
 import { Spacing } from '@/constants/theme';
 import { getAllPreferences, togglePreference, type Preference } from '@/lib/exercisePreferences';
+import { useTextSelection, useIndexedTextSelection } from '@/hooks/use-text-selection';
 
 const GREEN = '#3FBF7F';
 const AMBER = '#F2B450';
@@ -93,7 +94,9 @@ function SetRow({ num, actualReps, weightKg, rir, completed, coachReason, isRest
   const [kgStr,   setKgStr]   = useState(String(weightKg));
   const [rirStr,  setRirStr]  = useState(String(rir));
   const [focused, setFocused] = useState<'reps' | 'kg' | 'rir' | null>(null);
-  const [kgSelection, setKgSelection] = useState<{ start: number; end: number } | undefined>(undefined);
+  const repsSel = useTextSelection();
+  const kgSel   = useTextSelection();
+  const rirSel  = useTextSelection();
 
   useEffect(() => { if (focused !== 'reps') setRepsStr(String(actualReps)); }, [actualReps, focused]);
   useEffect(() => { if (focused !== 'kg')   setKgStr(String(weightKg));     }, [weightKg,   focused]);
@@ -111,11 +114,17 @@ function SetRow({ num, actualReps, weightKg, rir, completed, coachReason, isRest
         <TextInput
           style={[styles.setInput, isRestored && styles.setInputRestored]}
           keyboardType="numeric"
-          selectTextOnFocus
           editable={!isRestored}
           value={repsStr}
-          onFocus={() => setFocused('reps')}
-          onChangeText={setRepsStr}
+          selection={repsSel.selection}
+          onFocus={() => {
+            setFocused('reps');
+            repsSel.selectAll(repsStr);
+          }}
+          onChangeText={(text) => {
+            setRepsStr(text);
+            repsSel.moveCursorToEnd(text);
+          }}
           onEndEditing={() => {
             setFocused(null);
             const v = parseInt(repsStr, 10);
@@ -130,14 +139,14 @@ function SetRow({ num, actualReps, weightKg, rir, completed, coachReason, isRest
           keyboardType="decimal-pad"
           editable={!isRestored}
           value={kgStr}
-          selection={kgSelection}
+          selection={kgSel.selection}
           onFocus={() => {
             setFocused('kg');
-            setKgSelection({ start: 0, end: kgStr.length });
+            kgSel.selectAll(kgStr);
           }}
           onChangeText={(text) => {
             setKgStr(text);
-            setKgSelection({ start: text.length, end: text.length });
+            kgSel.moveCursorToEnd(text);
           }}
           onEndEditing={() => {
             setFocused(null);
@@ -151,11 +160,17 @@ function SetRow({ num, actualReps, weightKg, rir, completed, coachReason, isRest
         <TextInput
           style={[styles.setInput, styles.setInputRir, isRestored && styles.setInputRestored, { color: ririColor }]}
           keyboardType="numeric"
-          selectTextOnFocus
           editable={!isRestored}
           value={rirStr}
-          onFocus={() => setFocused('rir')}
-          onChangeText={setRirStr}
+          selection={rirSel.selection}
+          onFocus={() => {
+            setFocused('rir');
+            rirSel.selectAll(rirStr);
+          }}
+          onChangeText={(text) => {
+            setRirStr(text);
+            rirSel.moveCursorToEnd(text);
+          }}
           onEndEditing={() => {
             setFocused(null);
             const v = parseInt(rirStr, 10);
@@ -242,12 +257,9 @@ export default function SessionScreen() {
   const [swapModal, setSwapModal]   = useState(false);
   const [guideExId, setGuideExId]   = useState<string | null>(null);
   const [restInputStr, setRestInputStr] = useState(() => String(currentEx?.restSeconds ?? 90));
-  // #37: mismo patrón que kgSelection en SetRow (líneas ~96/133-140) — sin
-  // esto, selectTextOnFocus se reaplica en cada tecla en Android (causa real
-  // del #20 en el campo Kg) y reselecciona todo el texto en vez de dejar el
-  // cursor al final.
-  const [restSelection, setRestSelection] = useState<{ start: number; end: number } | undefined>(undefined);
-  // #37: NO arregla la reselección (eso lo hace restSelection, arriba) — solo
+  // #39: mecanismo de selección movido al hook compartido (src/hooks/use-text-selection.ts).
+  const restSel = useTextSelection();
+  // #37: NO arregla la reselección (eso lo hace el hook de selección, arriba) — solo
   // evita que el useEffect de sincronización de abajo pise restInputStr con
   // un eco redundante del mismo valor que el propio tecleo (handleRestInputChange)
   // ya escribió, en el re-render que su setRestSecondsLive() dispara
@@ -268,9 +280,13 @@ export default function SessionScreen() {
   const [gymRemaining, setGymRemaining] = useState<number[]>(() => displayCardio.gym.map(b => b.durationSeconds));
   const [gymCompleted, setGymCompleted] = useState<boolean[]>(() => displayCardio.gym.map(() => false));
   const [gymInputStr, setGymInputStr] = useState<string[]>(() => displayCardio.gym.map(b => String(Math.round(b.durationSeconds / 60))));
+  // #39: un índice real por bloque de gimnasio, no un solo campo.
+  const gymInputSel = useIndexedTextSelection();
   const [sessionRestRunning, setSessionRestRunning] = useState<number | null>(null);
   const [sessionRestRemaining, setSessionRestRemaining] = useState<number[]>(() => displayCardio.homeSessions.map(s => s.restAfterSeconds));
   const [sessionRestInputStr, setSessionRestInputStr] = useState<string[]>(() => displayCardio.homeSessions.map(s => String(s.restAfterSeconds)));
+  // #39: un índice real por sesión de casa, no un solo campo.
+  const sessionRestInputSel = useIndexedTextSelection();
   const [sessionRestAutoStarted, setSessionRestAutoStarted] = useState<boolean[]>(() => displayCardio.homeSessions.map(() => false));
   const [preferencesMap, setPreferencesMap] = useState<Map<string, Preference>>(new Map());
   const carouselRef = useRef<FlatList<any>>(null);
@@ -384,8 +400,8 @@ export default function SessionScreen() {
 
   // Sincroniza el campo de descanso con el valor del store (cambia tras ±15s o al cambiar ejercicio)
   useEffect(() => {
-    // #37: NO arregla la reselección (eso lo hace restSelection, ver su
-    // propio estado más arriba) — este guard solo evita que este efecto pise
+    // #37: NO arregla la reselección (eso lo hace restSel, el hook de
+    // selección más arriba) — este guard solo evita que este efecto pise
     // restInputStr con un eco redundante del mismo valor que el propio
     // tecleo (handleRestInputChange) ya escribió, en el re-render que su
     // setRestSecondsLive() dispara (useSessionStore sin selector, Paso 0).
@@ -499,7 +515,7 @@ export default function SessionScreen() {
   // mismo valor corrupto en vez del último válido.
   function handleRestInputChange(text: string) {
     setRestInputStr(text);
-    setRestSelection({ start: text.length, end: text.length });
+    restSel.moveCursorToEnd(text);
     const v = parseInt(text, 10);
     if (!isNaN(v) && v >= 1 && v <= 600) {
       isTypingRestRef.current = true;
@@ -890,8 +906,8 @@ export default function SessionScreen() {
                     style={styles.restEditInput}
                     keyboardType="numeric"
                     value={restInputStr}
-                    selection={restSelection}
-                    onFocus={() => setRestSelection({ start: 0, end: restInputStr.length })}
+                    selection={restSel.selection}
+                    onFocus={() => restSel.selectAll(restInputStr)}
                     onChangeText={handleRestInputChange}
                     onEndEditing={applyRestInput}
                     onSubmitEditing={applyRestInput}
@@ -1077,10 +1093,14 @@ export default function SessionScreen() {
                                 style={styles.restEditInput}
                                 keyboardType="numeric"
                                 value={gymInputStr[i] ?? ''}
-                                onChangeText={(text) => setGymInputStr(prev => { const next = [...prev]; next[i] = text; return next; })}
+                                selection={gymInputSel.getSelection(i)}
+                                onFocus={() => gymInputSel.selectAll(i, gymInputStr[i] ?? '')}
+                                onChangeText={(text) => {
+                                  setGymInputStr(prev => { const next = [...prev]; next[i] = text; return next; });
+                                  gymInputSel.moveCursorToEnd(i, text);
+                                }}
                                 onEndEditing={() => applyGymInput(i)}
                                 onSubmitEditing={() => applyGymInput(i)}
-                                selectTextOnFocus
                                 returnKeyType="done"
                               />
                               <ThemedText themeColor="textSecondary" style={styles.restStartText}>{t('workout.session.minutesAbbrev')}</ThemedText>
@@ -1143,10 +1163,14 @@ export default function SessionScreen() {
                               style={styles.restEditInput}
                               keyboardType="numeric"
                               value={sessionRestInputStr[s] ?? ''}
-                              onChangeText={(text) => setSessionRestInputStr(prev => { const next = [...prev]; next[s] = text; return next; })}
+                              selection={sessionRestInputSel.getSelection(s)}
+                              onFocus={() => sessionRestInputSel.selectAll(s, sessionRestInputStr[s] ?? '')}
+                              onChangeText={(text) => {
+                                setSessionRestInputStr(prev => { const next = [...prev]; next[s] = text; return next; });
+                                sessionRestInputSel.moveCursorToEnd(s, text);
+                              }}
                               onEndEditing={() => applySessionRestInput(s)}
                               onSubmitEditing={() => applySessionRestInput(s)}
-                              selectTextOnFocus
                               returnKeyType="done"
                             />
                             <ThemedText themeColor="textSecondary" style={styles.restStartText}>s</ThemedText>
