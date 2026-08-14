@@ -2790,6 +2790,42 @@ Bucle ~1.3 s sobre fondo #141A17:
     `routineBuilder.tsx` (2 campos de cardio del constructor manual,
     mismo hook), última pieza pendiente, commit aparte. No cerrar hasta
     que esa pieza también esté hecha.
+- Hecho: sesión 2026-08-14 (continuación) — **#39 CERRADO
+  DEFINITIVAMENTE**: última pieza, cardio de `routineBuilder.tsx` (mismo
+  commit que este texto,
+  `fix(coach): unifica seleccion de texto en cardio de routineBuilder — cierra #39`):
+  * **Causa raíz**: los 2 campos de cardio de `routineBuilder.tsx`
+    (minutos de bloque de gimnasio, segundos de bloque de casa) tenían
+    el mismo bug de reselección de texto en Android que ya se corrigió
+    en Kg (#20), duración de descanso (#37), y Reps/RIR/cardio de
+    `session.tsx` + altura/peso del onboarding (#39, commits `f139494`
+    y `be3c5eb`).
+  * **Decisión**: retrofit al mismo hook compartido — pero esta pantalla
+    usa claves compuestas de string (`${day.id}-${blockIdx}`, porque
+    aquí conviven varios días a la vez, a diferencia de `session.tsx`
+    donde solo hay uno en pantalla), así que se ensanchó el tipo del
+    índice de `useIndexedTextSelection` de `number` a `string | number`.
+    Cambio de tipo puro, cero cambio de comportamiento — en JavaScript
+    las claves de un objeto siempre se coaccionan a string por debajo,
+    así que `Record<number,...>` nunca fue distinto de
+    `Record<string,...>` en tiempo de ejecución, solo una restricción de
+    compilación. `tsc` limpio en TODO el proyecto confirma que ningún
+    otro punto que ya usa el hook con `number` se vio afectado.
+  * **Validado**: traza a mano confirmando que escribir en un bloque no
+    afecta la selección de otro (mismo mecanismo ya verificado con
+    índices numéricos, ahora con claves string); validado en dispositivo
+    (recarga con Metro, sin build nueva): campos de cardio de gimnasio y
+    de casa sin reselección, ninguno de los dos afecta al otro.
+  * **#39 CERRADO — resumen final**: 3 commits
+    (`f139494`, `be3c5eb`, y este) resuelven las 8 apariciones de
+    `selectTextOnFocus` que encontró la auditoría completa del repo —
+    Kg (`SetRow`, #20) y descanso por ejercicio (#37, ya arreglados
+    antes, retrofit al hook en este chantier), Reps y RIR (`SetRow`),
+    cardio de gimnasio y cardio de casa de `session.tsx`, altura/peso
+    del onboarding (`StepPhysical.tsx`), y estos 2 últimos de
+    `routineBuilder.tsx`. Una única implementación
+    (`src/hooks/use-text-selection.ts`) detrás de los 8 campos.
+  * `npx tsc --noEmit` limpio en cada paso.
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 

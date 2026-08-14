@@ -26,6 +26,7 @@ import {
 } from '@/lib/plan-generator';
 import { buildExercisesFromTemplateDay } from '@/lib/routineMaterializer';
 import { useAndroidBack } from '@/hooks/use-android-back';
+import { useIndexedTextSelection } from '@/hooks/use-text-selection';
 import {
   selectCardio,
   createCardioCycleState,
@@ -220,11 +221,16 @@ export default function RoutineBuilderScreen() {
   // (mismo patrón que gymInputStr en session.tsx, pero indexado también por
   // día porque aquí coexisten varios días a la vez en pantalla).
   const [cardioMinutesInput, setCardioMinutesInput] = useState<Record<string, string>>({});
+  // #39: mismo hook compartido que ya usan los campos indexados de
+  // session.tsx — key string (día+índice), no number.
+  const cardioMinutesSel = useIndexedTextSelection();
   // Cardio propio de casa (Sub-fase 3) — target del picker (día + sesión a la
   // que añadir el bloque; sessionIdx=null crea una sesión nueva) y texto en
   // edición de los segundos de un bloque, por día+sesión+índice.
   const [homeCardioPickerTarget, setHomeCardioPickerTarget] = useState<{ day: RoutineTemplateDay; sessionIdx: number | null } | null>(null);
   const [homeCardioSecondsInput, setHomeCardioSecondsInput] = useState<Record<string, string>>({});
+  // #39: mismo hook compartido, key string (día+sesión+índice).
+  const homeCardioSecondsSel = useIndexedTextSelection();
   // dayIndex → true si el último intento de sincronizar ese día se saltó por
   // ya tener una sesión registrada este ciclo (bug 2). Solo en memoria, no se
   // persiste — se recalcula en cada syncIfActive() y se limpia sola si un
@@ -631,10 +637,14 @@ export default function RoutineBuilderScreen() {
                                       style={styles.cardioMinutesInput}
                                       keyboardType="numeric"
                                       value={cardioMinutesInput[key] ?? String(Math.round(block.durationSeconds / 60))}
-                                      onChangeText={(text) => setCardioMinutesInput(prev => ({ ...prev, [key]: text }))}
+                                      selection={cardioMinutesSel.getSelection(key)}
+                                      onFocus={() => cardioMinutesSel.selectAll(key, cardioMinutesInput[key] ?? String(Math.round(block.durationSeconds / 60)))}
+                                      onChangeText={(text) => {
+                                        setCardioMinutesInput(prev => ({ ...prev, [key]: text }));
+                                        cardioMinutesSel.moveCursorToEnd(key, text);
+                                      }}
                                       onEndEditing={() => applyCardioMinutes(day, blockIdx)}
                                       onSubmitEditing={() => applyCardioMinutes(day, blockIdx)}
-                                      selectTextOnFocus
                                       returnKeyType="done"
                                     />
                                     <ThemedText themeColor="textSecondary" style={styles.cardioMinutesLabel}>
@@ -706,10 +716,14 @@ export default function RoutineBuilderScreen() {
                                           style={styles.cardioMinutesInput}
                                           keyboardType="numeric"
                                           value={homeCardioSecondsInput[key] ?? String(block.durationSeconds)}
-                                          onChangeText={(text) => setHomeCardioSecondsInput(prev => ({ ...prev, [key]: text }))}
+                                          selection={homeCardioSecondsSel.getSelection(key)}
+                                          onFocus={() => homeCardioSecondsSel.selectAll(key, homeCardioSecondsInput[key] ?? String(block.durationSeconds))}
+                                          onChangeText={(text) => {
+                                            setHomeCardioSecondsInput(prev => ({ ...prev, [key]: text }));
+                                            homeCardioSecondsSel.moveCursorToEnd(key, text);
+                                          }}
                                           onEndEditing={() => applyHomeCardioSeconds(day, sessionIdx, blockIdx)}
                                           onSubmitEditing={() => applyHomeCardioSeconds(day, sessionIdx, blockIdx)}
-                                          selectTextOnFocus
                                           returnKeyType="done"
                                         />
                                         <ThemedText themeColor="textSecondary" style={styles.cardioMinutesLabel}>s</ThemedText>
