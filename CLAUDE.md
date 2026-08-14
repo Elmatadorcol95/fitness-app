@@ -2619,12 +2619,13 @@ Bucle ~1.3 s sobre fondo #141A17:
       (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26`),
       12 pendientes
       (`#5,#8,#10,#16,#27,#29,#30,#32,#33,#34,#35,#36`).**
-- **#27 — IMPLEMENTADO Y COMITEADO, SIN VALIDAR EN DISPOSITIVO** (commit
+- **#27 — CERRADO 2026-08-14** (commit `f4d2ca3`
   `wip(coach): notificacion local fin de descanso en 2do plano (#27) —
   pendiente validar en dispositivo`; excepción deliberada de Juan a la
   regla habitual de validar antes de comitear — trabajo empujado a
-  propósito para retomarlo desde la otra PC vía `git pull`). **No
-  marcado como cerrado en el backlog de arriba hasta que se valide.**
+  propósito para retomarlo desde la otra PC vía `git pull`). Validado en
+  dispositivo real en esta sesión — ver confirmación al final de esta
+  entrada.
   * Qué se construyó: `expo-notifications` (primer módulo nativo del
     proyecto) programa una notificación local al pasar a segundo plano
     con el timer de descanso corriendo, usando `restTimerEndAt` como
@@ -2650,9 +2651,34 @@ Bucle ~1.3 s sobre fondo #141A17:
        otorga como si se deniega (sin crashear, sin error visible).
   * `npx tsc --noEmit` limpio en cada paso de la implementación — es lo
     único verificado hasta ahora.
-  * **Próximo paso**: cuando se valide en cualquiera de las 2 PCs, un
-    commit nuevo y chico confirma la validación — este commit no se
-    enmienda, para no complicar el sync entre las 2 máquinas.
+  * **VALIDADO en dispositivo — 2026-08-14** (perfil EAS development).
+    Los 3 casos confirmados por Juan: (1) notificación real al pasar a
+    segundo plano con el descanso corriendo; (2) volver a primer plano
+    antes de tiempo no dispara sonido y el número en pantalla se
+    corrige solo; (3) el permiso de notificaciones del sistema se
+    maneja sin error tanto si se otorga como si se deniega. Commit de
+    implementación: `f4d2ca3`. Este mismo commit (docs, sin cambios de
+    código) confirma la validación — no se enmienda `f4d2ca3`, tal como
+    se dejó planteado.
+- Hecho: sesión 2026-08-14 — confirmación de validación del #27 en
+  dispositivo (commit docs, sin cambios de código) + 2 hallazgos nuevos
+  de Juan durante esa prueba, documentados sin diseñar nada todavía:
+  * **#37 (nuevo, pendiente)** — con una duración de descanso
+    personalizada en un ejercicio (ej. 10s), al validar una serie el
+    cronómetro arranca con la duración POR DEFECTO (180s) en vez de la
+    personalizada. Iniciar el descanso a mano con el botón "play" sí
+    respeta la duración personalizada — el problema está solo en el
+    arranque automático al completar una serie. Sin relación con el
+    #27.
+  * **#38 (nuevo, pendiente)** — idea de Juan: dar la opción de
+    desactivar el sonido de fin de descanso y dejar solo la vibración,
+    y quizás cambiar el sonido por uno nativo de Android.
+  * Total actualizado: 36 puntos numerados en este documento (Juan
+    llega hasta #38 — #28 y #31 siguen sin entrada, mismo criterio de
+    siempre), 23 cerrados
+    (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27`),
+    13 pendientes
+    (`#5,#8,#10,#16,#29,#30,#32,#33,#34,#35,#36,#37,#38`).
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
