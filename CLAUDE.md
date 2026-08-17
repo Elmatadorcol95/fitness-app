@@ -2826,6 +2826,49 @@ Bucle ~1.3 s sobre fondo #141A17:
     `routineBuilder.tsx`. Una única implementación
     (`src/hooks/use-text-selection.ts`) detrás de los 8 campos.
   * `npx tsc --noEmit` limpio en cada paso.
+- Hecho: sesión 2026-08-17 — **#40 (parte 1/2) — doble-toque en
+  VulcanBottomSheet corregido** (mismo commit que este texto,
+  `fix(ui): agrega keyboardShouldPersistTaps a VulcanBottomSheet —
+  corrige doble-toque (#40 1/2)`; JS puro, solo recarga):
+  * **Causa raíz**: ya diagnosticada desde junio en `SHEET_AUDIT.md`
+    (documento presente en el repo, nunca antes traducido a código) — el
+    `ScrollView` interno de `VulcanBottomSheet.tsx` (línea 109) nunca
+    declaraba `keyboardShouldPersistTaps`. Con un teclado abierto en la
+    pantalla de fondo (típicamente `StepPhysical`, justo después de
+    escribir en altura/peso), el primer toque sobre una opción del sheet
+    solo cerraba el teclado — recién el segundo toque, ya sin teclado,
+    llegaba al `Pressable` real de la opción.
+  * Fix de una línea: `keyboardShouldPersistTaps="handled"` en el
+    `ScrollView` de `VulcanBottomSheet.tsx:109` — mismo valor que ya
+    usan las otras 4 apariciones del proyecto (`training.tsx`,
+    `session.tsx`, `AddMeasurementModal.tsx`, `StepPhysical.tsx`),
+    confirmado por grep antes de aplicar, no inventado. `"handled"` y no
+    `"always"`: solo el toque sobre una opción real debe atravesar el
+    teclado, no cualquier toque en el área vacía del `ScrollView`.
+  * Validado en dispositivo: con teclado abierto, esperando
+    deliberadamente a que pase el lag de apertura antes de tocar (para
+    no confundir este síntoma con el del lag, bug distinto sin tocar en
+    esta pieza) — un solo toque selecciona directo. Sin regresión en el
+    caso sin teclado.
+  * `npx tsc --noEmit` limpio.
+  * **#40 sigue ABIERTO** — esto cierra solo la mitad del doble-toque.
+    Pendiente la mitad del lag de apertura (2-3s, diagnosticado en
+    `SHEET_LAG_AUDIT.md` — el `<Modal transparent>` de Android
+    crea/destruye una ventana de sistema en cada apertura). Pieza aparte,
+    más delicada: un intento previo de arreglarlo con una vista
+    permanente rompió los 3 pickers de fecha (día/mes/año) y se revirtió
+    sin llegar a comitearse — confirmado en esta misma sesión con
+    auditoría de solo lectura (`git fsck --unreachable` + reflog: no
+    existe ningún commit, ni reachable ni dangling, para ese intento; el
+    único rastro real es el commit de documentación `925a7e2`, que
+    agrega `SHEET_AUDIT.md`/`SHEET_LAG_AUDIT.md` sin ningún cambio de
+    código). Retomar revisando primero cómo `AchievementCelebrationOverlay`
+    y `AuthFlow` ya resuelven ese mismo patrón de vista permanente en
+    `_layout.tsx`, antes de tocar nada.
+  * Total actualizado: 25 cerrados
+    (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#37,#39`),
+    13 pendientes
+    (`#5,#8,#10,#16,#29,#30,#32,#33,#34,#35,#36,#38,#40`).
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 

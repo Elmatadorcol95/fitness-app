@@ -106,7 +106,7 @@ export function VulcanBottomSheet<T extends string | number>({
           </ThemedText>
         ) : null}
 
-        <ScrollView bounces={false} style={{ maxHeight: SH * 0.55 }}>
+        <ScrollView bounces={false} keyboardShouldPersistTaps="handled" style={{ maxHeight: SH * 0.55 }}>
           {options.map((opt) => {
             const active = opt.value === selectedValue;
             return (
