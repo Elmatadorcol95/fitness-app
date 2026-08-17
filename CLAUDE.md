@@ -2869,6 +2869,49 @@ Bucle ~1.3 s sobre fondo #141A17:
     (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#37,#39`),
     13 pendientes
     (`#5,#8,#10,#16,#29,#30,#32,#33,#34,#35,#36,#38,#40`).
+- Pausa: sesión 2026-08-17 (continuación) — **#40 (parte 2, piloto) —
+  INTENTO FALLIDO, sin comitear**: eliminar el `<Modal>` de
+  `VulcanBottomSheet` como causa del lag de apertura (1-2.5s,
+  `SHEET_LAG_AUDIT.md`), migrando SOLO "¿Dónde entrenas hoy?"
+  (`training.tsx`) como piloto.
+  * **Qué se intentó**: `src/store/sheet.store.ts` (store efímero,
+    `request`/`open`/`close`, un solo slot) + nuevo
+    `src/components/ui/BottomSheetOverlay.tsx` — mismo mecanismo de
+    animación que `VulcanBottomSheet.tsx` (`translateY`/`backdropOp` con
+    `Animated`), SIN `Modal` en ningún punto, montado sin condicional en
+    `_layout.tsx` junto a `AchievementCelebrationOverlay` (mismo patrón:
+    `if (!request) return null` cuando no hay solicitud activa,
+    confirmado en auditoría de Paso 0 que es el componente real sin
+    `Modal` — `CooldownFlowOverlay`, ofrecido como plantilla alternativa,
+    resultó NO servir de referencia para esto: sigue usando `<Modal>`
+    por dentro para su picker de minutos). `useAndroidBack(!!request,
+    dismiss)` conectado por primera vez a este tipo de componente. Los
+    otros 5 usos de `VulcanBottomSheet` (StepPhysical ×3, StepSchedule,
+    PhotosTab) quedaron intactos, sin tocar, usando el componente
+    original.
+  * **Resultado: NO funcionó.** Juan confirmó en dispositivo que el lag
+    persiste sin ningún cambio observable, pese a que el diseño eliminaba
+    el `Modal` por completo y `npx tsc --noEmit` compilaba limpio. La
+    hipótesis de `SHEET_LAG_AUDIT.md` (el `<Modal transparent>` crea/
+    destruye una ventana de Android en cada apertura) no se confirmó con
+    este cambio — o el mecanismo real es otro, o el nuevo componente no
+    tocó la causa real.
+  * **Estado del código: SIN comitear.** Vive únicamente en el working
+    tree de la máquina `j.gomez` (`src/app/_layout.tsx`,
+    `src/app/training.tsx` modificados; `src/store/sheet.store.ts`,
+    `src/components/ui/BottomSheetOverlay.tsx` nuevos, sin trackear). No
+    disponible en la otra PC de Juan hasta que se retome esta máquina o
+    se decida qué hacer con el intento (descartarlo o depurarlo).
+  * **Próximo paso recomendado — NO repetir la misma hipótesis con más
+    fuerza**: faltan logs reales en el dispositivo (mismo principio que
+    ya funcionó para diagnosticar el #37) antes de intentar cualquier
+    otro cambio de código a ciegas. Pregunta abierta sin resolver: si el
+    problema es realmente el mismo `Modal` que documenta
+    `SHEET_LAG_AUDIT.md`, o si hay algo más causando el mismo síntoma que
+    este componente nuevo no llegó a tocar.
+  * `#40` sigue en la lista de pendientes — sin cambio de conteo respecto
+    a la entrada anterior (la mitad del doble-toque sigue cerrada; la
+    mitad del lag sigue abierta, y este intento no la cerró).
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
