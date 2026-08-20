@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View, useColorScheme } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { VulcanBottomSheet, type SheetOption } from '@/components/ui/VulcanBottomSheet';
+import { useSheetStore } from '@/store/sheet.store';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { ThemedText } from '@/components/themed-text';
@@ -188,9 +188,6 @@ export function StepPhysical() {
   const [selYear,   setSelYear]   = useState(initDate.year);
   const [selMonth,  setSelMonth]  = useState(initDate.month);
   const [selDay,    setSelDay]    = useState(initDate.day);
-  const [dayOpen,   setDayOpen]   = useState(false);
-  const [monthOpen, setMonthOpen] = useState(false);
-  const [yearOpen,  setYearOpen]  = useState(false);
 
   const maxDay = daysInMonth(selYear, selMonth);
   const MONTHS = monthNames(i18n.language);
@@ -317,7 +314,16 @@ export function StepPhysical() {
                 { backgroundColor: colors.backgroundElement },
                 pressed && { backgroundColor: colors.backgroundSelected },
               ]}
-              onPress={() => setDayOpen(true)}
+              onPress={() => useSheetStore.getState().open({
+                options: Array.from({ length: maxDay }, (_, i) => ({
+                  value: i + 1,
+                  label: String(i + 1),
+                })),
+                onSelect: (v) => handleDayChange(v as number),
+                selectedValue: selDay,
+                title: t('onboarding.physical.day'),
+                cancelLabel: t('common.cancel'),
+              })}
             >
               <ThemedText style={styles.dateTriggerText}>{selDay}</ThemedText>
               <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
@@ -335,7 +341,16 @@ export function StepPhysical() {
                 { backgroundColor: colors.backgroundElement },
                 pressed && { backgroundColor: colors.backgroundSelected },
               ]}
-              onPress={() => setMonthOpen(true)}
+              onPress={() => useSheetStore.getState().open({
+                options: MONTHS.map((name, i) => ({
+                  value: i + 1,
+                  label: name,
+                })),
+                onSelect: (v) => handleMonthChange(v as number),
+                selectedValue: selMonth,
+                title: t('onboarding.physical.month'),
+                cancelLabel: t('common.cancel'),
+              })}
             >
               <ThemedText style={styles.dateTriggerText} numberOfLines={1}>
                 {MONTHS[selMonth - 1]}
@@ -355,7 +370,16 @@ export function StepPhysical() {
                 { backgroundColor: colors.backgroundElement },
                 pressed && { backgroundColor: colors.backgroundSelected },
               ]}
-              onPress={() => setYearOpen(true)}
+              onPress={() => useSheetStore.getState().open({
+                options: YEARS.map((y) => ({
+                  value: y,
+                  label: String(y),
+                })),
+                onSelect: (v) => handleYearChange(v as number),
+                selectedValue: selYear,
+                title: t('onboarding.physical.year'),
+                cancelLabel: t('common.cancel'),
+              })}
             >
               <ThemedText style={styles.dateTriggerText}>{selYear}</ThemedText>
               <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
@@ -366,44 +390,6 @@ export function StepPhysical() {
         {!draft.birthDate && (
           <ThemedText style={styles.fieldRequired}>{t('onboarding.physical.required')}</ThemedText>
         )}
-
-        {/* Sheets — opciones de día ajustadas dinámicamente al mes/año elegidos */}
-        <VulcanBottomSheet<number>
-          visible={dayOpen}
-          onClose={() => setDayOpen(false)}
-          onSelect={handleDayChange}
-          options={Array.from({ length: maxDay }, (_, i) => ({
-            value: i + 1,
-            label: String(i + 1),
-          } satisfies SheetOption<number>))}
-          selectedValue={selDay}
-          title={t('onboarding.physical.day')}
-          cancelLabel={t('common.cancel')}
-        />
-        <VulcanBottomSheet<number>
-          visible={monthOpen}
-          onClose={() => setMonthOpen(false)}
-          onSelect={handleMonthChange}
-          options={MONTHS.map((name, i) => ({
-            value: i + 1,
-            label: name,
-          } satisfies SheetOption<number>))}
-          selectedValue={selMonth}
-          title={t('onboarding.physical.month')}
-          cancelLabel={t('common.cancel')}
-        />
-        <VulcanBottomSheet<number>
-          visible={yearOpen}
-          onClose={() => setYearOpen(false)}
-          onSelect={handleYearChange}
-          options={YEARS.map((y) => ({
-            value: y,
-            label: String(y),
-          } satisfies SheetOption<number>))}
-          selectedValue={selYear}
-          title={t('onboarding.physical.year')}
-          cancelLabel={t('common.cancel')}
-        />
       </View>
 
       {/* ── Género ── */}

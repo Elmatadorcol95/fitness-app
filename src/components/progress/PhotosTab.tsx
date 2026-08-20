@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { VulcanDialog }      from '@/components/ui/VulcanDialog';
-import { VulcanBottomSheet, type SheetOption } from '@/components/ui/VulcanBottomSheet';
+import { useSheetStore } from '@/store/sheet.store';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
@@ -63,7 +63,6 @@ export function PhotosTab() {
   const [sliderVisible, setSliderVisible] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ProgressPhoto | null>(null);
   const [limitOpen, setLimitOpen] = useState(false);
-  const [sourceOpen, setSourceOpen] = useState(false);
   const [saveErrorMsg, setSaveErrorMsg] = useState('');
 
   const posePhotos = photos.filter((p) => p.pose === activePose);
@@ -75,7 +74,15 @@ export function PhotosTab() {
       setLimitOpen(true);
       return;
     }
-    setSourceOpen(true);
+    useSheetStore.getState().open({
+      options: [
+        { value: 'camera',  label: t('tabs.progress.photos.camera') },
+        { value: 'gallery', label: t('tabs.progress.photos.gallery') },
+      ],
+      onSelect: (src) => { void openPicker(src as 'camera' | 'gallery'); },
+      title: t('tabs.progress.photos.selectSource'),
+      cancelLabel: t('common.cancel'),
+    });
   }
 
   async function openPicker(source: 'camera' | 'gallery') {
@@ -252,18 +259,6 @@ export function PhotosTab() {
         confirmLabel="OK"
         onConfirm={() => setSaveErrorMsg('')}
         hideCancel
-      />
-
-      <VulcanBottomSheet<'camera' | 'gallery'>
-        visible={sourceOpen}
-        onClose={() => setSourceOpen(false)}
-        onSelect={(src) => { setSourceOpen(false); void openPicker(src); }}
-        options={[
-          { value: 'camera',  label: t('tabs.progress.photos.camera') } satisfies SheetOption<'camera'>,
-          { value: 'gallery', label: t('tabs.progress.photos.gallery') } satisfies SheetOption<'gallery'>,
-        ]}
-        title={t('tabs.progress.photos.selectSource')}
-        cancelLabel={t('common.cancel')}
       />
     </View>
   );

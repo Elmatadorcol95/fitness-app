@@ -2992,6 +2992,80 @@ Bucle ~1.3 s sobre fondo #141A17:
     (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#37,#39`),
     13 pendientes
     (`#5,#8,#10,#16,#29,#30,#32,#33,#34,#35,#36,#38,#40`).
+- Hecho: sesión 2026-08-20 (continuación) — **#40 CERRADO
+  DEFINITIVAMENTE — migración de los 6 usos restantes + borrado de
+  `VulcanBottomSheet.tsx`** (commit `feat(ui): migra los 6 usos
+  restantes de VulcanBottomSheet y borra el componente — cierra #40`;
+  JS puro, solo recarga):
+  * **QUÉ CIERRA**: última pieza del chantier. Los 6 usos que quedaban
+    de `<VulcanBottomSheet>` — día, mes y año en `StepPhysical.tsx`;
+    días/semana y minutos/sesión en `StepSchedule.tsx`; cámara/galería
+    en `PhotosTab.tsx` — migrados al mecanismo ya probado y comiteado
+    en `3cbb63c` (`useSheetStore` + `BottomSheetOverlay`, sin `Modal`,
+    `Pressable` de `react-native-gesture-handler`). Con los 6
+    migrados, `VulcanBottomSheet.tsx` se quedó sin consumidores —
+    confirmado con `grep -rln "VulcanBottomSheet" src/ --include=*.tsx
+    --include=*.ts` sobre TODO el repo (no solo los 3 archivos
+    tocados) antes de borrarlo, no después. El grep sí encontró otras
+    3 apariciones fuera del propio archivo (`_layout.tsx:345`,
+    `BottomSheetOverlay.tsx:18,22`, `sheet.store.ts:24`), pero las 3
+    son comentarios de texto que mencionan el nombre del componente
+    viejo sin importarlo ni usarlo — no imports, no JSX, ningún efecto
+    en compilación ni ejecución. Confirmado explícitamente con Juan
+    antes de proceder (la instrucción original era bloqueante ante
+    cualquier archivo extra) — se dejaron esos 3 comentarios intactos
+    a propósito, fuera del alcance de este commit, y se procedió a
+    borrar `VulcanBottomSheet.tsx` igual.
+  * **DETALLES**: el sheet de día en `StepPhysical.tsx` sigue
+    construyendo sus options dentro del `onPress`
+    (`Array.from({length: maxDay}, ...)`, leyendo `maxDay` del closure
+    de cada render — no una variable precomputada que pudiera quedar
+    desactualizada tras cambiar de mes). El cierre manual que tenían
+    `PhotosTab.tsx` (`setSourceOpen(false)` dentro de su `onSelect`) y,
+    antes de esta migración, los `onClose={() => setXOpen(false)}` de
+    los 6 `<VulcanBottomSheet>`, se eliminó por completo — redundante,
+    `BottomSheetOverlay` ya cierra centralizadamente vía `dismiss()`
+    tras cualquier `onSelect`. Import de `useState` eliminado de
+    `StepSchedule.tsx` (sin otro uso en el archivo tras quitar
+    `daysOpen`/`minutesOpen`). Comentarios desactualizados corregidos
+    (`{/* Días — VulcanBottomSheet */}` → `{/* Días */}`, mismo caso
+    para Minutos).
+  * **QUÉ SE VALIDÓ**: 2 trazas a mano antes de tocar el dispositivo —
+    (1) recálculo de `maxDay` tras cambiar de mes: `handleMonthChange`
+    dispara `setSelMonth`, el render siguiente recalcula `maxDay =
+    daysInMonth(selYear, selMonth)` con el mes nuevo, y el `onPress`
+    del trigger de día (recreado en ese mismo render) captura ese
+    `maxDay` por closure — sin caché desactualizado. (2) `return`
+    temprano de `handleAddPhoto()` con `hasPhotoToday=true`: la rama
+    `if` llama `setLimitOpen(true)` y hace `return` antes de llegar a
+    `useSheetStore.getState().open(...)`, igual que antes bloqueaba
+    antes de `setSourceOpen(true)`. Más validación real en dispositivo
+    por Juan de los 6 sheets: apertura instantánea sin lag ni
+    doble-toque, checkmark correcto al reabrir cada uno sobre el valor
+    ya elegido, límite diario de una foto respetado en Progreso →
+    Fotos. `npx tsc --noEmit` limpio antes y después de borrar el
+    componente.
+  * **#40 CERRADO POR COMPLETO — sin nada pendiente**: los 8 usos que
+    tenía el bug original (VulcanBottomSheet + su `<Modal
+    transparent>`) quedaron los 8 en el mismo mecanismo sin `Modal`.
+    `VulcanBottomSheet.tsx` **ya no existe en el repo** — eliminado en
+    este commit. Cadena completa del chantier, en orden:
+    - `f08d88d` — parte 1: `keyboardShouldPersistTaps` en
+      `VulcanBottomSheet`, corrige el doble-toque con teclado abierto.
+    - `bf4519b` — intento fallido documentado (piloto sin `Modal`, sin
+      cambio observable en el lag) — pausa sin comitear código, solo
+      el registro en `CLAUDE.md`.
+    - `3cbb63c` — causa raíz real encontrada (Pressable de React
+      Native no procesa toques bien durante una animación con
+      `useNativeDriver`) + piloto funcional en "¿Dónde entrenas hoy?"
+      (`useSheetStore` + `BottomSheetOverlay` + `GestureHandlerRootView`
+      en `_layout.tsx`).
+    - Este commit — los 6 usos restantes migrados al mismo mecanismo +
+      borrado de `VulcanBottomSheet.tsx`.
+  * Total actualizado: 26 cerrados
+    (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#37,#39,#40`),
+    12 pendientes
+    (`#5,#8,#10,#16,#29,#30,#32,#33,#34,#35,#36,#38`).
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
