@@ -2912,6 +2912,86 @@ Bucle ~1.3 s sobre fondo #141A17:
   * `#40` sigue en la lista de pendientes — sin cambio de conteo respecto
     a la entrada anterior (la mitad del doble-toque sigue cerrada; la
     mitad del lag sigue abierta, y este intento no la cerró).
+- Hecho: sesión 2026-08-20 — **#40 (parte 2, PILOTO) — causa raíz
+  encontrada y resuelta para "¿Dónde entrenas hoy?"** (commit
+  `feat(ui): sheet sin Modal para "¿Dónde entrenas hoy?" — piloto #40
+  parte 2`; JS + wrapper de raíz, solo recarga — **#40 sigue ABIERTO en
+  general**, esto cierra solo el piloto):
+  * **CAUSA RAÍZ — dos problemas distintos, descubiertos en secuencia**:
+    (a) el `<Modal transparent>` de `VulcanBottomSheet` crea/destruye una
+    ventana de sistema en Android en cada apertura (1-2.5s,
+    `SHEET_LAG_AUDIT.md`, ya documentado desde la Pausa del 2026-08-17).
+    (b) Al sacar el `Modal` con un componente nuevo store-driven
+    (`BottomSheetOverlay.tsx` + `sheet.store.ts`, montado sin
+    condicional en `_layout.tsx`, mismo patrón que
+    `AchievementCelebrationOverlay`), el lag NO desapareció — confirmado
+    en dispositivo por Juan sin ningún cambio observable, pese a que el
+    `Modal` ya no existía en absoluto. Instrumentación con
+    `console.log('[SHEET-DIAG]...', Date.now())` en 6 puntos (apertura
+    desde `training.tsx`, render, inicio/fin de la animación de entrada,
+    backdrop, selección de opción — temporal, nunca comiteada) reveló el
+    verdadero cuello de botella: los `Pressable` de React Native no
+    procesan bien los toques mientras su vista padre se anima con
+    `useNativeDriver:true` — problema conocido de React Native en
+    Android, donde el sistema de toques queda atado a la posición de
+    layout calculada por JS, que solo se sincroniza con la posición
+    visual real al TERMINAR la animación, no durante. Los logs mostraban
+    "opción tocada" apareciendo sistemáticamente 140-330ms DESPUÉS de
+    "animación entrada termina" — coincidiendo exactamente con que Juan
+    reportara tocar varias veces mientras el sheet todavía se deslizaba,
+    sin que el toque registrara hasta que terminaba de asentarse.
+  * **CAMINO RECORRIDO — con las 2 vueltas en falso, tal como pasaron**:
+    - Primer piloto (sesión 2026-08-17, sin `Modal`): validado en
+      dispositivo, SIN cambio observable en el lag — la hipótesis (a) no
+      alcanzaba a explicar todo el síntoma.
+    - Instrumentación con logs de timestamp (esta sesión) para dejar de
+      adivinar desde la lectura del código — confirmó la hipótesis (b)
+      con evidencia real, no sospecha.
+    - Segundo intento — cambiar el `Pressable` de `react-native` por el
+      de `react-native-gesture-handler` (ya instalado, ~2.31.1, mide
+      contra la jerarquía de vistas nativa real en vez de la posición de
+      JS) dentro de `BottomSheetOverlay.tsx` — provocó un crash
+      inmediato ("GestureDetector must be used as a descendant of
+      GestureHandlerRootView"), porque era la primera vez que el
+      proyecto usaba un componente de esa librería de forma directa
+      (antes solo estaba como dependencia transitiva). Arreglo: envolver
+      la raíz completa de `_layout.tsx` en `<GestureHandlerRootView
+      style={{flex:1}}>`, como elemento más externo de todos, por fuera
+      de `<ThemeProvider>` — paso de instalación estándar de la
+      librería, no una señal de que el enfoque estuviera mal. Recién con
+      las dos piezas juntas (sin `Modal` + `Pressable` de
+      gesture-handler + su wrapper de raíz) el síntoma desapareció del
+      todo.
+  * **QUÉ SE VALIDÓ**: logs con timestamp en 3 aperturas confirmando que
+    "opción tocada" ahora ocurre 1-3ms ANTES de que la animación de
+    entrada termine (antes: 140-330ms DESPUÉS) — el toque ya no depende
+    de que la animación se asiente. Sin crashes; resto de la app
+    (navegación entre pestañas, otros overlays) funcionando normal.
+    Los 6 `console.log('[SHEET-DIAG]...')` (1 en `training.tsx`, 5 en
+    `BottomSheetOverlay.tsx`: render, inicio/fin de animación de
+    entrada, backdrop, selección) fueron instrumentación TEMPORAL —
+    retirados por completo antes de comitear, junto con los wrappers de
+    función que solo existían para loguear (el callback del `.start()`
+    de la animación de entrada y el `onPress` envuelto del backdrop
+    vuelven a su forma más simple original, sin callback). Confirmado
+    con `grep -rn "SHEET-DIAG" src/` sin resultados y `npx tsc --noEmit`
+    limpio antes de comitear.
+  * **ALCANCE — ESTO ES SOLO EL PILOTO**: únicamente "¿Dónde entrenas
+    hoy?" (`training.tsx`) migró al nuevo mecanismo
+    (`BottomSheetOverlay.tsx` + `sheet.store.ts`, store-driven, sin
+    `Modal`, con `Pressable` de `react-native-gesture-handler`). Los
+    otros 5 usos de `VulcanBottomSheet` (día/mes/año en `StepPhysical`
+    ×3, `StepSchedule`, `PhotosTab`) siguen con el componente original —
+    ya tienen el fix del doble-toque (#40 parte 1, commit `f08d88d`),
+    pero conservan el lag de apertura del `Modal` sin resolver. Migrarlos
+    (mismo patrón ya validado: store efímero + componente sin `Modal`) es
+    la pieza siguiente, aparte — **#40 sigue ABIERTO**, no se cierra con
+    este commit.
+  * Total sin cambio (el conteo de `#40` sigue en pendientes): 25
+    cerrados
+    (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#37,#39`),
+    13 pendientes
+    (`#5,#8,#10,#16,#29,#30,#32,#33,#34,#35,#36,#38,#40`).
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 

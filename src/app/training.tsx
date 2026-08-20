@@ -1,8 +1,8 @@
 import {
   ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View,
 } from 'react-native';
-import { VulcanBottomSheet, type SheetOption } from '@/components/ui/VulcanBottomSheet';
 import { VulcanDialog } from '@/components/ui/VulcanDialog';
+import { useSheetStore } from '@/store/sheet.store';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -174,7 +174,6 @@ export default function TrainingScreen() {
   const [targetMap, setTargetMap] = useState<Record<string, { weightKg: number | null; reason: string | null }>>({});
   const [preferencesMap, setPreferencesMap] = useState<Map<string, Preference>>(new Map());
   const [isStarting,   setIsStarting]  = useState(false);
-  const [whereOpen,    setWhereOpen]   = useState(false);
   const [startError,   setStartError]  = useState('');
   const [resetWeekOpen, setResetWeekOpen] = useState(false);
   const [backToAutoOpen, setBackToAutoOpen] = useState(false);
@@ -393,7 +392,15 @@ export default function TrainingScreen() {
   function handleStart() {
     if (!currentPlan) return;
     if (profile?.location === 'both') {
-      setWhereOpen(true);
+      useSheetStore.getState().open({
+        options: [
+          { value: 'gym',  label: t('workout.session.whereGym') },
+          { value: 'home', label: t('workout.session.whereHome') },
+        ],
+        onSelect: (ctx) => { void doStartSession(ctx as 'gym' | 'home'); },
+        title: t('workout.session.whereTitle'),
+        cancelLabel: t('common.cancel'),
+      });
     } else if (profile?.location === 'home') {
       void doStartSession('home');
     } else {
@@ -761,17 +768,9 @@ export default function TrainingScreen() {
       />
 
       {/* ── ¿Dónde entrenas hoy? (solo location=both) ── */}
-      <VulcanBottomSheet<'gym' | 'home'>
-        visible={whereOpen}
-        onClose={() => setWhereOpen(false)}
-        onSelect={(ctx) => { setWhereOpen(false); void doStartSession(ctx); }}
-        options={[
-          { value: 'gym',  label: t('workout.session.whereGym') },
-          { value: 'home', label: t('workout.session.whereHome') },
-        ]}
-        title={t('workout.session.whereTitle')}
-        cancelLabel={t('common.cancel')}
-      />
+      {/* Migrado al store-driven BottomSheetOverlay (piloto #40 parte 2),
+          montado sin condicional en _layout.tsx — abierto desde handleStart()
+          vía useSheetStore.getState().open(...) */}
 
       {/* ── ¿Quieres calentar antes de empezar? ── */}
       <VulcanDialog

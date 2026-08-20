@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { Linking, StyleSheet, View, useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import { eq } from 'drizzle-orm';
 import { useTranslation } from 'react-i18next';
@@ -34,6 +35,7 @@ import { useWarmupStore } from '@/store/warmup.store';
 import { useCooldownStore } from '@/store/cooldown.store';
 import { CooldownFlowOverlay } from '@/components/cooldown/CooldownFlowOverlay';
 import { AchievementCelebrationOverlay } from '@/components/gamification/AchievementCelebrationOverlay';
+import { BottomSheetOverlay } from '@/components/ui/BottomSheetOverlay';
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
@@ -239,6 +241,7 @@ export default function RootLayout() {
   const needsPaywall    = !stillLoading && isAuthenticated && trialExpired;
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <ThemeProvider value={theme}>
       {/* Corre las migraciones; no ocupa pantalla. key={migrationAttempt} fuerza
           un montaje nuevo (y por tanto un intento nuevo) al pulsar "Reintentar". */}
@@ -338,6 +341,10 @@ export default function RootLayout() {
       <CooldownFlowOverlay />
       {/* Overlay de logros — encima de todo, incluido la sesión */}
       <AchievementCelebrationOverlay />
+      {/* Piloto #40 (parte 2): sheet store-driven, sin Modal — reemplaza
+          VulcanBottomSheet solo para "¿Dónde entrenas hoy?" (training.tsx) */}
+      <BottomSheetOverlay />
     </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
