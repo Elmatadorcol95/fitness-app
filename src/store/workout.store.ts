@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { desc, eq, ne } from 'drizzle-orm';
+import { desc, eq, inArray, ne } from 'drizzle-orm';
 import { db } from '@/db';
-import { gamificationMeta, planDays, workoutPlans } from '@/db/schema';
+import { gamificationMeta, planDays, workoutPlans, workoutSessions } from '@/db/schema';
 import { generatePlan, getRepScheme, buildPlanned, type PlannedExercise, type DayType, type GoalKey } from '@/lib/plan-generator';
 import type { CardioPlan } from '@/lib/cardioSelection';
 import { materializeTemplate, findManualPlan } from '@/lib/routineMaterializer';
@@ -113,6 +113,42 @@ async function saveCompletedDayIds(dayIds: number[]): Promise<void> {
 // el .includes() por separado en ninguno de los tres.
 export function isDayCompleted(dayId: number, completedDayIds: number[]): boolean {
   return completedDayIds.includes(dayId);
+}
+
+// #36: filas de plan_days que ya no pertenecen a ningún plan activo Y que
+// ningún workout_sessions.plan_day_id referencia — se acumulan sin límite en
+// cada generateAndSavePlan()/activateManualPlan() (ninguno de los 2 borra los
+// días del plan que acaba de desactivar). El cálculo se hace en JS (3 SELECT +
+// diferencia de conjuntos) en vez de un DELETE con subquery NOT IN: si algún
+// workout_sessions.plan_day_id es NULL (columna nullable en el schema), un
+// `NOT IN` con NULL en la lista evaluaría a "unknown" para TODAS las filas por
+// la lógica de 3 valores de SQL, y el borrado nunca borraría nada — sin error
+// visible. Se hace select-de-los-ids-a-borrar antes del delete (mismo patrón
+// que ya usa generateAndSavePlan con savedDayRows) para poder devolver un
+// conteo real, ya que ningún punto del proyecto depende hoy del valor de
+// retorno de db.delete(...) para contar filas afectadas.
+async function cleanupOrphanedPlanDays(): Promise<number> {
+  const inactivePlans = await db.select({ id: workoutPlans.id }).from(workoutPlans).where(eq(workoutPlans.isActive, 0));
+  if (inactivePlans.length === 0) return 0;
+  const inactivePlanIds = inactivePlans.map(p => p.id);
+
+  const candidateDays = await db.select({ id: planDays.id }).from(planDays).where(inArray(planDays.planId, inactivePlanIds));
+  if (candidateDays.length === 0) return 0;
+  const candidateDayIds = candidateDays.map(d => d.id);
+
+  const sessionsOnCandidates = await db
+    .select({ planDayId: workoutSessions.planDayId })
+    .from(workoutSessions)
+    .where(inArray(workoutSessions.planDayId, candidateDayIds));
+  const usedDayIds = new Set(
+    sessionsOnCandidates.map(s => s.planDayId).filter((id): id is number => id !== null),
+  );
+
+  const orphanedIds = candidateDayIds.filter(id => !usedDayIds.has(id));
+  if (orphanedIds.length === 0) return 0;
+
+  await db.delete(planDays).where(inArray(planDays.id, orphanedIds));
+  return orphanedIds.length;
 }
 
 // Único punto de resolución por id, mismo fallback en todos lados: si el id
@@ -275,6 +311,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       // El plan nuevo + todos sus días quedaron insertados y verificados:
       // ahora sí es seguro desactivar los planes anteriores.
       await db.update(workoutPlans).set({ isActive: 0 }).where(ne(workoutPlans.id, savedPlan.id));
+
+      const cleanedUpCount = await cleanupOrphanedPlanDays();
+      console.log('[Workout] Limpieza de plan_days huérfanos:', cleanedUpCount, 'filas eliminadas');
 
       const days = mapDayRows(savedDayRows);
       const selectedDayId = days.find(d => d.exercises.length > 0)?.dbId ?? null;
@@ -493,6 +532,14 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       // pudiera estar en 0.
       await db.update(workoutPlans).set({ isActive: 0 }).where(ne(workoutPlans.id, targetPlan.id));
       await db.update(workoutPlans).set({ isActive: 1 }).where(eq(workoutPlans.id, targetPlan.id));
+
+      // Limpieza DESPUÉS de fijar isActive:1 en targetPlan — si corriera entre
+      // las 2 líneas de arriba, targetPlan mismo aparecería transitoriamente
+      // como "inactivo", y un día suyo sin sesiones (ej. nunca entrenado)
+      // se borraría justo antes de que materializeTemplate() lo necesite,
+      // forzando un INSERT con id nuevo en vez de reutilizar el existente.
+      const cleanedUpCount = await cleanupOrphanedPlanDays();
+      console.log('[Workout] Limpieza de plan_days huérfanos:', cleanedUpCount, 'filas eliminadas');
 
       await materializeTemplate(context, profile, equipment, dislikedIds, targetPlan.id, generatedAtNew);
 

@@ -3357,6 +3357,69 @@ Bucle ~1.3 s sobre fondo #141A17:
     (`#1,#2,#3,#4,#6,#7,#9,#10,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#32,#33,#37,#38,#39,#40`),
     8 pendientes
     (`#5,#8,#16,#29,#30,#34,#35,#36`).
+- Hecho: sesión 2026-08-24 (continuación) — **#36 CERRADO — limpieza de
+  filas huérfanas de `plan_days`** (JS puro, sin módulo nativo, sin
+  migración — solo recarga):
+  * **Auditoría previa bloqueante**: confirmó que ningún punto del
+    proyecto une `plan_days` contra `workout_sessions`/Historial/Recap
+    para mostrar nada (`history.tsx`, `RecapModal.tsx` y todo
+    `src/app/exercise/` derivan exclusivamente de `session_sets`); que
+    `workoutSessions.planDayId` es un `integer` suelto sin
+    `.references()` (confirmado que `.references()` no se usa en NINGÚN
+    punto de `schema.ts` — el proyecto entero no declara FKs a nivel de
+    Drizzle/SQLite); y que de los 3 puntos que se creía desactivaban un
+    plan viejo, solo 2 lo hacen de verdad —
+    `generateAndSavePlan`/`activateManualPlan` — `startNextManualCycle`
+    nunca escribe `isActive:0` (reutiliza el mismo plan ya activo, sin
+    generar huérfanos nuevos).
+  * `src/store/workout.store.ts`, nueva `cleanupOrphanedPlanDays():
+    Promise<number>` (función de módulo, no acción del store — mismo
+    patrón que `getSelectedDayId`/`saveSelectedDayId`): 3 `SELECT` +
+    diferencia de conjuntos en JS (planes con `isActive=0` → sus
+    `plan_days` → cuáles de esos ids aparecen en
+    `workoutSessions.planDayId`) en vez de un `DELETE` con subquery
+    `NOT IN` — evita a propósito la trampa de NULL de SQL:
+    `workoutSessions.planDayId` es nullable en el schema (caso real, no
+    hipotético), y un `NOT IN` con `NULL` en la lista evalúa
+    "desconocido" para TODA fila por la lógica de 3 valores, dejando el
+    borrado sin efecto y sin ningún error visible. Devuelve el conteo
+    real de filas borradas — ningún otro punto del proyecto depende hoy
+    del valor de retorno de `db.delete(...)` para contar filas, así que
+    se resolvió con select-antes-de-borrar (mismo patrón que
+    `generateAndSavePlan` ya usa con `savedDayRows`).
+  * Enganchada en los 2 puntos reales, con `console.log('[Workout]
+    Limpieza de plan_days huérfanos:', count, 'filas eliminadas')` en
+    cada uno. **Ajuste real durante la implementación** (no solo
+    ejecución literal del pedido): en `activateManualPlan`, la llamada
+    se movió a DESPUÉS de fijar `isActive:1` en el plan reactivado, no
+    entre el `isActive:0` y el `isActive:1` como se pidió originalmente
+    — en esa ventana intermedia el propio plan en reactivación aparece
+    transitoriamente inactivo, y un día suyo sin sesiones (el caso
+    normal de un día del ciclo aún no entrenado) se habría borrado y
+    vuelto a crear con un id NUEVO por `materializeTemplate()` (que hace
+    `UPDATE` si encuentra la fila existente, `INSERT` si no), rompiendo
+    la invariante ya documentada de preservar el id de `plan_days` entre
+    activaciones sucesivas. `generateAndSavePlan` no necesitó ajuste — el
+    plan nuevo nace con `isActive:1` desde el propio `insert`, nunca pasa
+    por ese estado transitorio.
+  * **Validado**: sandbox aislado (`node:sqlite`) con 3 escenarios — el
+    caso exacto pedido (plan viejo con 4 días, 2 con sesión real y 2 sin
+    ninguna: los 2 sin sesión se borran, los 2 con sesión y el día del
+    plan activo sobreviven intactos, ninguna `workout_sessions` queda
+    huérfana), cero planes inactivos, y plan inactivo sin ningún día —
+    más un caso extra con `plan_day_id NULL` real confirmando que el
+    filtro en JS no cuenta ese valor como "usado" ni rompe nada. Traza a
+    mano contra el código real antes de tocar el dispositivo. Validado
+    en dispositivo por Juan: **15 filas huérfanas eliminadas** en el
+    primer uso real (el número que la auditoría de solo lectura no pudo
+    dar sin acceso al SQLite del dispositivo), Historial y Recap sin
+    ningún cambio visible.
+  * `npx tsc --noEmit` limpio en cada paso.
+  * **#36 CERRADO POR COMPLETO — sin nada pendiente.**
+  * Total actualizado: 31 cerrados
+    (`#1,#2,#3,#4,#6,#7,#9,#10,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#32,#33,#36,#37,#38,#39,#40`),
+    7 pendientes
+    (`#5,#8,#16,#29,#30,#34,#35`).
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
