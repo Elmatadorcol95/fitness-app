@@ -557,7 +557,20 @@ export default function SessionScreen() {
     // dónde entrenó hoy un usuario "ambos" (mismo criterio que warmupIsGym
     // en training.tsx).
     if (sessionDayType) {
-      useCooldownStore.getState().promptAfterSession(sessionDayType, equipment, trainingContext !== 'home');
+      const cooldownMode = profile?.cooldownPromptMode ?? 'ask';
+      if (cooldownMode === 'never') {
+        // Equivalente a declinar — no se muestra nada.
+      } else if (cooldownMode === 'always') {
+        // Mismo efecto que aceptar el prompt (acceptPrompt(): promptOpen
+        // false, minutesOpen true), sin pasar visiblemente por
+        // promptOpen:true — promptAfterSession() puebla `pending` (lo
+        // necesita chooseMinutes) y acceptPrompt() lo pasa directo a
+        // minutesOpen en el mismo tick síncrono.
+        useCooldownStore.getState().promptAfterSession(sessionDayType, equipment, trainingContext !== 'home');
+        useCooldownStore.getState().acceptPrompt();
+      } else {
+        useCooldownStore.getState().promptAfterSession(sessionDayType, equipment, trainingContext !== 'home');
+      }
     }
 
     if (hasPR) unlockAchievement('personal_record');
@@ -585,7 +598,7 @@ export default function SessionScreen() {
     }
 
     await advanceToNextDay(justTrainedDayId);
-  }, [finishSession, unlockAchievement, recordWorkout, incrementDaysTrainedThisWeek, incrementDaysFinishedThisWeek, markDayCompleted, advanceToNextDay, sessionDayType, equipment, trainingContext]);
+  }, [finishSession, unlockAchievement, recordWorkout, incrementDaysTrainedThisWeek, incrementDaysFinishedThisWeek, markDayCompleted, advanceToNextDay, sessionDayType, equipment, trainingContext, profile]);
 
   function handleFinish() {
     const pending = exercises.reduce(

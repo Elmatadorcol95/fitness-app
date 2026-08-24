@@ -569,6 +569,36 @@
       "nativeDesc": "L'alerte et le son du système, comme si l'application était en arrière-plan.",
       "off": "Désactivé",
       "offDesc": "Vibration seulement, aucun son."
+    },
+    "trainingLocation": {
+      "sectionTitle": "Où vous entraînez",
+      "sectionHint": "Choisissez si l'application vous demande à chaque fois, ou suppose toujours le même endroit au démarrage d'une séance.",
+      "ask": "Toujours demander",
+      "askDesc": "Choisissez salle ou maison à chaque démarrage.",
+      "gym": "Toujours en salle",
+      "gymDesc": "Démarre directement en salle, sans question.",
+      "home": "Toujours à la maison",
+      "homeDesc": "Démarre directement à la maison, sans question."
+    },
+    "warmupPrompt": {
+      "sectionTitle": "Échauffement",
+      "sectionHint": "Choisissez si l'application vous demande si vous voulez vous échauffer avant chaque séance.",
+      "ask": "Toujours demander",
+      "askDesc": "Demande à chaque fois si vous voulez vous échauffer.",
+      "always": "Toujours s'échauffer",
+      "alwaysDesc": "Passe la question et va directement au choix des minutes.",
+      "never": "Ne jamais s'échauffer",
+      "neverDesc": "Démarre la séance directement, sans question."
+    },
+    "cooldownPrompt": {
+      "sectionTitle": "Étirement",
+      "sectionHint": "Choisissez si l'application vous demande si vous voulez vous étirer après chaque séance.",
+      "ask": "Toujours demander",
+      "askDesc": "Demande à chaque fois si vous voulez vous étirer.",
+      "always": "Toujours s'étirer",
+      "alwaysDesc": "Passe la question et va directement au choix des minutes.",
+      "never": "Ne jamais s'étirer",
+      "neverDesc": "Termine la séance sans demander."
     }
   },
   "migrations": {

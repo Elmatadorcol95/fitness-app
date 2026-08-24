@@ -9,6 +9,8 @@ export type Goal = 'strength' | 'hypertrophy' | 'fat_loss';
 export type Location = 'home' | 'gym' | 'both';
 export type Units = 'metric' | 'imperial';
 export type RestSoundMode = 'vulcan' | 'native' | 'off';
+export type TrainingLocationMode = 'ask' | 'gym' | 'home';
+export type PromptMode = 'ask' | 'always' | 'never';
 
 export interface OnboardingDraft {
   name: string;
@@ -59,6 +61,9 @@ interface ProfileState {
   updateEquipmentAndLocation: (location: Location, equipment: string[]) => Promise<void>;
   updateMusclePriorities: (priorities: MuscleGroup[]) => Promise<void>;
   updateRestSoundMode: (mode: RestSoundMode) => Promise<void>;
+  updateTrainingLocationMode: (mode: TrainingLocationMode) => Promise<void>;
+  updateWarmupPromptMode: (mode: PromptMode) => Promise<void>;
+  updateCooldownPromptMode: (mode: PromptMode) => Promise<void>;
   openEquipment: () => void;
   closeEquipment: () => void;
   openMusclePriorities: () => void;
@@ -124,5 +129,32 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
       .set({ restSoundMode: mode })
       .where(eq(profileTable.id, current.id));
     set({ profile: { ...current, restSoundMode: mode } });
+  },
+  updateTrainingLocationMode: async (mode) => {
+    const current = get().profile;
+    if (!current) return;
+    await db
+      .update(profileTable)
+      .set({ trainingLocationMode: mode })
+      .where(eq(profileTable.id, current.id));
+    set({ profile: { ...current, trainingLocationMode: mode } });
+  },
+  updateWarmupPromptMode: async (mode) => {
+    const current = get().profile;
+    if (!current) return;
+    await db
+      .update(profileTable)
+      .set({ warmupPromptMode: mode })
+      .where(eq(profileTable.id, current.id));
+    set({ profile: { ...current, warmupPromptMode: mode } });
+  },
+  updateCooldownPromptMode: async (mode) => {
+    const current = get().profile;
+    if (!current) return;
+    await db
+      .update(profileTable)
+      .set({ cooldownPromptMode: mode })
+      .where(eq(profileTable.id, current.id));
+    set({ profile: { ...current, cooldownPromptMode: mode } });
   },
 }));

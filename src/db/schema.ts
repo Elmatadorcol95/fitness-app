@@ -18,6 +18,9 @@ export const profile = sqliteTable('profile', {
   injuries: text('injuries').default(''),
   units: text('units').notNull().default('metric'),
   restSoundMode: text('rest_sound_mode').notNull().default('vulcan'), // 'vulcan' | 'native' | 'off'
+  trainingLocationMode: text('training_location_mode').notNull().default('ask'), // 'ask' | 'gym' | 'home'
+  warmupPromptMode: text('warmup_prompt_mode').notNull().default('ask'), // 'ask' | 'always' | 'never'
+  cooldownPromptMode: text('cooldown_prompt_mode').notNull().default('ask'), // 'ask' | 'always' | 'never'
   authUserId: text('auth_user_id'), // UUID de Supabase auth — nullable
   // para instalaciones previas a esta migracion, backfillado en el
   // arranque (_layout.tsx). Ver auditoria: sin esto, un dispositivo

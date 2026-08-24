@@ -569,6 +569,36 @@
       "nativeDesc": "El aviso y el sonido del sistema, como si la app estuviera en segundo plano.",
       "off": "Apagado",
       "offDesc": "Solo vibración, sin ningún sonido."
+    },
+    "trainingLocation": {
+      "sectionTitle": "Dónde entrenas",
+      "sectionHint": "Elige si quieres que la app te pregunte cada vez, o que asuma siempre el mismo lugar al iniciar un entrenamiento.",
+      "ask": "Preguntar siempre",
+      "askDesc": "Elige gimnasio o casa cada vez que empiezas.",
+      "gym": "Siempre gimnasio",
+      "gymDesc": "Empieza directo en gimnasio, sin preguntar.",
+      "home": "Siempre en casa",
+      "homeDesc": "Empieza directo en casa, sin preguntar."
+    },
+    "warmupPrompt": {
+      "sectionTitle": "Calentamiento",
+      "sectionHint": "Elige si quieres que la app te pregunte si quieres calentar antes de cada entrenamiento.",
+      "ask": "Preguntar siempre",
+      "askDesc": "Te pregunta si quieres calentar cada vez.",
+      "always": "Calentar siempre",
+      "alwaysDesc": "Salta la pregunta y va directo a elegir los minutos.",
+      "never": "Nunca calentar",
+      "neverDesc": "Empieza el entrenamiento directo, sin preguntar."
+    },
+    "cooldownPrompt": {
+      "sectionTitle": "Estiramiento",
+      "sectionHint": "Elige si quieres que la app te pregunte si quieres estirar después de cada entrenamiento.",
+      "ask": "Preguntar siempre",
+      "askDesc": "Te pregunta si quieres estirar cada vez.",
+      "always": "Estirar siempre",
+      "alwaysDesc": "Salta la pregunta y va directo a elegir los minutos.",
+      "never": "Nunca estirar",
+      "neverDesc": "Termina el entrenamiento sin preguntar."
     }
   },
   "migrations": {

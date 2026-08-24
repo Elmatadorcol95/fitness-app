@@ -148,6 +148,13 @@
       "when": 1787562858470,
       "tag": "0020_drop_workout_sessions_completed",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1787566477926,
+      "tag": "0021_prompt_preferences",
+      "breakpoints": true
     }
   ]
 }

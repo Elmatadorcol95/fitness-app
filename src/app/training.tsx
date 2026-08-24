@@ -349,7 +349,17 @@ export default function TrainingScreen() {
   function doStartSession(context: 'gym' | 'home' | null) {
     if (!currentPlan) return;
     setPendingContext(context);
-    setWarmupPromptOpen(true);
+    const mode = profile?.warmupPromptMode ?? 'ask';
+    if (mode === 'never') {
+      // Mismo camino que handleWarmupNo(), sin pasar por el diálogo sí/no.
+      void startRealSession(context);
+    } else if (mode === 'always') {
+      // Mismo camino que handleWarmupYes(): salta directo a elegir minutos,
+      // sin preguntar si se quiere calentar.
+      setWarmupMinutesOpen(true);
+    } else {
+      setWarmupPromptOpen(true);
+    }
   }
 
   function handleWarmupNo() {
@@ -392,15 +402,20 @@ export default function TrainingScreen() {
   function handleStart() {
     if (!currentPlan) return;
     if (profile?.location === 'both') {
-      useSheetStore.getState().open({
-        options: [
-          { value: 'gym',  label: t('workout.session.whereGym') },
-          { value: 'home', label: t('workout.session.whereHome') },
-        ],
-        onSelect: (ctx) => { void doStartSession(ctx as 'gym' | 'home'); },
-        title: t('workout.session.whereTitle'),
-        cancelLabel: t('common.cancel'),
-      });
+      const locMode = profile?.trainingLocationMode ?? 'ask';
+      if (locMode === 'gym' || locMode === 'home') {
+        void doStartSession(locMode);
+      } else {
+        useSheetStore.getState().open({
+          options: [
+            { value: 'gym',  label: t('workout.session.whereGym') },
+            { value: 'home', label: t('workout.session.whereHome') },
+          ],
+          onSelect: (ctx) => { void doStartSession(ctx as 'gym' | 'home'); },
+          title: t('workout.session.whereTitle'),
+          cancelLabel: t('common.cancel'),
+        });
+      }
     } else if (profile?.location === 'home') {
       void doStartSession('home');
     } else {

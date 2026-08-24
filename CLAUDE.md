@@ -3281,6 +3281,82 @@ Bucle ~1.3 s sobre fondo #141A17:
     (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#32,#33,#37,#38,#39,#40`),
     9 pendientes
     (`#5,#8,#10,#16,#29,#30,#34,#35,#36`).
+- Hecho: sesión 2026-08-24 (continuación) — **#10 CERRADO — preferencias
+  configurables de dónde entrenar/calentar/estirar, modo híbrido** (1
+  migración manual + JS, sin módulo nativo — solo recarga):
+  * **Auditoría previa bloqueante**: confirmó que las 3 preguntas
+    (`handleStart()` para el sheet gym/casa, el diálogo de calentamiento
+    en `training.tsx`, `promptAfterSession()` de `cooldown.store.ts`)
+    siempre interrumpían sin ninguna condición ni columna de preferencia
+    existente — a diferencia del #38, donde `restSoundMode` ya era
+    terreno conocido. `warmup.store.ts` solo expone `start`/`end`/
+    `replaceAt` (sin `skip` — "decir que no" nunca pasa por ese store,
+    `handleWarmupNo()` llama `startRealSession()` directo).
+    `acceptPrompt()` de `cooldown.store.ts` confirmado como un `set()`
+    simple sin efectos colaterales — pieza clave para el diseño del modo
+    `'always'` de estiramiento.
+  * **Migración manual `0021_prompt_preferences.sql`** (3 `ALTER TABLE`
+    separados por `--> statement-breakpoint`, mismo mecanismo ya usado
+    en `0018`): `training_location_mode`/`warmup_prompt_mode`/
+    `cooldown_prompt_mode`, todos `text NOT NULL DEFAULT 'ask'`.
+    `drizzle-kit generate` falló igual que en 0019/0020; `when` real
+    `1787566477926` > máximo existente. Probada en sandbox aislado
+    (`node:sqlite`) en 3 escenarios — fila ya existente (con
+    `rest_sound_mode` del 0019 ya poblado, confirmado intacto),
+    instalación limpia, valores reales de aplicación sin `CHECK` en DB
+    — antes y de nuevo en una segunda verificación pedida aparte.
+  * `src/store/profile.store.ts`: tipos `TrainingLocationMode`
+    (`'ask'|'gym'|'home'`) y `PromptMode` (`'ask'|'always'|'never'`,
+    compartido entre calentamiento y estiramiento — mismos 3 valores);
+    `updateTrainingLocationMode`/`updateWarmupPromptMode`/
+    `updateCooldownPromptMode`, copia literal del patrón de
+    `updateRestSoundMode`.
+  * `src/app/settings.tsx`: extraído `SettingsOptionGroup<T>` (título +
+    hint + filas seleccionables + checkmark) del bloque que hasta ahora
+    solo usaba "Sonido de fin de descanso" — mismo estilo visual de las
+    filas, reutilizado en las 4 secciones. Sección "Dónde entrenas"
+    condicionada a `profile?.location === 'both'` — mismo gate que
+    `handleStart()`. Añadido un `<View style={styles.section}>` con
+    `marginBottom` para separar las 4 secciones — único ajuste visual
+    nuevo, señalado explícitamente a Juan antes de validar.
+  * `src/app/training.tsx`:
+    - `handleStart()`: con `location==='both'`, si
+      `trainingLocationMode` es `'gym'`/`'home'` llama `doStartSession`
+      directo sin abrir el sheet; `'ask'`/sin definir → comportamiento
+      idéntico al de siempre.
+    - `doStartSession()`: `warmupPromptMode==='never'` →
+      `startRealSession(context)` directo (mismo camino que
+      `handleWarmupNo()`); `'always'` → `setWarmupMinutesOpen(true)`
+      directo (mismo camino que `handleWarmupYes()`, saltando el sí/no
+      pero preguntando igual los minutos — decisión explícita de Juan);
+      `'ask'`/sin definir → sin cambios.
+  * `src/app/session.tsx`, `doFinish()`: `cooldownPromptMode==='never'`
+    → no llama nada (equivalente a declinar); `'always'` → llama
+    `promptAfterSession(...)` seguido de `acceptPrompt()` en el mismo
+    tick síncrono (sin `await` entre medias) — puebla `pending` y salta
+    a `minutesOpen:true` sin que React llegue a renderizar
+    `promptOpen:true`, confirmado en dos rondas de verificación aparte
+    que el estado final es indistinguible de aceptar el diálogo a mano;
+    `'ask'`/sin definir → sin cambios. `profile` añadido a las deps del
+    `useCallback`. **`cooldown.store.ts` y `warmup.store.ts` NO se
+    tocaron** — toda la lógica nueva se armó componiendo sus acciones ya
+    exportadas.
+  * i18n es/en/fr: 3 bloques nuevos bajo `settings.*`
+    (`trainingLocation`/`warmupPrompt`/`cooldownPrompt`, cada uno con
+    `sectionTitle`/`sectionHint` + 3 pares `valor`/`valorDesc`).
+  * **Validado en dispositivo por Juan**: los 3 modos de "dónde
+    entrenas" (solo perfil `both`); los 3 de calentamiento, confirmando
+    que `'always'` sigue preguntando minutos sin el sí/no; los 3 de
+    estiramiento, mismo chequeo; los 3 en `'ask'` (estado de cualquier
+    cuenta ya existente) comportándose exactamente igual que antes; las
+    4 secciones de Ajustes bien separadas visualmente.
+  * `npx tsc --noEmit` limpio en cada paso.
+  * **#10 CERRADO POR COMPLETO — las 3 preferencias, sin nada
+    pendiente.**
+  * Total actualizado: 30 cerrados
+    (`#1,#2,#3,#4,#6,#7,#9,#10,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#32,#33,#37,#38,#39,#40`),
+    8 pendientes
+    (`#5,#8,#16,#29,#30,#34,#35,#36`).
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
