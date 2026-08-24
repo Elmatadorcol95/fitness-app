@@ -12,9 +12,10 @@ import { getTemplate, type TemplateContext, type RoutineTemplateDay } from './ro
 // ahora un día puede volver a contar como "sin entrenar" tras activar/
 // reactivar un plan o pasar de semana, comparando contra el generatedAt del
 // ciclo vigente en vez de contra todo el historial.)
-// workout_sessions.completed está siempre en 1 en la práctica (hardcodeado
-// en finishSession()), así que filtrar por plan_day_id ya es equivalente a
-// filtrar por "completada" — no hace falta comprobar completed aquí.
+// Cualquier fila de workout_sessions ya representa una sesión terminada
+// (finishSession() es el único punto de inserción, y solo inserta al
+// finalizar) — filtrar por plan_day_id ya es equivalente a filtrar por
+// "completada", sin necesidad de un campo aparte.
 export async function hasSessionForPlanDay(planDayId: number, sinceTimestamp: number): Promise<boolean> {
   const rows = await db
     .select({ id: workoutSessions.id })

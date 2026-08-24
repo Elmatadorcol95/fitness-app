@@ -21,6 +21,7 @@ import m0016 from './0016_exercise_targets_by_exercise.sql';
 import m0017 from './0017_drop_plan_mode.sql';
 import m0018 from './0018_profile_auth_link.sql';
 import m0019 from './0019_rest_sound_mode.sql';
+import m0020 from './0020_drop_workout_sessions_completed.sql';
 
   export default {
     journal,
@@ -44,6 +45,7 @@ import m0019 from './0019_rest_sound_mode.sql';
       m0016,
       m0017,
       m0018,
-      m0019
+      m0019,
+      m0020
     }
   }

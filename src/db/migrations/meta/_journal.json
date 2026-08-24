@@ -141,6 +141,13 @@
       "when": 1787558759553,
       "tag": "0019_rest_sound_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1787562858470,
+      "tag": "0020_drop_workout_sessions_completed",
+      "breakpoints": true
     }
   ]
 }

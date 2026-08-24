@@ -743,7 +743,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     try {
       await db.insert(workoutSessions).values({
         planDayId, date: today, durationSeconds,
-        completed: 1,
         notes:     exercises.map(e => e.note).filter(Boolean).join(' | '),
         createdAt: Date.now(),
       });

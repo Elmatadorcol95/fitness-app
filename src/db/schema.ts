@@ -112,7 +112,6 @@ export const workoutSessions = sqliteTable('workout_sessions', {
   planDayId: integer('plan_day_id'),
   date: text('date').notNull(),
   durationSeconds: integer('duration_seconds'),
-  completed: integer('completed').notNull().default(0),
   notes: text('notes'),
   createdAt: integer('created_at').notNull(),
 });

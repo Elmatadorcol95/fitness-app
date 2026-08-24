@@ -3159,6 +3159,57 @@ Bucle ~1.3 s sobre fondo #141A17:
     (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#37,#38,#39,#40`),
     11 pendientes
     (`#5,#8,#10,#16,#29,#30,#32,#33,#34,#35,#36`).
+- Hecho: sesión 2026-08-24 (continuación) — **#33 CERRADO — elimina
+  campo vestigial `workout_sessions.completed`** (1 migración manual +
+  JS, sin módulo nativo — solo recarga):
+  * **Auditoría previa bloqueante (sin código)**: confirmó por grep que
+    `workout_sessions.completed` se escribía una sola vez, con el
+    literal `1`, en el único `insert(workoutSessions)` del proyecto
+    (`finishSession()`); que no existía ningún `update(workoutSessions
+    ...)` en todo el repo; y que la columna nunca se leía por accessor
+    (`workoutSessions.completed`) en ningún `select`. El propio código
+    ya lo trataba como dato muerto — comentario preexistente en
+    `routineMaterializer.ts:15-17` que describía exactamente esto.
+    `sessionSets.completed` (tabla distinta) confirmado como campo VIVO,
+    sin tocar.
+  * **Migración manual `0020_drop_workout_sessions_completed.sql`**:
+    `ALTER TABLE workout_sessions DROP COLUMN completed` — `drizzle-kit
+    generate` falló igual que en la 0019 (prompt interactivo en modo
+    no-TTY); creada a mano con el mismo patrón (`when` real
+    `1787562858470`, mayor que el máximo existente `1787558759553`, idx
+    19). Precedente ya existente de `DROP COLUMN` en el proyecto
+    (migración `0017_drop_plan_mode.sql`) — mismo mecanismo, nada nuevo
+    que probar por primera vez. Probada en sandbox aislado (`node:sqlite`,
+    fuera del repo) en 2 escenarios: filas ya existentes (incluido un
+    caso atípico con `completed=0`, para no asumir que todas valían 1) e
+    instalación limpia con el insert real ya editado — ambos pasaron;
+    `session_sets.completed` confirmado intacto en el mismo sandbox.
+  * `src/store/session.store.ts`: quitada la línea `completed: 1` del
+    único `insert(workoutSessions)` (dentro de `finishSession()`) — el
+    resto del insert y de la función quedaron sin tocar.
+  * `src/lib/routineMaterializer.ts`: corregido el comentario de
+    `hasSessionForPlanDay()` para que ya no mencione un campo que dejó
+    de existir en el schema — la lógica de la función (filtrar por
+    `planDayId`+`createdAt`, sin mirar `completed`) no cambió.
+  * **Decisión**: eliminar el campo del esquema en vez de darle
+    significado real. Dárselo habría significado reconstruir un segundo
+    cálculo de "día completo" en paralelo al que ya vive en
+    `completedDayIds` (Paso 2c, derivado de `session_sets`) — misma
+    lección de evitar fuentes de verdad duplicadas que ya costó cara con
+    `getEquipLocal` (ver sección "Saga completa de clasificación de
+    equipamiento", sesión 2026-08-06).
+  * **Validado en dispositivo por Juan**: sesión de entrenamiento normal
+    completada y guardada bien en el Historial; nada roto en los 3
+    puntos que tocan `workout_sessions` (Entreno, Historial, arranque de
+    sesión sobre un día ya parcial).
+  * `npx tsc --noEmit` limpio; grep de verificación confirmó cero
+    referencias sobrantes a `workoutSessions.completed` en cualquier
+    archivo del proyecto.
+  * **#33 CERRADO POR COMPLETO — sin nada pendiente.**
+  * Total actualizado: 28 cerrados
+    (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#33,#37,#38,#39,#40`),
+    10 pendientes
+    (`#5,#8,#10,#16,#29,#30,#32,#34,#35,#36`).
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 
