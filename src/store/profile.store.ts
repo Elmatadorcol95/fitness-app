@@ -8,6 +8,7 @@ import type { MuscleGroup } from '@/lib/exercises';
 export type Goal = 'strength' | 'hypertrophy' | 'fat_loss';
 export type Location = 'home' | 'gym' | 'both';
 export type Units = 'metric' | 'imperial';
+export type RestSoundMode = 'vulcan' | 'native' | 'off';
 
 export interface OnboardingDraft {
   name: string;
@@ -49,6 +50,7 @@ interface ProfileState {
   musclePrioritiesVisible: boolean;
   exercisePreferencesVisible: boolean;
   routineBuilderVisible: boolean;
+  settingsVisible: boolean;
   setProfile: (p: Profile | null) => void;
   setLoading: (v: boolean) => void;
   setDbReady: (v: boolean) => void;
@@ -56,6 +58,7 @@ interface ProfileState {
   resetDraft: () => void;
   updateEquipmentAndLocation: (location: Location, equipment: string[]) => Promise<void>;
   updateMusclePriorities: (priorities: MuscleGroup[]) => Promise<void>;
+  updateRestSoundMode: (mode: RestSoundMode) => Promise<void>;
   openEquipment: () => void;
   closeEquipment: () => void;
   openMusclePriorities: () => void;
@@ -64,6 +67,8 @@ interface ProfileState {
   closeExercisePreferences: () => void;
   openRoutineBuilder: () => void;
   closeRoutineBuilder: () => void;
+  openSettings: () => void;
+  closeSettings: () => void;
 }
 
 export const useProfileStore = create<ProfileState>((set, get) => ({
@@ -75,6 +80,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   musclePrioritiesVisible: false,
   exercisePreferencesVisible: false,
   routineBuilderVisible: false,
+  settingsVisible: false,
   setProfile: (profile) => set({ profile }),
   setLoading: (isLoading) => set({ isLoading }),
   setDbReady: (isDbReady) => set({ isDbReady }),
@@ -88,6 +94,8 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   closeExercisePreferences: () => set({ exercisePreferencesVisible: false }),
   openRoutineBuilder:  () => set({ routineBuilderVisible: true }),
   closeRoutineBuilder: () => set({ routineBuilderVisible: false }),
+  openSettings:  () => set({ settingsVisible: true }),
+  closeSettings: () => set({ settingsVisible: false }),
   updateEquipmentAndLocation: async (location, equipment) => {
     const current = get().profile;
     if (!current) return;
@@ -107,5 +115,14 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
       .set({ musclePriorities: musclePrioritiesJson })
       .where(eq(profileTable.id, current.id));
     set({ profile: { ...current, musclePriorities: musclePrioritiesJson } });
+  },
+  updateRestSoundMode: async (mode) => {
+    const current = get().profile;
+    if (!current) return;
+    await db
+      .update(profileTable)
+      .set({ restSoundMode: mode })
+      .where(eq(profileTable.id, current.id));
+    set({ profile: { ...current, restSoundMode: mode } });
   },
 }));

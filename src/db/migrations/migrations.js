@@ -20,6 +20,7 @@ import m0015 from './0015_routine_templates_cardio.sql';
 import m0016 from './0016_exercise_targets_by_exercise.sql';
 import m0017 from './0017_drop_plan_mode.sql';
 import m0018 from './0018_profile_auth_link.sql';
+import m0019 from './0019_rest_sound_mode.sql';
 
   export default {
     journal,
@@ -42,6 +43,7 @@ import m0018 from './0018_profile_auth_link.sql';
       m0015,
       m0016,
       m0017,
-      m0018
+      m0018,
+      m0019
     }
   }

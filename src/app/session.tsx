@@ -347,10 +347,10 @@ export default function SessionScreen() {
   useEffect(() => {
     const id = setInterval(() => {
       if (startTime) setElapsed(Date.now() - startTime);
-      tickRestTimer();
+      tickRestTimer(t('workout.session.restNotifTitle'), t('workout.session.restNotifBody'));
     }, 1000);
     return () => clearInterval(id);
-  }, [startTime]);
+  }, [startTime, t]);
 
   // #27: id de la notificación de fin de descanso programada al pasar a
   // segundo plano (null si no hay ninguna pendiente).
@@ -378,7 +378,7 @@ export default function SessionScreen() {
         // va a corregir con el tick inmediato.
         cancelRestNotification(restNotifIdRef.current);
         restNotifIdRef.current = null;
-        tickRestTimer();
+        tickRestTimer(t('workout.session.restNotifTitle'), t('workout.session.restNotifBody'));
       }
     });
     return () => sub.remove();

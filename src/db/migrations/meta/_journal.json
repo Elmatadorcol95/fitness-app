@@ -134,6 +134,13 @@
       "when": 1785837722908,
       "tag": "0018_profile_auth_link",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1787558759553,
+      "tag": "0019_rest_sound_mode",
+      "breakpoints": true
     }
   ]
 }

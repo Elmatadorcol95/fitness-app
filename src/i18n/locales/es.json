@@ -156,6 +156,7 @@
       "musclePrioritiesSection": "Prioridad muscular",
       "exercisePreferencesSection": "Preferencias de ejercicios",
       "routineBuilderSection": "Rutina propia",
+      "settingsSection": "Ajustes",
       "signOut": "Cerrar sesión / reiniciar",
       "signOutMsg": "Se borrarán los datos locales. Volverás a la pantalla de inicio.",
       "signOutConfirm": "Confirmar",
@@ -554,6 +555,21 @@
     "addCardioPickerTitle": "Elige un ejercicio de cardio",
     "cardioGenerateAutoBtn": "Generar automáticamente",
     "cardioDuplicateSessionBtn": "Duplicar sesión anterior"
+  },
+  "settings": {
+    "title": "Ajustes",
+    "editBtn": "Editar",
+    "summary": "Sonido del temporizador de descanso y otras preferencias.",
+    "restSound": {
+      "sectionTitle": "Sonido de fin de descanso",
+      "sectionHint": "Elige qué pasa cuando termina el descanso entre series, con la app abierta. La vibración suena siempre, en los 3 modos.",
+      "vulcan": "Vulcan",
+      "vulcanDesc": "El sonido propio de la app.",
+      "native": "Nativo de Android",
+      "nativeDesc": "El aviso y el sonido del sistema, como si la app estuviera en segundo plano.",
+      "off": "Apagado",
+      "offDesc": "Solo vibración, sin ningún sonido."
+    }
   },
   "migrations": {
     "errorTitle": "No se pudo preparar la base de datos",

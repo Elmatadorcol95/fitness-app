@@ -17,6 +17,7 @@ export const profile = sqliteTable('profile', {
   musclePriorities: text('muscle_priorities').notNull().default('[]'),
   injuries: text('injuries').default(''),
   units: text('units').notNull().default('metric'),
+  restSoundMode: text('rest_sound_mode').notNull().default('vulcan'), // 'vulcan' | 'native' | 'off'
   authUserId: text('auth_user_id'), // UUID de Supabase auth — nullable
   // para instalaciones previas a esta migracion, backfillado en el
   // arranque (_layout.tsx). Ver auditoria: sin esto, un dispositivo

@@ -5,7 +5,8 @@ import { exerciseTargets, workoutSessions, sessionSets, exerciseRestPrefs, worko
 import type { Profile } from '@/db/schema';
 import { hapticsLight, hapticsSuccess } from '@/lib/haptics';
 import { playRestDone } from '@/lib/sounds';
-import { scheduleRestDoneNotification, cancelScheduledNotification } from '@/lib/notifications';
+import { scheduleRestDoneNotification, cancelScheduledNotification, playNativeRestDoneAlert } from '@/lib/notifications';
+import { useProfileStore } from '@/store/profile.store';
 import { runProgressionAfterSession } from '@/lib/progression';
 import { EXERCISES } from '@/lib/exercises';
 import { getEquipLocal, EQUIP_INC, type EquipLocal } from '@/lib/equipmentClassification';
@@ -73,7 +74,13 @@ interface SessionStore {
   setRestSecondsLive: (exIdx: number, seconds: number) => void;
   startRestTimer: (seconds: number) => void;
   stopRestTimer: () => void;
-  tickRestTimer: () => void;
+  // #38: title/body — mismo motivo que scheduleRestNotification (ningún store
+  // importa i18n): al llegar a 0, según profile.restSoundMode, reproduce el
+  // sonido Vulcan (playRestDone), dispara la alerta nativa de Android
+  // (playNativeRestDoneAlert, requiere registerNotificationHandler ya
+  // registrado) o no reproduce nada — la vibración de hapticsSuccess() ocurre
+  // siempre, sin condición, en los 3 modos.
+  tickRestTimer: (title: string, body: string) => void;
   // #27: programa/cancela la notificación local de fin de descanso. title/body
   // ya vienen traducidos del llamador (session.tsx) — ningún store del proyecto
   // importa i18n hoy (confirmado por auditoría, sin precedente), así que la
@@ -666,13 +673,19 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     await cancelScheduledNotification(id);
   },
 
-  tickRestTimer: () => {
+  tickRestTimer: (title, body) => {
     const { restTimerRunning, restTimerEndAt } = get();
     if (!restTimerRunning || restTimerEndAt === null) return;
     const remaining = Math.max(0, Math.round((restTimerEndAt - Date.now()) / 1000));
     if (remaining <= 0) {
       hapticsSuccess();
-      playRestDone();
+      const mode = useProfileStore.getState().profile?.restSoundMode ?? 'vulcan';
+      if (mode === 'vulcan') {
+        playRestDone();
+      } else if (mode === 'native') {
+        playNativeRestDoneAlert(title, body);
+      }
+      // mode === 'off': solo la vibración de hapticsSuccess() de arriba.
       set({ restTimerSeconds: 0, restTimerRunning: false, restTimerEndAt: null });
     } else {
       set({ restTimerSeconds: remaining });

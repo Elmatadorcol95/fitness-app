@@ -3066,6 +3066,99 @@ Bucle ~1.3 s sobre fondo #141A17:
     (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#37,#39,#40`),
     12 pendientes
     (`#5,#8,#10,#16,#29,#30,#32,#33,#34,#35,#36,#38`).
+- Hecho: sesión 2026-08-24 — **#38 CERRADO — sonido de fin de descanso
+  configurable, primera pantalla de Ajustes del proyecto** (JS + 1
+  migración manual, sin módulo nativo nuevo — `expo-notifications` ya
+  estaba instalado y compilado desde el #27; solo recarga):
+  * **Auditoría previa bloqueante (2 rondas, sin código)** antes de
+    diseñar nada: confirmó por grep que no existía ninguna pantalla de
+    Ajustes en el proyecto (sería la primera); que
+    `NotificationContentInput.sound` acepta `boolean` (incluido `false`)
+    pero el propio tipo advierte que en Android 8+ el sonido real lo
+    decide el canal, no ese campo; que `expo-notifications` ya crea un
+    canal de respaldo perezoso (`expo_notifications_fallback_notification_channel`,
+    `IMPORTANCE_HIGH`, sin `setSound` explícito) la primera vez que hace
+    falta; que `NotificationTriggerInput` acepta `null` como entrega
+    inmediata documentada; y que no existía ningún `setNotificationHandler`
+    en el proyecto — sería el primero.
+  * **Migración manual `0019_rest_sound_mode.sql`**: `ALTER TABLE
+    profile ADD COLUMN rest_sound_mode text NOT NULL DEFAULT 'vulcan'`.
+    `drizzle-kit generate` falló exactamente como ya documentaba este
+    archivo (prompt interactivo en modo no-TTY) — migración creada a
+    mano con el mismo patrón de 0009-0018: `when` real
+    (`1787558759553`) mayor que el máximo existente (`1785837722908`,
+    idx 18) en `_journal.json` + import/clave en `migrations.js`.
+    Probada en sandbox aislado (`node:sqlite`, fuera del repo) en 3
+    escenarios — perfil ya existente, instalación limpia, valores de
+    aplicación `native`/`off` sin `CHECK` en DB (mismo patrón que
+    `location`/`units`) — antes de tocar el dispositivo.
+  * `src/lib/notifications.ts`: `registerNotificationHandler()`
+    (`setNotificationHandler` con `shouldPlaySound:true`, primera vez en
+    el proyecto — sin esto, con la app abierta, expo-notifications no
+    muestra nada por defecto) y `playNativeRestDoneAlert(title, body)`
+    (`scheduleNotificationAsync` con `trigger: null`, mismo canal de
+    respaldo que ya usa `scheduleRestDoneNotification` del #27 — sin
+    `sound` ni `channelId` propios).
+  * `src/store/profile.store.ts`: tipo `RestSoundMode`
+    (`'vulcan'|'native'|'off'`), `updateRestSoundMode()` (copia literal
+    del patrón de `updateEquipmentAndLocation`/`updateMusclePriorities`)
+    y el trío `settingsVisible`/`openSettings`/`closeSettings`.
+  * `src/store/session.store.ts`: `tickRestTimer()` cambia de firma a
+    `(title, body)` — al llegar a 0, `hapticsSuccess()` sigue
+    ejecutándose siempre, sin condición, en los 3 modos; `'vulcan'`
+    llama `playRestDone()` (como antes), `'native'` llama
+    `playNativeRestDoneAlert(title, body)`, `'off'` no reproduce nada.
+    Lee `useProfileStore.getState().profile?.restSoundMode ?? 'vulcan'`
+    — sin perfil, cae a `'vulcan'`. El camino de segundo plano
+    (`scheduleRestNotification`/`cancelRestNotification`, `AppState`) no
+    se tocó — decisión de Juan: la notificación del #27 en segundo plano
+    queda intacta a propósito, el usuario ya puede silenciarla desde los
+    ajustes de notificaciones de su propio teléfono.
+  * `src/app/session.tsx`: los 2 call sites reales de `tickRestTimer()`
+    (el del `setInterval` de 1s y el de volver de segundo plano en el
+    listener de `AppState`) actualizados para pasar
+    `t('workout.session.restNotifTitle')`/`t('workout.session.restNotifBody')`
+    — mismas 2 claves i18n que ya existían del #27, sin crear claves
+    nuevas para esto.
+  * `src/app/_layout.tsx`: `registerNotificationHandler()` llamado una
+    vez en un `useEffect([])` de arranque, sin condicionar a ningún flag
+    de visibilidad; nuevo flag `settingsVisible` + bloque JSX
+    condicional, mismo trío que Equipment/MusclePriorities/
+    ExercisePreferences/RoutineBuilder.
+  * `src/app/profile.tsx`: 4ª sección "Ajustes" junto a Equipamiento/
+    Prioridad muscular/Preferencias de ejercicios/Rutina propia — mismo
+    patrón exacto (header + `Pressable` que llama `openSettings()` +
+    card de resumen).
+  * `src/app/settings.tsx` (nuevo, primera pantalla de Ajustes del
+    proyecto): 3 filas siempre visibles (Vulcan/Nativo de Android/
+    Apagado) con icono + etiqueta + descripción + checkmark en la
+    activa, cada una llama a `updateRestSoundMode()` directo al tocarla
+    — sin `BottomSheetOverlay` de por medio, decisión deliberada por
+    ser una sola preferencia con 3 opciones siempre visibles, no una
+    lista larga. `useAndroidBack` mismo patrón que las otras 4 pantallas
+    overlay. Los 5 íconos de Ionicons usados (`hammer-outline`,
+    `notifications-outline`, `volume-mute-outline`, `checkmark-circle`,
+    `chevron-back`) verificados contra el glyphmap real del paquete
+    instalado (`node_modules/@expo/vector-icons/build/vendor/
+    react-native-vector-icons/glyphmaps/Ionicons.json`), no de memoria.
+  * i18n es/en/fr: `tabs.profile.settingsSection` +  bloque raíz
+    `settings.*` completo (`title`, `editBtn`, `summary`,
+    `restSound.{sectionTitle,sectionHint,vulcan,vulcanDesc,native,
+    nativeDesc,off,offDesc}`).
+  * **Validado en dispositivo por Juan**: los 3 modos en primer plano
+    (Vulcan suena como siempre; Nativo de Android muestra el banner +
+    suena aunque la app esté abierta; Apagado solo vibra); la
+    notificación de segundo plano sigue sonando con el sonido del
+    sistema de siempre, sin importar el modo elegido; el botón atrás
+    cierra la pantalla de Ajustes; arranque en frío (no solo recarga de
+    Metro) confirmando que `registerNotificationHandler()` quedó
+    registrado desde el inicio de la app.
+  * `npx tsc --noEmit` limpio en cada paso.
+  * **#38 CERRADO POR COMPLETO — sin nada pendiente.**
+  * Total actualizado: 27 cerrados
+    (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#37,#38,#39,#40`),
+    11 pendientes
+    (`#5,#8,#10,#16,#29,#30,#32,#33,#34,#35,#36`).
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 

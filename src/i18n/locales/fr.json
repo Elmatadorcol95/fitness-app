@@ -156,6 +156,7 @@
       "musclePrioritiesSection": "Priorité musculaire",
       "exercisePreferencesSection": "Préférences d'exercices",
       "routineBuilderSection": "Ma routine",
+      "settingsSection": "Paramètres",
       "signOut": "Se déconnecter / réinitialiser",
       "signOutMsg": "Les données locales seront effacées. Vous reviendrez à l'écran de départ.",
       "signOutConfirm": "Confirmer",
@@ -554,6 +555,21 @@
     "addCardioPickerTitle": "Choisissez un exercice de cardio",
     "cardioGenerateAutoBtn": "Générer automatiquement",
     "cardioDuplicateSessionBtn": "Dupliquer la séance précédente"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "editBtn": "Modifier",
+    "summary": "Son du minuteur de repos et autres préférences.",
+    "restSound": {
+      "sectionTitle": "Son de fin de repos",
+      "sectionHint": "Choisissez ce qui se passe quand le repos entre les séries se termine, avec l'application ouverte. La vibration se déclenche toujours, dans les 3 modes.",
+      "vulcan": "Vulcan",
+      "vulcanDesc": "Le son propre à l'application.",
+      "native": "Natif Android",
+      "nativeDesc": "L'alerte et le son du système, comme si l'application était en arrière-plan.",
+      "off": "Désactivé",
+      "offDesc": "Vibration seulement, aucun son."
+    }
   },
   "migrations": {
     "errorTitle": "Impossible de préparer la base de données",

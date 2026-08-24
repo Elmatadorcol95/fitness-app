@@ -9,6 +9,14 @@
 // (`channelId?: string`) en TODOS los triggers programables, tanto en la
 // capa pública como en la nativa — nada en el sistema de tipos exige crear
 // un canal antes de programar. No se crea ninguno.
+//
+// #38: la opción "Nativo de Android" del selector de sonido reutiliza esta
+// misma pieza para primer plano — dispara la MISMA notificación (banner +
+// sonido del canal de respaldo de expo-notifications), pero con trigger:null
+// (entrega inmediata, confirmado válido por el tipo NotificationTriggerInput)
+// en vez de programada a futuro. Requiere registerNotificationHandler() para
+// que el banner se muestre con la app abierta — sin handler, el comportamiento
+// por defecto de expo-notifications es NO mostrar nada en primer plano.
 
 async function withNotifications<T>(
   fn: (N: typeof import('expo-notifications')) => Promise<T>,
@@ -61,4 +69,38 @@ export async function scheduleRestDoneNotification(
 export async function cancelScheduledNotification(id: string | null): Promise<void> {
   if (!id) return;
   await withNotifications(N => N.cancelScheduledNotificationAsync(id));
+}
+
+/**
+ * Registra el handler de comportamiento en primer plano. Sin esto, con la
+ * app abierta, expo-notifications no muestra nada (comportamiento por
+ * defecto documentado en el propio paquete) — necesario para que
+ * playNativeRestDoneAlert() se vea/oiga con la app en uso, no solo en
+ * segundo plano. Se llama una única vez desde _layout.tsx al arrancar.
+ */
+export function registerNotificationHandler(): Promise<void | null> {
+  return withNotifications(async N => {
+    N.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+  });
+}
+
+/**
+ * Dispara la notificación nativa de Android inmediatamente (trigger: null),
+ * con la app en primer plano. Mismo canal de respaldo que ya usa
+ * scheduleRestDoneNotification — sin `sound` ni `channelId` propios.
+ */
+export async function playNativeRestDoneAlert(title: string, body: string): Promise<void> {
+  await withNotifications(N =>
+    N.scheduleNotificationAsync({
+      content: { title, body },
+      trigger: null,
+    }),
+  );
 }

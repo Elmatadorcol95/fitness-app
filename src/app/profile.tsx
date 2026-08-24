@@ -298,6 +298,28 @@ export default function ProfileScreen() {
             </ThemedView>
           </View>
 
+          {/* ── Ajustes ── */}
+          <View style={sectionStyles.wrap}>
+            <View style={styles.equipHeader}>
+              <ThemedText style={sectionStyles.title}>
+                {t('tabs.profile.settingsSection')}
+              </ThemedText>
+              <Pressable
+                onPress={() => useProfileStore.getState().openSettings()}
+                style={styles.editEquipBtn}
+                hitSlop={8}
+              >
+                <Ionicons name="create-outline" size={15} color="#3FBF7F" />
+                <ThemedText style={styles.editEquipText}>{t('settings.editBtn')}</ThemedText>
+              </Pressable>
+            </View>
+            <ThemedView type="backgroundElement" style={sectionStyles.card}>
+              <ThemedText themeColor="textSecondary" style={styles.gymEquipNote}>
+                {t('settings.summary')}
+              </ThemedText>
+            </ThemedView>
+          </View>
+
           {/* ── Lesiones ── */}
           {profile.injuries ? (
             <Section title={t('onboarding.injuries.title')}>

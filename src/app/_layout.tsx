@@ -28,6 +28,8 @@ import EquipmentScreen    from '@/app/equipment';
 import MusclePrioritiesScreen from '@/app/musclePriorities';
 import ExercisePreferencesScreen from '@/app/exercisePreferences';
 import RoutineBuilderScreen from '@/app/routineBuilder';
+import SettingsScreen     from '@/app/settings';
+import { registerNotificationHandler } from '@/lib/notifications';
 import WarmupScreen       from '@/app/warmup';
 import CooldownScreen     from '@/app/cooldown';
 import { useSessionStore } from '@/store/session.store';
@@ -87,6 +89,13 @@ export default function RootLayout() {
       console.error('[Migrations] Error aplicando migraciones:', migrationsError);
     }
   }, [migrationsError]);
+
+  // #38: handler de comportamiento en primer plano — sin esto, la opción
+  // "Nativo de Android" no mostraría/sonaría nada con la app abierta. Global,
+  // una sola vez al arrancar — no depende de ningún flag de visibilidad.
+  useEffect(() => {
+    registerNotificationHandler();
+  }, []);
 
   // Selectores SOLO primitivos — nunca objetos
   const isAuthenticated  = useAuthStore((s) => !!s.session);
@@ -232,6 +241,7 @@ export default function RootLayout() {
   const isMusclePrioritiesVisible = useProfileStore(s => s.musclePrioritiesVisible);
   const isExercisePreferencesVisible = useProfileStore(s => s.exercisePreferencesVisible);
   const isRoutineBuilderVisible = useProfileStore(s => s.routineBuilderVisible);
+  const isSettingsVisible = useProfileStore(s => s.settingsVisible);
   const isWarmupActive     = useWarmupStore(s => s.active);
   const isCooldownActive   = useCooldownStore(s => s.active);
   const stillLoading   = !migrationsReady || isProfileLoading || isAuthLoading;
@@ -321,6 +331,12 @@ export default function RootLayout() {
       {isRoutineBuilderVisible && (
         <View style={StyleSheet.absoluteFill}>
           <RoutineBuilderScreen />
+        </View>
+      )}
+      {/* Pantalla de Ajustes — overlay sobre las tabs */}
+      {isSettingsVisible && (
+        <View style={StyleSheet.absoluteFill}>
+          <SettingsScreen />
         </View>
       )}
       {/* Pantalla de calentamiento — overlay sobre las tabs */}
