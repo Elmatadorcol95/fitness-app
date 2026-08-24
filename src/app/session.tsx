@@ -24,6 +24,7 @@ import { selectCardio, createCardioCycleState, type CardioPlan, type PlannedCard
 import { hapticsSuccess } from '@/lib/haptics';
 import { playRestDone } from '@/lib/sounds';
 import { requestNotificationPermission } from '@/lib/notifications';
+import { todayLocal } from '@/lib/dateUtils';
 import { Spacing } from '@/constants/theme';
 import { getAllPreferences, togglePreference, type Preference } from '@/lib/exercisePreferences';
 import { useTextSelection, useIndexedTextSelection } from '@/hooks/use-text-selection';
@@ -539,7 +540,7 @@ export default function SessionScreen() {
   }
 
   const doFinish = useCallback(async () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayLocal();
     // Capturado ANTES de finishSession(): esta resetea el store a
     // EMPTY_STATE (planDayId: null) al terminar, así que hay que leerlo
     // ahora o se pierde. Estable incluso si el filtro E-3/rutina ancla

@@ -3210,6 +3210,77 @@ Bucle ~1.3 s sobre fondo #141A17:
     (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#33,#37,#38,#39,#40`),
     10 pendientes
     (`#5,#8,#10,#16,#29,#30,#32,#34,#35,#36`).
+- Hecho: sesión 2026-08-24 (continuación) — **#32 CERRADO — helper
+  compartido de fecha local, 11 sitios en 9 archivos** (JS puro, sin
+  módulo nativo — solo recarga; 2 rondas dentro de la misma sesión):
+  * **Auditoría previa bloqueante**: confirmó por grep 11 apariciones de
+    `new Date().toISOString().split('T')[0]` en 8 archivos —
+    `session.store.ts:724` (`finishSession()`, `workout_sessions.date`),
+    `session.tsx:542` (`doFinish()`, alimenta `recordWorkout()`),
+    `progression.ts:274` (`runProgressionAfterSession()`, alimenta
+    `exerciseMaxes.achievedAt`), `RecapModal.tsx` (`getWeekStart()`),
+    `AddMeasurementModal.tsx`/`AddWeightModal.tsx` (2 sitios cada uno,
+    `todayStr()`/`shiftDate()` duplicados letra por letra entre ambos
+    archivos), `PhotosTab.tsx` (alimenta `hasPhotoToday` Y la fecha
+    grabada en `addPhoto()` — misma variable, confirmado sin llamada
+    duplicada), `WeightTab.tsx` (`formatDate()`, solo comparación en
+    memoria para las etiquetas "Hoy"/"Ayer", nada persistido). `toISOString()`
+    siempre trabaja en UTC — cerca de medianoche en un huso adelantado a
+    UTC (ej. Francia en horario de verano), el día de calendario local
+    ya cambió pero el UTC equivalente todavía no, así que la fecha
+    calculada quedaba un día atrás de la real.
+  * **`src/lib/dateUtils.ts` (nuevo)**: `formatLocalDate(d)` (getters
+    locales — `getFullYear`/`getMonth`/`getDate` —, nunca
+    `toISOString`), `todayLocal()`, `yesterdayLocal()` (aritmética de
+    calendario con `setDate`, no resta de milisegundos — mismo patrón
+    que ya usaba `getWeekStart()`; cierra de paso un caso límite de
+    horario de verano que `WeightTab.tsx` tenía sin saber, al restar
+    `86400000` ms crudos para "ayer"), `shiftLocalDate(dateStr, days)`
+    (parsea con `'T12:00:00'`, igual que los `shiftDate()` ya
+    existentes, antes de aplicar `setDate` y formatear).
+  * **Ronda 1** (7 archivos, sin `session.store.ts` — quedó fuera del
+    alcance del prompt original por un error del propio proceso de
+    trabajo, detectado antes de tocarlo en vez de salirse de lo
+    permitido): `session.tsx`, `progression.ts`,
+    `AddMeasurementModal.tsx`/`AddWeightModal.tsx` (funciones locales
+    `todayStr()`/`shiftDate()` eliminadas por completo, importan del
+    helper), `PhotosTab.tsx`, `WeightTab.tsx`, `RecapModal.tsx` (solo la
+    línea final de `getWeekStart()` — la aritmética de `getDay`/`setDate`
+    de arriba no se tocó).
+  * **Ronda 2 — auditoría bloqueante de `recordWorkout()`
+    (`gamification.store.ts`) antes de cerrar `session.store.ts:724`**:
+    confirmado con el código real que `diffDays` (línea 122-124,
+    `new Date(date).getTime() - new Date(lastWorkoutDate).getTime()`)
+    **no tiene un bug independiente** — aunque ambos operandos se
+    parsean como medianoche UTC (por ser strings `YYYY-MM-DD` sin hora),
+    los DOS pasan por la misma regla determinista, así que la resta da
+    exactamente los días de calendario de diferencia entre las dos
+    etiquetas, sin que el huso horario del dispositivo ni el horario de
+    verano/invierno entren en juego (UTC no tiene DST). El bug vivía
+    enteramente en cómo se calculaba el string `date` ANTES de llegar a
+    esta función — ya corregido en la Ronda 1 (`session.tsx`) y en esta
+    misma pieza (`session.store.ts:724`). **`gamification.store.ts` no
+    se tocó** — sin cambios, confirmado que no hacía falta.
+    `session.store.ts:724` (`finishSession()`) migrado a `todayLocal()`.
+  * **Validado en dispositivo por Juan**: sesión completa con fecha
+    correcta; medición y peso nuevos con fecha correcta y botones ‹/›
+    del selector funcionando; foto de progreso respetando el límite
+    diario; Recap mostrando bien "Hoy"/"Ayer".
+  * `npx tsc --noEmit` limpio en cada ronda; grep final confirmó cero
+    ocurrencias reales de `toISOString().split('T')[0]` en todo `src/`
+    (el único resultado es el comentario descriptivo dentro del propio
+    `dateUtils.ts`).
+  * **Nota de transición, no un bug, sin acción**: el primer
+    `recordWorkout()` tras este fix compara un `date` ya correcto contra
+    un `lastWorkoutDate` que pudo haberse grabado antes del fix (dato
+    histórico, no recalculable). Inevitable en cualquier corrección de
+    este tipo — no accionable en código.
+  * **#32 CERRADO POR COMPLETO — los 11 sitios originales, sin nada
+    pendiente.**
+  * Total actualizado: 29 cerrados
+    (`#1,#2,#3,#4,#6,#7,#9,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#32,#33,#37,#38,#39,#40`),
+    9 pendientes
+    (`#5,#8,#10,#16,#29,#30,#34,#35,#36`).
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 

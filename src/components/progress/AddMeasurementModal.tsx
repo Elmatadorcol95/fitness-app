@@ -16,6 +16,7 @@ import { Spacing } from '@/constants/theme';
 import { useProgressStore, type MeasurementField } from '@/store/progress.store';
 import { inToCm } from '@/lib/units';
 import { hapticsLight } from '@/lib/haptics';
+import { todayLocal, shiftLocalDate } from '@/lib/dateUtils';
 
 type Units = 'metric' | 'imperial';
 
@@ -26,19 +27,9 @@ interface Props {
   activeFields: MeasurementField[];
 }
 
-function todayStr() {
-  return new Date().toISOString().split('T')[0];
-}
-
-function shiftDate(dateStr: string, days: number): string {
-  const d = new Date(dateStr + 'T12:00:00');
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
-}
-
 function formatDateLabel(dateStr: string, t: (key: string) => string, lang: string): string {
-  const today = todayStr();
-  const yesterday = shiftDate(today, -1);
+  const today = todayLocal();
+  const yesterday = shiftLocalDate(today, -1);
   if (dateStr === today) return t('tabs.progress.today');
   if (dateStr === yesterday) return t('tabs.progress.yesterday');
   return new Date(dateStr + 'T12:00:00').toLocaleDateString(lang, {
@@ -54,7 +45,7 @@ export function AddMeasurementModal({ visible, onClose, units, activeFields }: P
   const { addMeasurement } = useProgressStore();
 
   const [values, setValues] = useState<Partial<Record<MeasurementField, string>>>({});
-  const [dateStr, setDateStr] = useState(todayStr());
+  const [dateStr, setDateStr] = useState(todayLocal());
   const [saving, setSaving] = useState(false);
 
   const isImperial = units === 'imperial';
@@ -97,7 +88,7 @@ export function AddMeasurementModal({ visible, onClose, units, activeFields }: P
       await addMeasurement(data as any);
       await hapticsLight();
       setValues({});
-      setDateStr(todayStr());
+      setDateStr(todayLocal());
       onClose();
     } finally {
       setSaving(false);
@@ -106,7 +97,7 @@ export function AddMeasurementModal({ visible, onClose, units, activeFields }: P
 
   function handleClose() {
     setValues({});
-    setDateStr(todayStr());
+    setDateStr(todayLocal());
     onClose();
   }
 
@@ -124,7 +115,7 @@ export function AddMeasurementModal({ visible, onClose, units, activeFields }: P
           {/* Date selector */}
           <View style={styles.dateRow}>
             <TouchableOpacity
-              onPress={() => setDateStr(shiftDate(dateStr, -1))}
+              onPress={() => setDateStr(shiftLocalDate(dateStr, -1))}
               style={[styles.dateArrowBtn, { backgroundColor: theme.background }]}
             >
               <ThemedText style={styles.arrow}>‹</ThemedText>
@@ -134,8 +125,8 @@ export function AddMeasurementModal({ visible, onClose, units, activeFields }: P
             </ThemedText>
             <TouchableOpacity
               onPress={() => {
-                const next = shiftDate(dateStr, 1);
-                if (next <= todayStr()) setDateStr(next);
+                const next = shiftLocalDate(dateStr, 1);
+                if (next <= todayLocal()) setDateStr(next);
               }}
               style={[styles.dateArrowBtn, { backgroundColor: theme.background }]}
             >

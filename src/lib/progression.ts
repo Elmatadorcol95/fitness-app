@@ -2,6 +2,7 @@ import { desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { exerciseTargets, exerciseMaxes } from '@/db/schema';
 import { getEquipLocal, EQUIP_INC, type EquipLocal } from '@/lib/equipmentClassification';
+import { todayLocal } from '@/lib/dateUtils';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -271,7 +272,7 @@ export async function runProgressionAfterSession(
   exercisesData: ExerciseProgressionData[],
 ): Promise<{ hasPR: boolean }> {
   let hasPR = false;
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayLocal();
 
   for (const data of exercisesData) {
     if (data.completedSets.length === 0) continue;

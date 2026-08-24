@@ -13,6 +13,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/theme';
 import { useProgressStore, type WeightEntry } from '@/store/progress.store';
 import { kgToLb } from '@/lib/units';
+import { todayLocal, yesterdayLocal } from '@/lib/dateUtils';
 import { SimpleLineChart } from './SimpleLineChart';
 import { AddWeightModal } from './AddWeightModal';
 
@@ -23,8 +24,8 @@ interface Props {
 }
 
 function formatDate(dateStr: string, t: (key: string) => string, lang: string): string {
-  const today = new Date().toISOString().split('T')[0];
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const today = todayLocal();
+  const yesterday = yesterdayLocal();
   if (dateStr === today) return t('tabs.progress.today');
   if (dateStr === yesterday) return t('tabs.progress.yesterday');
   return new Date(dateStr + 'T12:00:00').toLocaleDateString(lang, {

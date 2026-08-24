@@ -13,6 +13,7 @@ import { useProfileStore } from '@/store/profile.store';
 import { db } from '@/db';
 import { weightLog, type WeightEntry } from '@/db/schema';
 import { kgToLb } from '@/lib/units';
+import { formatLocalDate } from '@/lib/dateUtils';
 
 const GREEN = '#3FBF7F';
 const AMBER = '#F2B450';
@@ -30,7 +31,7 @@ function getWeekStart(): string {
   const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day; // Monday
   d.setDate(d.getDate() + diff);
-  return d.toISOString().split('T')[0];
+  return formatLocalDate(d);
 }
 
 function StatCard({

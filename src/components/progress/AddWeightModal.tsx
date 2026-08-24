@@ -15,6 +15,7 @@ import { Spacing } from '@/constants/theme';
 import { useProgressStore } from '@/store/progress.store';
 import { lbToKg } from '@/lib/units';
 import { hapticsLight } from '@/lib/haptics';
+import { todayLocal, shiftLocalDate } from '@/lib/dateUtils';
 
 type Units = 'metric' | 'imperial';
 
@@ -24,19 +25,9 @@ interface Props {
   units: Units;
 }
 
-function todayStr() {
-  return new Date().toISOString().split('T')[0];
-}
-
-function shiftDate(dateStr: string, days: number): string {
-  const d = new Date(dateStr + 'T12:00:00');
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
-}
-
 function formatDateLabel(dateStr: string, t: (key: string) => string, lang: string): string {
-  const today = todayStr();
-  const yesterday = shiftDate(today, -1);
+  const today = todayLocal();
+  const yesterday = shiftLocalDate(today, -1);
   if (dateStr === today) return t('tabs.progress.today');
   if (dateStr === yesterday) return t('tabs.progress.yesterday');
   return new Date(dateStr + 'T12:00:00').toLocaleDateString(lang, {
@@ -52,7 +43,7 @@ export function AddWeightModal({ visible, onClose, units }: Props) {
   const { addWeight } = useProgressStore();
 
   const [weightStr, setWeightStr] = useState('');
-  const [dateStr, setDateStr] = useState(todayStr());
+  const [dateStr, setDateStr] = useState(todayLocal());
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [weightError, setWeightError] = useState('');
@@ -73,7 +64,7 @@ export function AddWeightModal({ visible, onClose, units }: Props) {
       await hapticsLight();
       setWeightStr('');
       setNotes('');
-      setDateStr(todayStr());
+      setDateStr(todayLocal());
       onClose();
     } finally {
       setSaving(false);
@@ -83,7 +74,7 @@ export function AddWeightModal({ visible, onClose, units }: Props) {
   function handleClose() {
     setWeightStr('');
     setNotes('');
-    setDateStr(todayStr());
+    setDateStr(todayLocal());
     setWeightError('');
     onClose();
   }
@@ -130,7 +121,7 @@ export function AddWeightModal({ visible, onClose, units }: Props) {
           </ThemedText>
           <View style={styles.dateRow}>
             <TouchableOpacity
-              onPress={() => setDateStr(shiftDate(dateStr, -1))}
+              onPress={() => setDateStr(shiftLocalDate(dateStr, -1))}
               style={[styles.dateArrowBtn, { backgroundColor: theme.background }]}
             >
               <ThemedText style={styles.arrow}>‹</ThemedText>
@@ -140,8 +131,8 @@ export function AddWeightModal({ visible, onClose, units }: Props) {
             </ThemedText>
             <TouchableOpacity
               onPress={() => {
-                const next = shiftDate(dateStr, 1);
-                if (next <= todayStr()) setDateStr(next);
+                const next = shiftLocalDate(dateStr, 1);
+                if (next <= todayLocal()) setDateStr(next);
               }}
               style={[styles.dateArrowBtn, { backgroundColor: theme.background }]}
             >

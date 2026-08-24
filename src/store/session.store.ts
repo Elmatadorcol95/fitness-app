@@ -13,6 +13,7 @@ import { getEquipLocal, EQUIP_INC, type EquipLocal } from '@/lib/equipmentClassi
 import { markExerciseUsed } from '@/lib/muscleUsage';
 import type { CardioPlan } from '@/lib/cardioSelection';
 import { getRepScheme, buildPlanned, type DayType, type GoalKey } from '@/lib/plan-generator';
+import { todayLocal } from '@/lib/dateUtils';
 import type { StoredPlanDay } from './workout.store';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -721,7 +722,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   finishSession: async () => {
     const { planId, planDayId, startTime, exercises } = get();
     const durationSeconds = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayLocal();
 
     console.log('[Session] finishSession — exercises:', exercises.length);
 

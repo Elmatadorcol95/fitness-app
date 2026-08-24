@@ -21,16 +21,13 @@ import { Spacing } from '@/constants/theme';
 import { useProgressStore, type ProgressPhoto } from '@/store/progress.store';
 import { BeforeAfterSlider } from './BeforeAfterSlider';
 import { hapticsLight } from '@/lib/haptics';
+import { todayLocal } from '@/lib/dateUtils';
 
 type Pose = 'front' | 'side' | 'back';
 const POSES: Pose[] = ['front', 'side', 'back'];
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PHOTO_SIZE = (SCREEN_WIDTH - Spacing.four * 2 - Spacing.two * 2) / 3;
-
-function todayStr() {
-  return new Date().toISOString().split('T')[0];
-}
 
 async function savePhotoLocally(tempUri: string, pose: Pose): Promise<string> {
   console.log('[Photo] 1 — URI origen:', tempUri);
@@ -66,7 +63,7 @@ export function PhotosTab() {
   const [saveErrorMsg, setSaveErrorMsg] = useState('');
 
   const posePhotos = photos.filter((p) => p.pose === activePose);
-  const today = todayStr();
+  const today = todayLocal();
   const hasPhotoToday = posePhotos.some((p) => p.date === today);
 
   async function handleAddPhoto() {
