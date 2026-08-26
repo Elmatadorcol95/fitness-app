@@ -181,6 +181,10 @@
         "subtitle": "Vous avez entraîné vos {{days}} jours cette semaine.",
         "generateButton": "Générer l'entraînement de la semaine prochaine"
       },
+      "nextWeekOffer": {
+        "body": "Vous avez fait vos {{days}} jours cette semaine. Il vous manque {{n}} séries pour la terminer complètement — ce que vous avez déjà fait est enregistré dans votre Historique.",
+        "button": "Passer à la semaine suivante"
+      },
       "resetWeek": {
         "link": "Préférez-vous repartir de zéro ? Générer une nouvelle semaine",
         "title": "Générer une nouvelle semaine ?",

@@ -91,7 +91,7 @@ export function TodayBanner() {
           <ThemedText type="defaultSemiBold" style={styles.dayName}>
             {t(`workout.days.${today.dayType}`)}
             {' · '}
-            {t('workout.planDay', { current: touchedTrainableDaysCount + 1, total: trainableDays.length })}
+            {t('workout.planDay', { current: Math.min(touchedTrainableDaysCount + 1, trainableDays.length), total: trainableDays.length })}
           </ThemedText>
         </View>
         <ThemedText style={styles.viewBtn}>{t('workout.todayBanner.view')}</ThemedText>

@@ -12,7 +12,7 @@ import { ThemedView } from '@/components/themed-view';
 import { VulcanSymbol } from '@/components/icons/VulcanSymbol';
 import { ExerciseCard } from '@/components/workout/ExerciseCard';
 import { ChangeExerciseModal } from '@/components/workout/ChangeExerciseModal';
-import { useWorkoutStore, getSelectedDay, isDayCompleted, countCompletedTrainableDays, countTouchedTrainableDays, type StoredPlanDay } from '@/store/workout.store';
+import { useWorkoutStore, getSelectedDay, isDayCompleted, countCompletedTrainableDays, countTouchedTrainableDays, getCompletedSetsCountByDay, type StoredPlanDay } from '@/store/workout.store';
 import { useSessionStore } from '@/store/session.store';
 import { useProfileStore } from '@/store/profile.store';
 import { useWarmupStore } from '@/store/warmup.store';
@@ -196,6 +196,10 @@ export default function TrainingScreen() {
   const [startError,   setStartError]  = useState('');
   const [resetWeekOpen, setResetWeekOpen] = useState(false);
   const [backToAutoOpen, setBackToAutoOpen] = useState(false);
+  // #35 parte 2: total de series que faltan para cerrar el ciclo al 100%,
+  // solo cuando ya se tocaron TODOS los días entrenables sin cerrarlos.
+  // null = la condición no aplica (no se consulta la DB).
+  const [missingSetsCount, setMissingSetsCount] = useState<number | null>(null);
   const [warmupPromptOpen,   setWarmupPromptOpen]   = useState(false);
   const [warmupMinutesOpen, setWarmupMinutesOpen] = useState(false);
   const [pendingContext, setPendingContext] = useState<'gym' | 'home' | null>(null);
@@ -232,6 +236,33 @@ export default function TrainingScreen() {
     if (!isDbReady) return;
     getAllPreferences().then(setPreferencesMap);
   }, [isDbReady, currentPlan?.id, currentPlan?.selectedDayId]);
+
+  // #35 parte 2: si ya se tocaron TODOS los días entrenables del ciclo pero
+  // ninguno cerró la semana (weekComplete sigue false), calcula cuántas
+  // series faltan en total para ofrecer pasar de semana sin exigir el 100%.
+  // null cuando la condición no aplica — así no se consulta la DB de más.
+  useEffect(() => {
+    if (!isDbReady || !currentPlan) { setMissingSetsCount(null); return; }
+    const allTouched  = trainableDays.length > 0 && touchedTrainableDaysCount === trainableDays.length;
+    const allComplete = completedTrainableDaysCount >= trainableDays.length;
+    if (!allTouched || allComplete) { setMissingSetsCount(null); return; }
+    let cancelled = false;
+    (async () => {
+      const completedByDay = await getCompletedSetsCountByDay(
+        currentPlan.id,
+        trainableDays.map(d => d.dbId),
+      );
+      if (cancelled) return;
+      let missing = 0;
+      for (const d of trainableDays) {
+        const planned = countSets(d.exercises);
+        const done    = completedByDay.get(d.dbId) ?? 0;
+        missing += Math.max(0, planned - done);
+      }
+      setMissingSetsCount(missing);
+    })();
+    return () => { cancelled = true; };
+  }, [isDbReady, currentPlan?.id, currentPlan?.selectedDayId, touchedTrainableDaysCount, completedTrainableDaysCount, trainableDays.length]);
 
   // Punto 1 — rutina ancla para location:'both': si el plan activo es
   // manual y el usuario elige entrenar HOY en el contexto que NO es el
@@ -628,7 +659,7 @@ export default function TrainingScreen() {
                 {t(`workout.days.${today.dayType}`)}
               </ThemedText>
               <ThemedText themeColor="textSecondary" style={styles.dayCounter}>
-                {t('workout.planDay', { current: touchedTrainableDaysCount + 1, total: trainableDays.length })}
+                {t('workout.planDay', { current: Math.min(touchedTrainableDaysCount + 1, trainableDays.length), total: trainableDays.length })}
               </ThemedText>
             </View>
             <View style={styles.dayStats}>
@@ -710,6 +741,30 @@ export default function TrainingScreen() {
               )
             }
           </Pressable>
+
+          {/* ── #35 parte 2: todos los días tocados pero ninguno cerró la
+              semana — oferta de pasar de ciclo sin exigir el 100%, con lo
+              que falta bien claro. Reutiliza handleGenerateNextWeek(). ── */}
+          {missingSetsCount !== null && missingSetsCount > 0 && (
+            <View style={styles.nextWeekBanner}>
+              <View style={styles.nextWeekBannerRow}>
+                <Ionicons name="information-circle-outline" size={15} color={AMBER} />
+                <ThemedText style={styles.nextWeekBannerText}>
+                  {t('tabs.training.nextWeekOffer.body', { days: trainableDays.length, n: missingSetsCount })}
+                </ThemedText>
+              </View>
+              <Pressable
+                onPress={() => { if (!isGenerating) void handleGenerateNextWeek(); }}
+                style={[styles.nextWeekBannerBtn, isGenerating && styles.genBtnDisabled]}
+                disabled={isGenerating || !profile}
+              >
+                {isGenerating
+                  ? <ActivityIndicator size="small" color="#04261A" />
+                  : <ThemedText style={styles.nextWeekBannerBtnText}>{t('tabs.training.nextWeekOffer.button')}</ThemedText>
+                }
+              </Pressable>
+            </View>
+          )}
 
           {/* ── Tu ciclo (otros días) ── */}
           {otherDays.length > 0 && (
@@ -977,6 +1032,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three, paddingVertical: Spacing.two,
   },
   staleDayBannerText: { flex: 1, fontSize: 12, color: AMBER, lineHeight: 18 },
+
+  // #35 parte 2: oferta de pasar de semana con días tocados pero no cerrados
+  nextWeekBanner: {
+    backgroundColor: AMBER + '14', borderRadius: Spacing.two,
+    borderLeftWidth: 3, borderLeftColor: AMBER,
+    paddingHorizontal: Spacing.three, paddingVertical: Spacing.two,
+    gap: Spacing.two,
+  },
+  nextWeekBannerRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  nextWeekBannerText: { flex: 1, fontSize: 12, color: AMBER, lineHeight: 18 },
+  nextWeekBannerBtn: {
+    backgroundColor: AMBER, borderRadius: Spacing.two,
+    paddingVertical: Spacing.two, alignItems: 'center',
+  },
+  nextWeekBannerBtnText: { color: '#04261A', fontSize: 13, fontWeight: '700' },
 
   // Iniciar
   startBtn: {

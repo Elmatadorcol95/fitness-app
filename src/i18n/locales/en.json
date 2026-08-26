@@ -181,6 +181,10 @@
         "subtitle": "You trained your {{days}} days this week.",
         "generateButton": "Generate next week's workout"
       },
+      "nextWeekOffer": {
+        "body": "You've trained all {{days}} days this week. You're {{n}} sets short of fully completing it — what you've already done is saved in your History.",
+        "button": "Move on to next week"
+      },
       "resetWeek": {
         "link": "Prefer to start fresh? Generate a new week",
         "title": "Generate a new week?",

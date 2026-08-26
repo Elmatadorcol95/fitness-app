@@ -3566,6 +3566,86 @@ Bucle ~1.3 s sobre fondo #141A17:
     activo del ciclo), todavía sin diseñar.
   * Total sin cambio (el conteo de `#35` sigue en pendientes): 33
     cerrados, 6 pendientes (`#5,#8,#16,#29,#30,#35`).
+- Hecho: sesión 2026-08-26 (continuación) — **#35 parte 2/2 + 2 ajustes
+  finales — CIERRA #35 DEL TODO** (commit `feat(coach): oferta de pasar
+  de semana con series faltantes — cierra #35`; JS puro, sin módulo
+  nativo, sin migración — solo recarga):
+  * **QUÉ SE CONSTRUYE (parte 2/2)**: `getCompletedSetsCountByDay(planId,
+    dayIds)` nueva y exportada en `workout.store.ts` — cuántas series
+    ÚNICAS ya completadas tiene cada día del ciclo, para TODOS los días
+    de una vez (no uno por uno). Generalización de la técnica de
+    deduplicación de `getRestoredSets` (par `exerciseId:setNumber`, así 2
+    sesiones parciales del mismo día que cubren series distintas no se
+    cuentan doble) con `inArray` sobre varios `planDayId` a la vez —
+    mismo criterio que ya evitó el N+1 en el #36. Mismo filtro por ciclo:
+    en modo manual acota con `gte(workoutSessions.createdAt, generatedAt)`
+    del plan (plan_days se reutiliza entre ciclos); en automático no hace
+    falta (el dbId no se repite). Imports añadidos a `workout.store.ts`:
+    `and`, `gte` (drizzle-orm) y `sessionSets` (`@/db/schema`).
+  * **Banner nuevo en `training.tsx`** (`nextWeekOffer`): cuando ya se
+    tocaron TODOS los días entrenables del ciclo pero ninguno cerró la
+    semana (`weekComplete` sigue `false`), un `useEffect` calcula el
+    total de series que faltan (`Σ max(0, countSets(d.exercises) −
+    completedByDay.get(d.dbId))` sobre `trainableDays`) y muestra un
+    banner ámbar (mismo estilo que el de "día obsoleto") con el conteo +
+    botón "Pasar a la semana siguiente". El botón llama exactamente el
+    mismo `handleGenerateNextWeek()` que "Generar semana nueva" —
+    branching auto (`generateAndSavePlan`) / manual (`startNextManualCycle`)
+    sin duplicar, sin diálogo de confirmación (igual que el botón de
+    "¡Semana completada!"). Estado `missingSetsCount: number | null` —
+    `null` cuando la condición no aplica (no se consulta la DB). Se oculta
+    también cuando `missingSetsCount === 0` (edge raro: 2+ sesiones
+    parciales que suman el 100% sin que `markDayCompleted` disparara —
+    condición real `missingSetsCount !== null && missingSetsCount > 0`).
+  * **AJUSTE 1 — hallazgo durante la validación, misma familia que el
+    #31**: el contador "Día X de Y" podía mostrar más del total ("Día 5
+    de 4") cuando TODOS los días quedaban tocados sin cerrar la semana.
+    Con el #34, esto nunca se veía porque `weekComplete` se volvía `true`
+    en el mismo instante y tapaba la pantalla entera antes de que el
+    número se pasara — protección accidental, no a propósito, que dejó de
+    aplicar en cuanto `touchedTrainableDaysCount` (contador del #35 parte
+    1) pudo llegar al máximo ANTES de que la semana cerrara de verdad.
+    Corregido con `Math.min(touchedTrainableDaysCount + 1,
+    trainableDays.length)` en los 2 únicos lugares que muestran el
+    contador (`training.tsx` cabecera del día activo, `TodayBanner.tsx`
+    pantalla Hoy) — mismo tipo de tope que ya protegía a `weekComplete`,
+    aplicado donde faltaba. El caso normal (ej. 2 de 4 tocados →
+    `Math.min(3, 4) = 3`) queda idéntico: el `Math.min` solo recorta
+    cuando ya están todos tocados.
+  * **AJUSTE 2 — UX, decisión de Juan**: el banner de oferta se movió de
+    arriba de todo (entre el banner de "día obsoleto" y la cabecera del
+    plan) a justo debajo del botón "Iniciar entrenamiento" — mejor
+    jerarquía visual. Solo cambió su posición en el árbol JSX; contenido,
+    estilos y condición sin tocar.
+  * **QUÉ SE VALIDÓ**: traza a mano de `getCompletedSetsCountByDay`
+    contra un ciclo de 3 días con 40%/70%/100% de series (dedup por
+    `exerciseId:setNumber` por día, `Σ` de lo que falta = 7+3+0 = 10, el
+    día al 100% aporta 0); traza a mano del caso límite del contador (4
+    días tocados, 0 completos: antes "Día 5 de 4", ahora "Día 4 de 4");
+    doble protección confirmada entre el cálculo (`allComplete` →
+    `setMissingSetsCount(null)`) y la propia posición del banner dentro
+    de la rama `else` de `weekComplete`. `npx tsc --noEmit` limpio en
+    cada paso, los 3 JSON validan. Validado en dispositivo por Juan: los
+    4 puntos de la parte 2 (banner con nº de series con sentido; "Pasar a
+    la semana siguiente" arma ciclo nuevo igual que "Generar semana
+    nueva"; completar todo al 100% sigue mostrando "¡Semana completada!"
+    en vez del banner; el enlace "Generar semana nueva" original intacto)
+    + los 2 del ajuste final (contador acotado a "Día N de N", banner
+    debajo de "Iniciar entrenamiento").
+  * **#35 CERRADO POR COMPLETO** — las 2 partes:
+    - parte 1/2 (commit `a1b2c24`, 2026-08-26): `touchedDayIds` en
+      `workout.store.ts` (calcado de `completedDayIds` del Paso 2c), el
+      contador "Día X de Y" pasa a contar días TOCADOS (≥1 serie, sin
+      exigir 100%), y `OtherDayCard` gana la 3ª rama "Retomar" para un
+      día tocado pero no cerrado.
+    - parte 2/2 (este commit): la oferta de pasar de ciclo con el
+      resumen de series faltantes + los 2 ajustes.
+    El enlace "Generar semana nueva" original queda intacto, sin ningún
+    cambio en ninguna de las 2 partes.
+  * Total actualizado: 34 cerrados
+    (`#1,#2,#3,#4,#6,#7,#9,#10,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#31,#32,#33,#34,#35,#36,#37,#38,#39,#40`),
+    5 pendientes (`#5,#8,#16,#29,#30`). Solo #28 sigue sin entrada
+    propia en este documento.
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 

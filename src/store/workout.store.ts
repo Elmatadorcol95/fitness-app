@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { desc, eq, inArray, ne } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, ne } from 'drizzle-orm';
 import { db } from '@/db';
-import { gamificationMeta, planDays, workoutPlans, workoutSessions } from '@/db/schema';
+import { gamificationMeta, planDays, sessionSets, workoutPlans, workoutSessions } from '@/db/schema';
 import { generatePlan, getRepScheme, buildPlanned, type PlannedExercise, type DayType, type GoalKey } from '@/lib/plan-generator';
 import type { CardioPlan } from '@/lib/cardioSelection';
 import { materializeTemplate, findManualPlan } from '@/lib/routineMaterializer';
@@ -206,6 +206,54 @@ async function cleanupOrphanedPlanDays(): Promise<number> {
 
   await db.delete(planDays).where(inArray(planDays.id, orphanedIds));
   return orphanedIds.length;
+}
+
+// #35 parte 2: para el resumen "te faltan N series" de la oferta de pasar de
+// semana — cuántas series ÚNICAS ya completadas tiene cada día del ciclo
+// actual, para TODOS los días de una vez (no uno por uno). Misma técnica de
+// deduplicación que getRestoredSets (par exerciseId:setNumber, así 2 sesiones
+// parciales del mismo día que cubren series distintas no se cuentan doble),
+// generalizada con inArray a varios planDayId a la vez. Mismo filtro por
+// ciclo: en modo manual plan_days se reutiliza entre ciclos, así que se acota
+// con gte(workoutSessions.createdAt, generatedAt) del plan; en automático no
+// hace falta (el dbId no se repite entre ciclos). Devuelve Map<planDayId,
+// conteo>; un día sin ninguna serie completada simplemente no aparece.
+export async function getCompletedSetsCountByDay(
+  planId: number,
+  dayIds: number[],
+): Promise<Map<number, number>> {
+  const result = new Map<number, number>();
+  if (dayIds.length === 0) return result;
+
+  const [planRow] = await db
+    .select({ source: workoutPlans.source, generatedAt: workoutPlans.generatedAt })
+    .from(workoutPlans)
+    .where(eq(workoutPlans.id, planId))
+    .limit(1);
+
+  const conditions = [inArray(workoutSessions.planDayId, dayIds), eq(sessionSets.completed, 1)];
+  if (planRow?.source === 'manual') {
+    conditions.push(gte(workoutSessions.createdAt, planRow.generatedAt));
+  }
+
+  const rows = await db
+    .select({
+      planDayId:  workoutSessions.planDayId,
+      exerciseId: sessionSets.exerciseId,
+      setNumber:  sessionSets.setNumber,
+    })
+    .from(sessionSets)
+    .innerJoin(workoutSessions, eq(sessionSets.sessionId, workoutSessions.id))
+    .where(and(...conditions));
+
+  const seenByDay = new Map<number, Set<string>>();
+  for (const row of rows) {
+    if (row.planDayId === null) continue;
+    if (!seenByDay.has(row.planDayId)) seenByDay.set(row.planDayId, new Set());
+    seenByDay.get(row.planDayId)!.add(`${row.exerciseId}:${row.setNumber}`);
+  }
+  for (const [dayId, s] of seenByDay) result.set(dayId, s.size);
+  return result;
 }
 
 // Único punto de resolución por id, mismo fallback en todos lados: si el id
