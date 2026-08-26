@@ -5,8 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { useWorkoutStore, getSelectedDay } from '@/store/workout.store';
-import { useGamificationStore } from '@/store/gamification.store';
+import { useWorkoutStore, getSelectedDay, countCompletedTrainableDays } from '@/store/workout.store';
 import { Spacing } from '@/constants/theme';
 
 const GREEN  = '#3FBF7F';
@@ -25,7 +24,6 @@ export function TodayBanner() {
   const router = useRouter();
   const { t } = useTranslation();
   const { currentPlan, isLoaded } = useWorkoutStore();
-  const daysFinishedThisWeek = useGamificationStore(s => s.daysFinishedThisWeek);
 
   const navigate = () => router.navigate('/training');
 
@@ -74,6 +72,9 @@ export function TodayBanner() {
   }
 
   const { day: today } = getSelectedDay(currentPlan.selectedDayId, trainableDays);
+  // #34: misma fuente que training.tsx — días completos al 100% en el ciclo,
+  // no sesiones terminadas. Las 2 pantallas muestran así el mismo "Día X de Y".
+  const completedTrainableDaysCount = countCompletedTrainableDays(trainableDays, currentPlan.completedDayIds);
 
   return (
     <Pressable onPress={navigate} style={({ pressed }) => pressed && styles.pressed}>
@@ -90,7 +91,7 @@ export function TodayBanner() {
           <ThemedText type="defaultSemiBold" style={styles.dayName}>
             {t(`workout.days.${today.dayType}`)}
             {' · '}
-            {t('workout.planDay', { current: daysFinishedThisWeek + 1, total: trainableDays.length })}
+            {t('workout.planDay', { current: completedTrainableDaysCount + 1, total: trainableDays.length })}
           </ThemedText>
         </View>
         <ThemedText style={styles.viewBtn}>{t('workout.todayBanner.view')}</ThemedText>

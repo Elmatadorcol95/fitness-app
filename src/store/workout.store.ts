@@ -115,6 +115,20 @@ export function isDayCompleted(dayId: number, completedDayIds: number[]): boolea
   return completedDayIds.includes(dayId);
 }
 
+// #34: cuántos de los días entrenables reales están completos al 100% en el
+// ciclo actual. Única fuente para "¿semana completada?" y para el contador
+// "Día X de Y" en las 2 pantallas que lo muestran (training.tsx y
+// TodayBanner.tsx) — antes se usaba daysFinishedThisWeek, que cuenta
+// SESIONES terminadas, no días distintos, y podía cerrar la semana (o pasar
+// del total) repitiendo el mismo día. Reutiliza isDayCompleted (Paso 2c),
+// no reimplementa el .includes().
+export function countCompletedTrainableDays(
+  trainableDays: StoredPlanDay[],
+  completedDayIds: number[],
+): number {
+  return trainableDays.filter(d => isDayCompleted(d.dbId, completedDayIds)).length;
+}
+
 // #36: filas de plan_days que ya no pertenecen a ningún plan activo Y que
 // ningún workout_sessions.plan_day_id referencia — se acumulan sin límite en
 // cada generateAndSavePlan()/activateManualPlan() (ninguno de los 2 borra los

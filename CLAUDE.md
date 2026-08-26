@@ -3420,6 +3420,82 @@ Bucle ~1.3 s sobre fondo #141A17:
     (`#1,#2,#3,#4,#6,#7,#9,#10,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#32,#33,#36,#37,#38,#39,#40`),
     7 pendientes
     (`#5,#8,#16,#29,#30,#34,#35`).
+- Hecho: sesión 2026-08-26 — **#34 CERRADO + cierre real del #31**: la
+  semana se cierra por días entrenables DISTINTOS completos al 100%, no
+  por sesiones terminadas (JS puro, sin módulo nativo, sin migración —
+  solo recarga):
+  * **Auditoría previa bloqueante (solo lectura)**: confirmó por grep que
+    `daysFinishedThisWeek` (de `gamification.store`) se usaba en
+    `training.tsx` y `TodayBanner.tsx` SOLO para `weekComplete` y el
+    contador "Día X de Y" — ningún otro uso en ninguno de los 2 archivos
+    (`useGamificationStore` no se importaba para nada más ahí).
+    `daysFinishedThisWeek` se incrementa INCONDICIONALMENTE en
+    `doFinish()` (`session.tsx`), así que cuenta sesiones terminadas, no
+    días distintos: repetir el mismo día (aunque sea parcial) N veces lo
+    subía a N. `completedDayIds` (Paso 2c) sí tiene la información
+    correcta — ids de `plan_days` al 100% en el ciclo — y ya se leía en
+    `training.tsx` para el badge de `OtherDayCard`, pero no alimentaba ni
+    `weekComplete` ni el contador. `git blame` confirmó que `weekComplete`
+    y `trainableDays` no cambiaron en el Paso 2c ni después; el contador
+    en ambas pantallas data del Paso 2b (`a898fba`).
+  * **CAUSA RAÍZ del #34**: con un plan de N días entrenables, terminar
+    el mismo día N veces sin tocar los otros hacía `daysFinishedThisWeek
+    >= trainableDays.length` → `weekComplete = true` y "¡Semana
+    completada!" sin merecerlo. **CAUSA RAÍZ del #31** (mismo bug, otra
+    cara): el contador mostraba `daysFinishedThisWeek + 1` de
+    `trainableDays.length`, así que podía llegar a "Día 5 de 4".
+  * **Por qué el #31 nunca cerró del todo**: se había dado por resuelto
+    mirando SOLO `training.tsx`, donde el ternario `weekComplete ? … : …`
+    oculta toda la cabecera del día (contador incluido) en cuanto la
+    semana se marca completa — el "Día 5 de 4" quedaba tapado por la
+    pantalla de "¡Semana completada!" en esa pantalla. **Nunca se auditó
+    `TodayBanner.tsx`** (pantalla Hoy), que muestra el MISMO contador con
+    el MISMO `daysFinishedThisWeek + 1` y SIN ningún ternario que lo
+    proteja — ahí el "Día 5 de 4" sí se veía. El #31 seguía vivo en esa
+    segunda pantalla.
+  * **Solución**: nuevo helper exportado `countCompletedTrainableDays(
+    trainableDays, completedDayIds)` en `workout.store.ts`, junto a
+    `isDayCompleted` y reutilizándola (no reimplementa el `.includes()` —
+    mismo criterio del Paso 2c). Cuenta días entrenables DISTINTOS
+    presentes en `completedDayIds`.
+    - `training.tsx`: nueva `completedTrainableDaysCount` (con guarda
+      `currentPlan ? … : 0` porque su punto de cálculo es anterior al
+      `if (!currentPlan) return` del componente). `weekComplete` pasa a
+      `trainableDays.length > 0 && completedTrainableDaysCount >=
+      trainableDays.length`. Contador → `completedTrainableDaysCount + 1`.
+    - `TodayBanner.tsx`: misma `countCompletedTrainableDays(...)` (sin
+      guarda — ya pasados sus `return` tempranos por `!currentPlan` y por
+      `trainableDays.length === 0`). Contador → `... + 1`. Las 2
+      pantallas comparten ahora función, argumentos y fórmula — no pueden
+      volver a mostrar números distintos entre sí.
+    - La suscripción a `useGamificationStore` se eliminó por completo de
+      los 2 archivos (su import incluido — sin ningún otro uso,
+      confirmado por grep). `daysTrainedThisWeek` (contador hermano de
+      rachas/logros), `session.tsx` y `gamification.store.ts` intactos.
+  * **Qué se validó**: 3 trazas a mano contra el código real — (1) el
+    escenario original del #34 (mismo día terminado 4 veces, parcial, sin
+    tocar los otros 3): `completedDayIds` sigue `[]` → `count = 0` →
+    `weekComplete = false`, contador "Día 1 de 4", nunca supera el total;
+    más la variante de 1 completado real + re-entradas, con
+    `markDayCompleted` idempotente manteniendo `count = 1`; (2) los 4
+    días completados uno por uno, en cualquier orden: `count` sube
+    `1→2→3→4`, `weekComplete` pasa a `true` EXACTAMENTE al entrar el 4.º
+    día distinto, ni antes ni después; (3) equivalencia byte a byte del
+    número mostrado entre `training.tsx` y `TodayBanner.tsx` para
+    cualquier estado de `currentPlan`. `npx tsc --noEmit` limpio.
+    Validado en dispositivo por Juan: los 3 puntos completos (flujo
+    normal igual que antes en las 2 pantallas; "Hoy" y "Entreno" con el
+    mismo "Día X de Y"; el escenario del bug ya no cierra la semana ni
+    desborda el contador; "¡Semana completada!" aparece igual que siempre
+    al completar los días de verdad).
+  * **#34 CERRADO POR COMPLETO. #31 REABIERTO Y CERRADO en este mismo
+    commit** — nunca había cerrado del todo, solo lo parecía por haber
+    auditado una sola de las 2 pantallas que comparten el dato.
+  * Total actualizado: 33 cerrados
+    (`#1,#2,#3,#4,#6,#7,#9,#10,#11,#12,#13,#14,#15,#17,#18,#19,#20,#21,#22,#23,#24,#25,#26,#27,#31,#32,#33,#34,#36,#37,#38,#39,#40`),
+    6 pendientes (`#5,#8,#16,#29,#30,#35`). #31 pasa a tener entrada
+    propia en este documento (antes "sin entrada"); solo #28 sigue sin
+    entrada.
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 

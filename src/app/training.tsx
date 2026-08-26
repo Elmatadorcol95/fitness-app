@@ -12,10 +12,9 @@ import { ThemedView } from '@/components/themed-view';
 import { VulcanSymbol } from '@/components/icons/VulcanSymbol';
 import { ExerciseCard } from '@/components/workout/ExerciseCard';
 import { ChangeExerciseModal } from '@/components/workout/ChangeExerciseModal';
-import { useWorkoutStore, getSelectedDay, isDayCompleted, type StoredPlanDay } from '@/store/workout.store';
+import { useWorkoutStore, getSelectedDay, isDayCompleted, countCompletedTrainableDays, type StoredPlanDay } from '@/store/workout.store';
 import { useSessionStore } from '@/store/session.store';
 import { useProfileStore } from '@/store/profile.store';
-import { useGamificationStore } from '@/store/gamification.store';
 import { useWarmupStore } from '@/store/warmup.store';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { getExerciseName, getAlternatives, canDoAtHome, EXERCISES, type Exercise } from '@/lib/exercises';
@@ -156,9 +155,14 @@ export default function TrainingScreen() {
   // render — si no, "hoy" en pantalla y el día que de verdad arranca la
   // sesión podrían desincronizarse en cuanto hubiera algún día vacío.
   const trainableDays = currentPlan ? currentPlan.days.filter(d => d.exercises.length > 0) : [];
+  // #34: días entrenables realmente completos al 100% en este ciclo — reemplaza
+  // a daysFinishedThisWeek (que contaba sesiones terminadas, no días distintos)
+  // como fuente única del contador "Día X de Y" y de weekComplete.
+  const completedTrainableDaysCount = currentPlan
+    ? countCompletedTrainableDays(trainableDays, currentPlan.completedDayIds)
+    : 0;
   const startSession       = useSessionStore(s => s.startSession);
   const setTrainingContext = useSessionStore(s => s.setTrainingContext);
-  const daysFinishedThisWeek = useGamificationStore(s => s.daysFinishedThisWeek);
   const startWarmup         = useWarmupStore(s => s.start);
   const isWarmupActive      = useWarmupStore(s => s.active);
 
@@ -536,7 +540,7 @@ export default function TrainingScreen() {
     !hasBackVariety                   ? 'workout.today.noBackVariety' :
     'workout.today.noBicepWork';
 
-  const weekComplete = daysFinishedThisWeek >= trainableDays.length;
+  const weekComplete = trainableDays.length > 0 && completedTrainableDaysCount >= trainableDays.length;
 
   return (
     <ThemedView style={styles.root}>
@@ -609,7 +613,7 @@ export default function TrainingScreen() {
                 {t(`workout.days.${today.dayType}`)}
               </ThemedText>
               <ThemedText themeColor="textSecondary" style={styles.dayCounter}>
-                {t('workout.planDay', { current: daysFinishedThisWeek + 1, total: trainableDays.length })}
+                {t('workout.planDay', { current: completedTrainableDaysCount + 1, total: trainableDays.length })}
               </ThemedText>
             </View>
             <View style={styles.dayStats}>
