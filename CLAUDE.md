@@ -3496,6 +3496,76 @@ Bucle ~1.3 s sobre fondo #141A17:
     6 pendientes (`#5,#8,#16,#29,#30,#35`). #31 pasa a tener entrada
     propia en este documento (antes "sin entrada"); solo #28 sigue sin
     entrada.
+- Hecho: sesión 2026-08-26 (continuación) — **#35 parte 1/2**: contador
+  "Día X de Y" y botón "Retomar" por días TOCADOS, no por días completos
+  al 100% (commit `feat(coach): contador y boton "Retomar" por dias
+  tocados, no completos (#35 parte 1/2)`; JS puro, sin módulo nativo, sin
+  migración — solo recarga; `gamification_meta` es clave-valor genérico,
+  no necesita cambio de schema):
+  * **Efecto secundario del #34**: al pasar el cierre de semana a días
+    entrenables DISTINTOS al 100% (`completedDayIds`), el contador "Día X
+    de Y" también quedó atado a ese mismo conteo — así que dejar un día a
+    medias y avanzar al siguiente (el flujo normal que fomenta la Étapa 3
+    del #6+#18) dejaba el contador congelado, sin reflejar que ya
+    avanzaste. Y mirando la lista de "Tu ciclo" no había forma de
+    distinguir un día "sin tocar" de uno "empezado pero no terminado" —
+    ambos mostraban "Elegir".
+  * **DECISIÓN**: nuevo concepto `touchedDayIds` en `workout.store.ts`,
+    calcado letra por letra del mecanismo ya probado de `completedDayIds`
+    (Paso 2c): `TOUCHED_DAYS_KEY = 'workout_touched_day_ids'` en
+    `gamification_meta`, `getTouchedDayIds`/`saveTouchedDayIds` (mismo
+    manejo de JSON corrupto → `[]`), campo `touchedDayIds: number[]` en
+    `StoredPlan`, acción idempotente `markDayTouched(dayId)` (reutiliza
+    `isDayCompleted` contra el array nuevo — no duplica el `.includes()`),
+    helper de conteo `countTouchedTrainableDays`. Los MISMOS 3 puntos de
+    reseteo de ciclo que `completedDayIds` (`generateAndSavePlan`,
+    `activateManualPlan`, `startNextManualCycle`) lo vacían, más la carga
+    en `loadCurrentPlan`.
+  * **Criterio de marcado**: `doFinish()` (`session.tsx`) llama
+    `markDayTouched(justTrainedDayId)` con `completedSets > 0 &&
+    justTrainedDayId !== null` — SIN el gate de `ratio >= 0.5` que usa
+    `recordWorkout` (rachas/logros). Basta una sola serie completada.
+    Concepto deliberadamente más permisivo que `markDayCompleted` (que
+    exige el 100%) y que la racha.
+  * **QUÉ CAMBIÓ**: el contador "Día X de Y" en `training.tsx` (cabecera
+    del día activo) y `TodayBanner.tsx` (pantalla Hoy) pasa de
+    `completedTrainableDaysCount + 1` a `touchedTrainableDaysCount + 1`.
+    `OtherDayCard` (`training.tsx`) gana una 3ª rama: `isCompleted` (badge
+    "Completado", sin cambios) → `isTouched && !isCompleted` (botón
+    "Retomar", MISMO estilo visual que "Elegir", solo cambia el texto) →
+    ninguno de los 2 (botón "Elegir", sin cambios). Nueva clave i18n
+    `tabs.training.resumeDay` (es "Retomar" / en "Resume" / fr
+    "Reprendre").
+  * **QUÉ NO CAMBIÓ**: `weekComplete` sigue usando
+    `completedTrainableDaysCount` (`completedDayIds`) — el cierre
+    automático de semana al 100% queda EXACTAMENTE igual que tras el #34.
+    En `training.tsx` conviven ahora los dos conteos: `completed…` solo
+    para `weekComplete`, `touched…` solo para el contador.
+    `daysTrainedThisWeek`/`daysFinishedThisWeek`, `gamification.store.ts`
+    y el resto de `session.tsx` intactos.
+  * **QUÉ SE VALIDÓ**: traza a mano completa contra el código real — (1)
+    día con 1 sola serie hecha (nunca al 100%): `dayFullyCompleted =
+    false` → `markDayCompleted` NO se llama, `completedDayIds` sigue `[]`,
+    `weekComplete = false`; `completedSets > 0` → `markDayTouched` sí,
+    `touchedDayIds = [20]`, contador sube a "Día 2 de 3", `OtherDayCard`
+    toma la rama `isTouched` → "Retomar", `selectDay(20)` no bloqueado
+    (20 ∉ `completedDayIds`); (2) idempotencia: 2ª sesión del mismo día →
+    `isDayCompleted(20, [20]) = true` → `markDayTouched` retorna temprano,
+    sin `save` ni `set`, sin duplicado; (3) camino de 100% intacto:
+    `dayFullyCompleted = true` → ambos `markDayCompleted` y
+    `markDayTouched` corren; `OtherDayCard` toma la rama `isCompleted`
+    (primera) → badge "Completado", no "Retomar"; los N días al 100% →
+    `weekComplete = true`. `npx tsc --noEmit` limpio; los 3 JSON validan.
+    Validado en dispositivo por Juan: los 4 puntos completos, incluida la
+    confirmación de que el cierre automático al 100% funciona exactamente
+    igual que antes.
+  * **QUÉ QUEDA PENDIENTE — #35 sigue ABIERTO**: parte 2/2 — la oferta NO
+    automática de pasar a la semana siguiente una vez tocados todos los
+    días, con un resumen de las series que faltan por día. Necesita una
+    consulta agregada nueva (cuántas series completadas tiene cada día no
+    activo del ciclo), todavía sin diseñar.
+  * Total sin cambio (el conteo de `#35` sigue en pendientes): 33
+    cerrados, 6 pendientes (`#5,#8,#16,#29,#30,#35`).
 - Pendiente obligatorio (roadmap): FASE 7 — In-app purchase.
   ⚠️  OBLIGATORIO antes de publicar en tiendas o cuando expire el trial de 14 días.
 

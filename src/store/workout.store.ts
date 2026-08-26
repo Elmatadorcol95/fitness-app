@@ -16,6 +16,11 @@ const SELECTED_DAY_KEY = 'workout_selected_day_id';
 // no una semana de calendario (ver PASO 0-BIS/0-TER — daysFinishedThisWeek
 // tampoco lo es, a pesar del nombre).
 const COMPLETED_DAYS_KEY = 'workout_completed_day_ids';
+// #35: ids (plan_days.id) de los días que el usuario ya "tocó" en el ciclo
+// actual — arrancó su sesión y completó al menos una serie, sin exigir el
+// 100% (concepto más permisivo que COMPLETED_DAYS_KEY). Mismo mecanismo de
+// reseteo por ciclo, misma tabla clave-valor.
+const TOUCHED_DAYS_KEY = 'workout_touched_day_ids';
 
 // StoredPlanDay extiende PlanDayData con el id de la fila en plan_days.
 // Necesario para poder actualizar ejercicios concretos en SQLite.
@@ -50,6 +55,11 @@ export interface StoredPlan {
   // vez que arranca un ciclo nuevo (generateAndSavePlan, activateManualPlan,
   // startNextManualCycle) — nunca es una semana de calendario.
   completedDayIds: number[];
+  // #35: ids de los días que ya se "tocaron" en el ciclo actual (≥1 serie
+  // completada, sin exigir el 100%). Mismo mecanismo y mismos 3 puntos de
+  // reseteo que completedDayIds. Alimenta el contador "Día X de Y" y el
+  // botón "Retomar" de OtherDayCard.
+  touchedDayIds: number[];
 }
 
 interface WorkoutState {
@@ -62,6 +72,7 @@ interface WorkoutState {
   advanceToNextDay: (justTrainedDayId: number | null) => Promise<void>;
   selectDay: (dayId: number) => Promise<void>;
   markDayCompleted: (dayId: number) => Promise<void>;
+  markDayTouched: (dayId: number) => Promise<void>;
   backfillSelectedDayId: () => Promise<void>;
   resetAll: () => Promise<void>;
   activateManualPlan: (context: TemplateContext, profile: Profile, equipment: string[], dislikedIds: Set<string>) => Promise<void>;
@@ -108,6 +119,26 @@ async function saveCompletedDayIds(dayIds: number[]): Promise<void> {
     .onConflictDoUpdate({ target: gamificationMeta.key, set: { value } });
 }
 
+// #35: mismo manejo de JSON corrupto → array vacío que getCompletedDayIds().
+async function getTouchedDayIds(): Promise<number[]> {
+  const rows = await db.select().from(gamificationMeta).where(eq(gamificationMeta.key, TOUCHED_DAYS_KEY));
+  if (!rows[0]) return [];
+  try {
+    const parsed = JSON.parse(rows[0].value);
+    return Array.isArray(parsed) ? parsed.filter((n): n is number => typeof n === 'number') : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveTouchedDayIds(dayIds: number[]): Promise<void> {
+  const value = JSON.stringify(dayIds);
+  await db
+    .insert(gamificationMeta)
+    .values({ key: TOUCHED_DAYS_KEY, value })
+    .onConflictDoUpdate({ target: gamificationMeta.key, set: { value } });
+}
+
 // Único punto de verdad para "¿este día ya está completo?" — reutilizado en
 // selectDay, advanceToNextDay y OtherDayCard (training.tsx). No reimplementar
 // el .includes() por separado en ninguno de los tres.
@@ -127,6 +158,18 @@ export function countCompletedTrainableDays(
   completedDayIds: number[],
 ): number {
   return trainableDays.filter(d => isDayCompleted(d.dbId, completedDayIds)).length;
+}
+
+// #35: cuántos de los días entrenables reales ya se "tocaron" en el ciclo
+// actual. Alimenta el contador "Día X de Y" en training.tsx y TodayBanner.tsx
+// (weekComplete sigue usando countCompletedTrainableDays — el cierre de
+// semana no cambia). Mismo patrón que countCompletedTrainableDays,
+// reutilizando isDayCompleted contra el array de "tocados".
+export function countTouchedTrainableDays(
+  trainableDays: StoredPlanDay[],
+  touchedDayIds: number[],
+): number {
+  return trainableDays.filter(d => isDayCompleted(d.dbId, touchedDayIds)).length;
 }
 
 // #36: filas de plan_days que ya no pertenecen a ningún plan activo Y que
@@ -234,6 +277,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       const days = mapDayRows(dayRows);
       const selectedDayId = await getSelectedDayId();
       const completedDayIds = await getCompletedDayIds();
+      const touchedDayIds = await getTouchedDayIds();
 
       set({
         currentPlan: {
@@ -248,6 +292,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           source: plan.source as 'auto' | 'manual',
           context: plan.context as 'gym' | 'home' | null,
           completedDayIds,
+          touchedDayIds,
         },
         isLoaded: true,
       });
@@ -340,6 +385,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       // el próximo loadCurrentPlan() en un arranque futuro leería de vuelta
       // los ids del ciclo ANTERIOR desde gamification_meta.
       await saveCompletedDayIds([]);
+      // #35: mismo criterio — un ciclo nuevo arranca sin días tocados.
+      await saveTouchedDayIds([]);
 
       set({
         currentPlan: {
@@ -354,6 +401,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           source: savedPlan.source as 'auto' | 'manual',
           context: savedPlan.context as 'gym' | 'home' | null,
           completedDayIds: [],
+          touchedDayIds: [],
         },
       });
     } finally {
@@ -497,6 +545,24 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     });
   },
 
+  // #35: marca un día como "tocado" en el ciclo actual. Idempotente (no
+  // duplica si ya estaba). Llamada desde doFinish() en session.tsx con un
+  // criterio más permisivo que markDayCompleted: basta con completedSets > 0.
+  markDayTouched: async (dayId: number) => {
+    const { currentPlan } = get();
+    if (!currentPlan) return;
+    if (isDayCompleted(dayId, currentPlan.touchedDayIds)) return;
+
+    const nextTouched = [...currentPlan.touchedDayIds, dayId];
+    await saveTouchedDayIds(nextTouched);
+    set({
+      currentPlan: {
+        ...currentPlan,
+        touchedDayIds: nextTouched,
+      },
+    });
+  },
+
   resetAll: async () => {
     await db.delete(planDays);
     await db.delete(workoutPlans);
@@ -566,6 +632,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       // Paso 2c (#6+#18): activar (crear o reactivar) un plan manual es
       // también el INICIO de un ciclo — mismo criterio que generateAndSavePlan.
       await saveCompletedDayIds([]);
+      // #35: mismo criterio — un ciclo nuevo arranca sin días tocados.
+      await saveTouchedDayIds([]);
 
       set({
         currentPlan: {
@@ -580,6 +648,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           source: targetPlan.source as 'auto' | 'manual',
           context: targetPlan.context as 'gym' | 'home' | null,
           completedDayIds: [],
+          touchedDayIds: [],
         },
       });
     } finally {
@@ -655,6 +724,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       // Paso 2c (#6+#18): "generar próxima semana" en modo manual también
       // arranca un ciclo nuevo — mismo criterio que las otras 2 funciones.
       await saveCompletedDayIds([]);
+      // #35: mismo criterio — un ciclo nuevo arranca sin días tocados.
+      await saveTouchedDayIds([]);
 
       set({
         currentPlan: {
@@ -669,6 +740,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           source: activePlan.source as 'auto' | 'manual',
           context: activePlan.context as 'gym' | 'home' | null,
           completedDayIds: [],
+          touchedDayIds: [],
         },
       });
     } finally {

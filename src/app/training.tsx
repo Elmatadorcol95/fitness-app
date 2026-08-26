@@ -12,7 +12,7 @@ import { ThemedView } from '@/components/themed-view';
 import { VulcanSymbol } from '@/components/icons/VulcanSymbol';
 import { ExerciseCard } from '@/components/workout/ExerciseCard';
 import { ChangeExerciseModal } from '@/components/workout/ChangeExerciseModal';
-import { useWorkoutStore, getSelectedDay, isDayCompleted, countCompletedTrainableDays, type StoredPlanDay } from '@/store/workout.store';
+import { useWorkoutStore, getSelectedDay, isDayCompleted, countCompletedTrainableDays, countTouchedTrainableDays, type StoredPlanDay } from '@/store/workout.store';
 import { useSessionStore } from '@/store/session.store';
 import { useProfileStore } from '@/store/profile.store';
 import { useWarmupStore } from '@/store/warmup.store';
@@ -67,6 +67,7 @@ interface OtherDayCardProps {
   day: StoredPlanDay;
   isExpanded: boolean;
   isCompleted: boolean;
+  isTouched: boolean;
   onToggle: () => void;
   onSelectDay: () => void;
   onChangeEx?: (exIdx: number) => void;
@@ -74,7 +75,7 @@ interface OtherDayCardProps {
   t: (k: string, opts?: Record<string, unknown>) => string;
 }
 
-function OtherDayCard({ day, isExpanded, isCompleted, onToggle, onSelectDay, onChangeEx, lang, t }: OtherDayCardProps) {
+function OtherDayCard({ day, isExpanded, isCompleted, isTouched, onToggle, onSelectDay, onChangeEx, lang, t }: OtherDayCardProps) {
   return (
     <ThemedView type="backgroundElement" style={styles.otherDayCard}>
       <Pressable onPress={onToggle} style={styles.otherDayHeader}>
@@ -87,12 +88,21 @@ function OtherDayCard({ day, isExpanded, isCompleted, onToggle, onSelectDay, onC
         <View style={styles.otherDayRight}>
           {/* Paso 2c (#6+#18): día ya completo al 100% en este ciclo — badge
               en vez de botón de selección. El resto de la tarjeta (expandir/
-              contraer para ver ejercicios) sigue funcionando igual. */}
+              contraer para ver ejercicios) sigue funcionando igual.
+              #35: día ya "tocado" pero no al 100% — mismo botón, texto
+              "Retomar" en vez de "Elegir". */}
           {isCompleted ? (
             <View style={styles.completedBadge}>
               <Ionicons name="checkmark-circle" size={13} color={GREEN} />
               <ThemedText style={styles.completedBadgeText}>{t('tabs.training.dayCompletedBadge')}</ThemedText>
             </View>
+          ) : isTouched ? (
+            <Pressable
+              onPress={onSelectDay}
+              style={({ pressed }) => [styles.selectDayBtn, pressed && { opacity: 0.6 }]}
+            >
+              <ThemedText style={styles.selectDayBtnText}>{t('tabs.training.resumeDay')}</ThemedText>
+            </Pressable>
           ) : (
             <Pressable
               onPress={onSelectDay}
@@ -155,11 +165,16 @@ export default function TrainingScreen() {
   // render — si no, "hoy" en pantalla y el día que de verdad arranca la
   // sesión podrían desincronizarse en cuanto hubiera algún día vacío.
   const trainableDays = currentPlan ? currentPlan.days.filter(d => d.exercises.length > 0) : [];
-  // #34: días entrenables realmente completos al 100% en este ciclo — reemplaza
-  // a daysFinishedThisWeek (que contaba sesiones terminadas, no días distintos)
-  // como fuente única del contador "Día X de Y" y de weekComplete.
+  // #34: días entrenables realmente completos al 100% en este ciclo — fuente
+  // única de weekComplete (el cierre de semana no cambia con el #35).
   const completedTrainableDaysCount = currentPlan
     ? countCompletedTrainableDays(trainableDays, currentPlan.completedDayIds)
+    : 0;
+  // #35: días entrenables ya "tocados" (≥1 serie) en este ciclo — fuente del
+  // contador "Día X de Y", que ahora sube apenas se toca un día nuevo sin
+  // esperar a completarlo.
+  const touchedTrainableDaysCount = currentPlan
+    ? countTouchedTrainableDays(trainableDays, currentPlan.touchedDayIds)
     : 0;
   const startSession       = useSessionStore(s => s.startSession);
   const setTrainingContext = useSessionStore(s => s.setTrainingContext);
@@ -613,7 +628,7 @@ export default function TrainingScreen() {
                 {t(`workout.days.${today.dayType}`)}
               </ThemedText>
               <ThemedText themeColor="textSecondary" style={styles.dayCounter}>
-                {t('workout.planDay', { current: completedTrainableDaysCount + 1, total: trainableDays.length })}
+                {t('workout.planDay', { current: touchedTrainableDaysCount + 1, total: trainableDays.length })}
               </ThemedText>
             </View>
             <View style={styles.dayStats}>
@@ -716,6 +731,7 @@ export default function TrainingScreen() {
                     day={day}
                     isExpanded={isExpanded}
                     isCompleted={isDayCompleted(day.dbId, currentPlan.completedDayIds)}
+                    isTouched={isDayCompleted(day.dbId, currentPlan.touchedDayIds)}
                     onToggle={() => setExpandedOtherDay(isExpanded ? null : rawIdx)}
                     onSelectDay={() => useWorkoutStore.getState().selectDay(day.dbId)}
                     onChangeEx={currentPlan.source === 'manual' ? undefined : (exIdx) => setChangeModal({

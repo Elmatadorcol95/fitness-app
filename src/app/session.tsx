@@ -233,7 +233,7 @@ export default function SessionScreen() {
   const restoredSetsCount = exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.isRestored).length, 0);
   const totalSetsCount    = exercises.reduce((acc, ex) => acc + ex.sets.length, 0);
 
-  const { advanceToNextDay, markDayCompleted } = useWorkoutStore();
+  const { advanceToNextDay, markDayCompleted, markDayTouched } = useWorkoutStore();
   const currentPlan = useWorkoutStore(s => s.currentPlan);
   const { recordWorkout, unlockAchievement, incrementDaysTrainedThisWeek, incrementDaysFinishedThisWeek } = useGamificationStore();
   const { profile }           = useProfileStore();
@@ -597,8 +597,16 @@ export default function SessionScreen() {
       await markDayCompleted(justTrainedDayId);
     }
 
+    // #35: "día tocado" — concepto más permisivo que markDayCompleted (que
+    // exige el 100%) y que recordWorkout (ratio >= 0.5, gate de rachas):
+    // basta con haber completado al menos una serie. Alimenta el contador
+    // "Día X de Y" y el botón "Retomar" de OtherDayCard.
+    if (completedSets > 0 && justTrainedDayId !== null) {
+      await markDayTouched(justTrainedDayId);
+    }
+
     await advanceToNextDay(justTrainedDayId);
-  }, [finishSession, unlockAchievement, recordWorkout, incrementDaysTrainedThisWeek, incrementDaysFinishedThisWeek, markDayCompleted, advanceToNextDay, sessionDayType, equipment, trainingContext, profile]);
+  }, [finishSession, unlockAchievement, recordWorkout, incrementDaysTrainedThisWeek, incrementDaysFinishedThisWeek, markDayCompleted, markDayTouched, advanceToNextDay, sessionDayType, equipment, trainingContext, profile]);
 
   function handleFinish() {
     const pending = exercises.reduce(
