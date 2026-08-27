@@ -9,7 +9,8 @@ import { scheduleRestDoneNotification, cancelScheduledNotification, playNativeRe
 import { useProfileStore } from '@/store/profile.store';
 import { runProgressionAfterSession } from '@/lib/progression';
 import { EXERCISES } from '@/lib/exercises';
-import { getEquipLocal, EQUIP_INC, type EquipLocal } from '@/lib/equipmentClassification';
+import { getEquipLocal, EQUIP_INC, EQUIP_INC_LB, roundToCleanIncrement, type EquipLocal } from '@/lib/equipmentClassification';
+import { kgToLb, lbToKg } from '@/lib/units';
 import { markExerciseUsed } from '@/lib/muscleUsage';
 import type { CardioPlan } from '@/lib/cardioSelection';
 import { getRepScheme, buildPlanned, type DayType, type GoalKey } from '@/lib/plan-generator';
@@ -270,6 +271,7 @@ function computeCoach(
   planRepsMax: number,
   equip: EquipLocal,
   targetRir: number,
+  units: 'metric' | 'imperial',
 ): { reps: number; kg: number; reason: string } | null {
   const inc = EQUIP_INC[equip];
 
@@ -363,6 +365,15 @@ function computeCoach(
   // ── Ejercicio cargable ───────────────────────────────────────────────────────
   if (done.weightKg <= 0) return null;
 
+  // #29: todos los números de peso de esta rama se muestran en la unidad del
+  // perfil. dispInc = incremento "limpio" en la escala de visualización (kg o lb).
+  // Para metric, toDisplay/fromDisplay son la identidad y dispInc === inc, así
+  // que el cálculo es byte a byte el de antes.
+  const toDisplay   = (kg: number) => units === 'imperial' ? kgToLb(kg) : kg;
+  const fromDisplay = (v: number)  => units === 'imperial' ? lbToKg(v) : v;
+  const dispInc     = units === 'imperial' ? EQUIP_INC_LB[equip] : inc;
+  const unitLabel   = units === 'imperial' ? 'lb' : 'kg';
+
   // Reps muy por encima del rango (>30% sobre el máx) con RIR alto → salto de peso más decidido
   const veryHighReps = done.actualReps > planRepsMax * 1.3 && done.rir >= 3;
 
@@ -371,13 +382,13 @@ function computeCoach(
 
   // Peso ideal para planRepsMin con RIR objetivo 2
   const idealKg = e1rm / (1 + (planRepsMin + 2) / 30);
-  const rounded  = Math.round(idealKg / inc) * inc;
+  const rounded  = roundToCleanIncrement(idealKg, equip, units);
 
   // Cap ±15% normal, ±30% cuando las reps superan ampliamente el rango
   const swingPct = veryHighReps ? 0.30 : 0.15;
   const maxSwing = Math.max(done.weightKg * swingPct, inc);
   let suggested  = Math.max(done.weightKg - maxSwing, Math.min(done.weightKg + maxSwing, rounded));
-  suggested      = Math.round(suggested / inc) * inc;
+  suggested      = roundToCleanIncrement(suggested, equip, units);
 
   // Red de seguridad doble: relativa (más duro de lo esperado) + absoluta (fallo/casi fallo).
   // Ambas condiciones bloquean cualquier subida de peso.
@@ -386,9 +397,11 @@ function computeCoach(
 
   // Piso mínimo garantizado: si la fórmula devuelve el mismo peso (o menos) pero fue más
   // fácil de lo esperado, forzar una subida proporcional a cuánto le sobró.
+  // El "+N incrementos" se calcula en la escala de visualización (no sumando
+  // kg directamente cuando el usuario ve libras).
   if (done.rir > targetRir && suggested <= done.weightKg) {
     const extraIncs = done.rir >= targetRir + 4 ? 3 : done.rir >= targetRir + 2 ? 2 : 1;
-    suggested = Math.round((done.weightKg + extraIncs * inc) / inc) * inc;
+    suggested = fromDisplay(Math.round((toDisplay(done.weightKg) + extraIncs * dispInc) / dispInc) * dispInc);
   }
 
   if (suggested <= 0) return null;
@@ -399,38 +412,39 @@ function computeCoach(
 
   if (done.actualReps < planRepsMin) {
     // Por debajo del rango: mantener o bajar peso
-    const dir = isUp ? `sube a ${suggested} kg` : isDown ? `baja a ${suggested} kg` : `mantén ${suggested} kg`;
+    const dir = isUp ? `sube a ${toDisplay(suggested)} ${unitLabel}` : isDown ? `baja a ${toDisplay(suggested)} ${unitLabel}` : `mantén ${toDisplay(suggested)} ${unitLabel}`;
     return { reps: planRepsMin, kg: suggested, reason: `${done.actualReps} reps (bajo mín ${planRepsMin}) → ${dir}` };
   }
 
   if (done.actualReps > planRepsMax) {
     // Por encima del rango
     if (isUp) {
-      return { reps: planRepsMin, kg: suggested, reason: `${done.actualReps} reps (sobre máx · RIR ${done.rir}) → sube a ${suggested} kg` };
+      return { reps: planRepsMin, kg: suggested, reason: `${done.actualReps} reps (sobre máx · RIR ${done.rir}) → sube a ${toDisplay(suggested)} ${unitLabel}` };
     }
-    return { reps: planRepsMin, kg: suggested, reason: `${done.actualReps} reps (sobre máx · RIR ${done.rir}) → consolida en ${suggested} kg` };
+    return { reps: planRepsMin, kg: suggested, reason: `${done.actualReps} reps (sobre máx · RIR ${done.rir}) → consolida en ${toDisplay(suggested)} ${unitLabel}` };
   }
 
   // Dentro del rango
   if (serieDura) {
     // Serie más dura de lo esperado o casi al fallo: mantener peso y reportar el RIR real
     const hardLabel = done.rir <= 1 ? 'Al límite' : 'Duro';
-    return { reps: planRepsMin, kg: done.weightKg, reason: `${hardLabel} (RIR ${done.rir}) → mantén ${done.weightKg} kg` };
+    return { reps: planRepsMin, kg: done.weightKg, reason: `${hardLabel} (RIR ${done.rir}) → mantén ${toDisplay(done.weightKg)} ${unitLabel}` };
   }
 
   if (isUp) {
     const easyLabel = done.rir >= targetRir + 2 ? 'Muy fácil' : 'Fácil';
-    return { reps: planRepsMin, kg: suggested, reason: `${easyLabel} (RIR ${done.rir}) → sube a ${suggested} kg` };
+    return { reps: planRepsMin, kg: suggested, reason: `${easyLabel} (RIR ${done.rir}) → sube a ${toDisplay(suggested)} ${unitLabel}` };
   }
 
   if (isDown) {
-    return { reps: planRepsMin, kg: suggested, reason: `${done.actualReps} reps · RIR ${done.rir} → baja a ${suggested} kg` };
+    return { reps: planRepsMin, kg: suggested, reason: `${done.actualReps} reps · RIR ${done.rir} → baja a ${toDisplay(suggested)} ${unitLabel}` };
   }
 
   // Mismo peso: RIR en el objetivo → progresar por reps (sin cambiar peso)
+  // "+1 incremento" en la escala de visualización.
   if (done.rir > targetRir) {
-    const nextUp = Math.round((done.weightKg + inc) / inc) * inc;
-    return { reps: planRepsMin, kg: nextUp, reason: `Fácil (RIR ${done.rir}) → prueba ${nextUp} kg` };
+    const nextUp = fromDisplay(Math.round((toDisplay(done.weightKg) + dispInc) / dispInc) * dispInc);
+    return { reps: planRepsMin, kg: nextUp, reason: `Fácil (RIR ${done.rir}) → prueba ${toDisplay(nextUp)} ${unitLabel}` };
   }
 
   return null; // En rango y en objetivo: sin cambio
@@ -536,6 +550,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       const doneSt  = sets[setIdx];
       const nextIdx = sets.findIndex((s, i) => i > setIdx && !s.completed);
       const equip   = getEquipLocal(ex.exerciseId);
+      const units: 'metric' | 'imperial' = (useProfileStore.getState().profile?.units as 'metric' | 'imperial') ?? 'metric';
 
       if (nextIdx !== -1) {
         const hint  = computeCoach(
@@ -543,6 +558,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           sets[nextIdx].weightKg, sets[nextIdx].actualReps,
           ex.planRepsMin, ex.planRepsMax, equip,
           ex.targetRir,
+          units,
         );
         // Siempre actualizar coachReason (null limpia hints obsoletos)
         sets[nextIdx] = {
@@ -572,6 +588,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           otherSets[otherNextIdx].weightKg, otherSets[otherNextIdx].actualReps,
           other.planRepsMin, other.planRepsMax, equip,
           other.targetRir,
+          units,
         );
         otherSets[otherNextIdx] = {
           ...otherSets[otherNextIdx],

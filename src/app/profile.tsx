@@ -75,7 +75,7 @@ function Row({ label, value, onPress }: { label: string; value: React.ReactNode;
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
-  const { profile, updateDaysPerWeek, updateMinutesPerSession } = useProfileStore();
+  const { profile, updateDaysPerWeek, updateMinutesPerSession, updateUnits } = useProfileStore();
   const theme = useTheme();
 
   const generateAndSavePlan = useWorkoutStore(s => s.generateAndSavePlan);
@@ -264,7 +264,20 @@ export default function ProfileScreen() {
             ) : null}
             <Row label={t('onboarding.physical.height')} value={heightStr} />
             <Row label={t('onboarding.physical.weight')} value={weightStr} />
-            <Row label={t('onboarding.summary.units')} value={isImperial ? 'Imperial (lb, ft)' : 'Métrico (kg, cm)'} />
+            <Row
+              label={t('onboarding.summary.units')}
+              value={isImperial ? t('onboarding.welcome.imperial') : t('onboarding.welcome.metric')}
+              onPress={() => useSheetStore.getState().open({
+                options: [
+                  { value: 'metric',   label: t('onboarding.welcome.metric') },
+                  { value: 'imperial', label: t('onboarding.welcome.imperial') },
+                ],
+                onSelect: (v) => { void updateUnits(v as 'metric' | 'imperial'); },
+                selectedValue: profile.units,
+                title: t('onboarding.welcome.units'),
+                cancelLabel: t('common.cancel'),
+              })}
+            />
           </Section>
 
           {/* ── Equipamiento ── */}

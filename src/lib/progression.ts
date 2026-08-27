@@ -1,7 +1,9 @@
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { exerciseTargets, exerciseMaxes } from '@/db/schema';
-import { getEquipLocal, EQUIP_INC, type EquipLocal } from '@/lib/equipmentClassification';
+import { getEquipLocal, EQUIP_INC, EQUIP_INC_LB, roundToCleanIncrement, type EquipLocal } from '@/lib/equipmentClassification';
+import { kgToLb, lbToKg } from '@/lib/units';
+import { useProfileStore } from '@/store/profile.store';
 import { todayLocal } from '@/lib/dateUtils';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -9,6 +11,10 @@ import { todayLocal } from '@/lib/dateUtils';
 export interface ProgressionInput {
   exerciseId: string;
   equipmentType: EquipLocal;
+  /** Unidad de visualización del perfil (#29) — el redondeo "limpio" del peso
+   *  objetivo y los mensajes se calculan en esta escala; internamente todo
+   *  sigue en kg. */
+  units: 'metric' | 'imperial';
   /** Rango mínimo del plan (ej. 8 en "8-12") */
   planRepsMin: number;
   /** Rango máximo del plan (ej. 12 en "8-12") */
@@ -47,25 +53,26 @@ export interface ExerciseProgressionData {
   completedSets: Array<{ actualReps: number; weightKg: number; rir: number }>;
 }
 
-// ── Helpers internos ──────────────────────────────────────────────────────────
-
-function roundToIncrement(value: number, increment: number): number {
-  if (increment <= 0) return Math.round(value * 10) / 10;
-  return Math.round(value / increment) * increment;
-}
-
 // ── Algoritmo puro (testeable sin DB) ────────────────────────────────────────
 
 export function computeNextTargets(input: ProgressionInput): ProgressionOutput {
   const {
     planRepsMin, planRepsMax, planSets, targetRir,
     currentWeightKg, currentRepsMin, sessionsBelowRange, sessionCount,
-    completedSets, equipmentType,
+    completedSets, equipmentType, units,
   } = input;
 
   const increment = EQUIP_INC[equipmentType];
   const newCount  = sessionCount + 1;
   const safeCurrentRepsMin = Math.min(Math.max(currentRepsMin, planRepsMin), planRepsMax);
+
+  // #29: unidad de visualización — mismo criterio que computeCoach en
+  // session.store.ts. Para metric son la identidad y dispInc === increment, así
+  // que el resultado es byte a byte el de antes.
+  const toDisplay   = (kg: number) => units === 'imperial' ? kgToLb(kg) : kg;
+  const fromDisplay = (v: number)  => units === 'imperial' ? lbToKg(v) : v;
+  const dispInc     = units === 'imperial' ? EQUIP_INC_LB[equipmentType] : increment;
+  const unitLabel   = units === 'imperial' ? 'lb' : 'kg';
 
   const unchanged: ProgressionOutput = {
     targetSets:         planSets,
@@ -98,7 +105,7 @@ export function computeNextTargets(input: ProgressionInput): ProgressionOutput {
       targetRir,
       sessionsBelowRange: 0,
       sessionCount:       newCount,
-      reason: `Calibración completada — peso de trabajo fijado en ${workWeight} kg. Desde la próxima sesión aplica la progresión doble.`,
+      reason: `Calibración completada — peso de trabajo fijado en ${toDisplay(workWeight)} ${unitLabel}. Desde la próxima sesión aplica la progresión doble.`,
     };
   }
 
@@ -116,7 +123,7 @@ export function computeNextTargets(input: ProgressionInput): ProgressionOutput {
         };
       }
       if (increment > 0) {
-        const newWeight = roundToIncrement(workWeight * 0.9, increment);
+        const newWeight = roundToCleanIncrement(workWeight * 0.9, equipmentType, units);
         return {
           targetSets:         planSets,
           targetRepsMin:      planRepsMin,
@@ -125,7 +132,7 @@ export function computeNextTargets(input: ProgressionInput): ProgressionOutput {
           targetRir,
           sessionsBelowRange: 0,
           sessionCount:       newCount,
-          reason: `Dos sesiones seguidas sin llegar al mínimo (${planRepsMin} reps) → bajamos a ${newWeight} kg para volver al rango.`,
+          reason: `Dos sesiones seguidas sin llegar al mínimo (${planRepsMin} reps) → bajamos a ${toDisplay(newWeight)} ${unitLabel} para volver al rango.`,
         };
       }
     }
@@ -167,7 +174,9 @@ export function computeNextTargets(input: ProgressionInput): ProgressionOutput {
           reason: `${planRepsMax} reps en todas las series con RIR ${Math.round(avgRir)} → prueba una variación más difícil o añade lastre (chaleco).`,
         };
       }
-      const newWeight = roundToIncrement(workWeight + increment, increment);
+      // "+1 incremento" en la escala de visualización (no sumando kg
+      // directamente cuando el usuario ve libras).
+      const newWeight = fromDisplay(Math.round((toDisplay(workWeight) + dispInc) / dispInc) * dispInc);
       return {
         targetSets:         planSets,
         targetRepsMin:      planRepsMin,
@@ -176,7 +185,7 @@ export function computeNextTargets(input: ProgressionInput): ProgressionOutput {
         targetRir,
         sessionsBelowRange: 0,
         sessionCount:       newCount,
-        reason: `${planRepsMax} reps en todas las series con RIR ${Math.round(avgRir)} → subimos a ${newWeight} kg.`,
+        reason: `${planRepsMax} reps en todas las series con RIR ${Math.round(avgRir)} → subimos a ${toDisplay(newWeight)} ${unitLabel}.`,
       };
     } else {
       // Regla 4: al límite, consolidar
@@ -273,6 +282,8 @@ export async function runProgressionAfterSession(
 ): Promise<{ hasPR: boolean }> {
   let hasPR = false;
   const today = todayLocal();
+  // #29: mismo patrón de lectura que restSoundMode en session.store.ts.
+  const units: 'metric' | 'imperial' = (useProfileStore.getState().profile?.units as 'metric' | 'imperial') ?? 'metric';
 
   for (const data of exercisesData) {
     if (data.completedSets.length === 0) continue;
@@ -283,6 +294,7 @@ export async function runProgressionAfterSession(
     const input: ProgressionInput = {
       exerciseId:         data.exerciseId,
       equipmentType,
+      units,
       planRepsMin:        data.planRepsMin,
       planRepsMax:        data.planRepsMax,
       planSets:           data.planSets,

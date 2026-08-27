@@ -18,6 +18,7 @@ import { useProfileStore }     from '@/store/profile.store';
 import { useCooldownStore }    from '@/store/cooldown.store';
 import { getExerciseName, EXERCISES, type ExerciseCategory, type Exercise } from '@/lib/exercises';
 import { getEquipLocal } from '@/lib/equipmentClassification';
+import { kgToLb, lbToKg } from '@/lib/units';
 import { muscleLabel, equipmentLabel } from '@/components/workout/ExerciseCard';
 import { TimedChecklistItem } from '@/components/warmup/TimedChecklistItem';
 import { selectCardio, createCardioCycleState, type CardioPlan, type PlannedCardioBlock } from '@/lib/cardioSelection';
@@ -239,6 +240,7 @@ export default function SessionScreen() {
   const { profile }           = useProfileStore();
   const equipment = parseEquipment(profile?.equipment);
   const isGym     = profile?.location === 'gym' || profile?.location === 'both';
+  const isImperial = profile?.units === 'imperial';
 
   const cardioSlotsForDay = cardio.gym.length > 0 ? cardio.gym.length : cardio.homeSessions.length / 2;
   const wasGymGenerated = cardio.gym.length > 0;
@@ -625,7 +627,7 @@ export default function SessionScreen() {
   function handleHistory() {
     if (!currentEx) return;
     const last = currentEx.lastWeightKg !== null
-      ? `${currentEx.lastReps ?? '?'} reps · ${currentEx.lastWeightKg} kg`
+      ? `${currentEx.lastReps ?? '?'} reps · ${isImperial ? kgToLb(currentEx.lastWeightKg) : currentEx.lastWeightKg} ${isImperial ? 'lb' : 'kg'}`
       : t('workout.session.noHistory');
     setHistoryMsg(last);
     setHistoryOpen(true);
@@ -963,7 +965,7 @@ export default function SessionScreen() {
             <View style={styles.tableHeader}>
               <ThemedText style={[styles.colHdr, styles.colNum]}>#</ThemedText>
               <ThemedText style={[styles.colHdr, styles.colVal]}>{t('workout.session.col.reps')}</ThemedText>
-              <ThemedText style={[styles.colHdr, styles.colVal]}>kg</ThemedText>
+              <ThemedText style={[styles.colHdr, styles.colVal]}>{isImperial ? 'lb' : 'kg'}</ThemedText>
               <Pressable onPress={showRirHelp} style={styles.colRirHdr} hitSlop={10}>
                 <ThemedText style={[styles.colHdr, { color: MUTED }]}>RIR</ThemedText>
                 <Ionicons name="help-circle-outline" size={11} color={MUTED} />
@@ -976,13 +978,13 @@ export default function SessionScreen() {
                 key={setIdx}
                 num={s.setNumber}
                 actualReps={s.actualReps}
-                weightKg={s.weightKg}
+                weightKg={isImperial ? kgToLb(s.weightKg) : s.weightKg}
                 rir={s.rir}
                 completed={s.completed}
                 coachReason={s.coachReason}
                 isRestored={s.isRestored}
                 onChangeReps={v =>   updateSetField(currentExerciseIdx, setIdx, 'actualReps', v)}
-                onChangeWeight={v => updateSetField(currentExerciseIdx, setIdx, 'weightKg', v)}
+                onChangeWeight={v => updateSetField(currentExerciseIdx, setIdx, 'weightKg', isImperial ? lbToKg(v) : v)}
                 onChangeRir={v =>   updateSetField(currentExerciseIdx, setIdx, 'rir', v)}
                 onComplete={() =>  completeSet(currentExerciseIdx, setIdx)}
               />

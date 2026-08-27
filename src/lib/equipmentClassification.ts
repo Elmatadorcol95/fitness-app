@@ -1,4 +1,5 @@
 import { EXERCISES } from '@/lib/exercises';
+import { kgToLb, lbToKg } from './units';
 
 export type EquipLocal = 'barbell' | 'dumbbell' | 'kettlebell' | 'cable' | 'machine' | 'assisted' | 'weighted_vest' | 'bodyweight';
 
@@ -41,3 +42,29 @@ export function getEquipLocal(exerciseId: string): EquipLocal {
 export const EQUIP_INC: Record<EquipLocal, number> = {
   barbell: 5, dumbbell: 1, kettlebell: 4, cable: 2.5, machine: 5, assisted: 5, weighted_vest: 1, bodyweight: 0,
 };
+
+// #29: incrementos "limpios" reales cuando el usuario ve el peso en libras
+// (discos de barra de 5 lb por lado = salto de 10; mancuernas de a 5;
+// kettlebells de a 5; chaleco de a 2). Se usan SOLO para redondear el número
+// que se muestra a un perfil imperial — internamente todo sigue en kg.
+export const EQUIP_INC_LB: Record<EquipLocal, number> = {
+  barbell: 10, dumbbell: 5, kettlebell: 5, cable: 2.5, machine: 5, assisted: 5, weighted_vest: 2, bodyweight: 0,
+};
+
+// #29: redondea un peso (en kg) al incremento "limpio" de su equipo, en la
+// escala de la unidad del perfil.
+//  - metric:   comportamiento de siempre — múltiplo de EQUIP_INC[equip] en kg
+//              (o a 1 decimal si el incremento es 0).
+//  - imperial: convierte a lb, redondea al múltiplo de EQUIP_INC_LB[equip], y
+//              devuelve el kg equivalente — así el número que se muestre en lb
+//              queda limpio (10/5/5/2…) y no un decimal feo por la conversión.
+export function roundToCleanIncrement(kg: number, equip: EquipLocal, units: 'metric' | 'imperial'): number {
+  if (units === 'imperial') {
+    const inc = EQUIP_INC_LB[equip];
+    const lb  = kgToLb(kg);
+    const roundedLb = inc > 0 ? Math.round(lb / inc) * inc : Math.round(lb * 10) / 10;
+    return lbToKg(roundedLb);
+  }
+  const inc = EQUIP_INC[equip];
+  return inc > 0 ? Math.round(kg / inc) * inc : Math.round(kg * 10) / 10;
+}
