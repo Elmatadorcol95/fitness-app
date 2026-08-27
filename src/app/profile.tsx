@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { VulcanDialog } from '@/components/ui/VulcanDialog';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useProfileStore } from '@/store/profile.store';
+import { useWorkoutStore } from '@/store/workout.store';
+import { useSheetStore } from '@/store/sheet.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useTheme } from '@/hooks/use-theme';
 import { BottomTabInset, Spacing } from '@/constants/theme';
@@ -21,6 +23,10 @@ import { groupsToZones, MAX_SELECTED } from '@/app/musclePriorities';
 
 const GREEN = '#3FBF7F';
 const AMBER = '#F2B450';
+
+// Mismas opciones que StepSchedule.tsx en el onboarding.
+const DAYS    = [1, 2, 3, 4, 5, 6, 7];
+const MINUTES = [15, 30, 45, 60, 75, 90, 105, 120];
 
 const GOAL_DEFS: Record<string, { iconName: string; color: string; labelKey: string }> = {
   strength:    { iconName: 'barbell-outline', color: GREEN, labelKey: 'onboarding.goal.strength' },
@@ -45,26 +51,71 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <View style={rowStyles.wrap}>
+function Row({ label, value, onPress }: { label: string; value: React.ReactNode; onPress?: () => void }) {
+  const inner = (
+    <>
       <ThemedText themeColor="textSecondary" style={rowStyles.label}>{label}</ThemedText>
       {typeof value === 'string' ? (
         <ThemedText type="defaultSemiBold" style={rowStyles.value}>{value}</ThemedText>
       ) : (
         <View style={rowStyles.valueNode}>{value}</View>
       )}
-    </View>
+      {onPress ? <Ionicons name="chevron-forward" size={16} color="#9DA89F" /> : null}
+    </>
   );
+  if (onPress) {
+    return (
+      <Pressable onPress={onPress} style={({ pressed }) => [rowStyles.wrap, pressed && { opacity: 0.6 }]}>
+        {inner}
+      </Pressable>
+    );
+  }
+  return <View style={rowStyles.wrap}>{inner}</View>;
 }
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
-  const { profile } = useProfileStore();
+  const { profile, updateDaysPerWeek, updateMinutesPerSession } = useProfileStore();
   const theme = useTheme();
+
+  const generateAndSavePlan = useWorkoutStore(s => s.generateAndSavePlan);
+  const planSource = useWorkoutStore(s => s.currentPlan?.source);
 
   const resetGamification = useGamificationStore(s => s.resetAll);
   const [signOutOpen, setSignOutOpen] = useState(false);
+  const [scheduleDialog, setScheduleDialog] = useState<'none' | 'regen' | 'manual'>('none');
+  const pendingProfile = useRef<typeof profile>(null);
+
+  const dayLabel = (d: number) =>
+    `${d} ${d === 1 ? t('onboarding.schedule.day') : t('onboarding.schedule.days')}`;
+  const minLabel = (m: number) => `${m} ${t('onboarding.schedule.min')}`;
+
+  // Calca el flujo de equipment.tsx: si el valor no cambia no hace nada;
+  // si cambia, persiste de inmediato y luego decide el diálogo según el
+  // origen del plan activo (manual = aviso informativo; auto/sin plan =
+  // confirmación para regenerar la semana).
+  const handleScheduleChange = async (field: 'daysPerWeek' | 'minutesPerSession', value: number) => {
+    if (!profile) return;
+    const currentValue = field === 'daysPerWeek' ? profile.daysPerWeek : profile.minutesPerSession;
+    if (value === currentValue) return;
+
+    const updatedProfile = field === 'daysPerWeek'
+      ? { ...profile, daysPerWeek: value }
+      : { ...profile, minutesPerSession: value };
+
+    if (field === 'daysPerWeek') {
+      await updateDaysPerWeek(value);
+    } else {
+      await updateMinutesPerSession(value);
+    }
+
+    if (planSource === 'manual') {
+      setScheduleDialog('manual');
+    } else {
+      pendingProfile.current = updatedProfile;
+      setScheduleDialog('regen');
+    }
+  };
 
   const doSignOut = async () => {
     setSignOutOpen(false);
@@ -172,8 +223,28 @@ export default function ProfileScreen() {
 
           {/* ── Entrenamiento ── */}
           <Section title={t('tabs.profile.trainingSection')}>
-            <Row label={t('onboarding.schedule.daysPerWeek')} value={`${profile.daysPerWeek} ${t('onboarding.schedule.days')}`} />
-            <Row label={t('onboarding.schedule.minutesPerSession')} value={`${profile.minutesPerSession} ${t('onboarding.schedule.min')}`} />
+            <Row
+              label={t('onboarding.schedule.daysPerWeek')}
+              value={`${profile.daysPerWeek} ${t('onboarding.schedule.days')}`}
+              onPress={() => useSheetStore.getState().open({
+                options: DAYS.map((d) => ({ value: d, label: dayLabel(d) })),
+                onSelect: (v) => handleScheduleChange('daysPerWeek', v as number),
+                selectedValue: profile.daysPerWeek,
+                title: t('onboarding.schedule.daysPerWeek'),
+                cancelLabel: t('common.cancel'),
+              })}
+            />
+            <Row
+              label={t('onboarding.schedule.minutesPerSession')}
+              value={`${profile.minutesPerSession} ${t('onboarding.schedule.min')}`}
+              onPress={() => useSheetStore.getState().open({
+                options: MINUTES.map((m) => ({ value: m, label: minLabel(m) })),
+                onSelect: (v) => handleScheduleChange('minutesPerSession', v as number),
+                selectedValue: profile.minutesPerSession,
+                title: t('onboarding.schedule.minutesPerSession'),
+                cancelLabel: t('common.cancel'),
+              })}
+            />
             <Row label={t('onboarding.summary.location')} value={locationNode} />
           </Section>
 
@@ -348,6 +419,37 @@ export default function ProfileScreen() {
         cancelLabel={t('common.cancel')}
         destructive
         onConfirm={doSignOut}
+      />
+
+      {/* ── Cambio de días/minutos: plan automático → ofrecer regenerar la semana ── */}
+      <VulcanDialog
+        visible={scheduleDialog === 'regen'}
+        onClose={() => setScheduleDialog('none')}
+        title={t('tabs.profile.scheduleRegenTitle')}
+        message={t('tabs.profile.scheduleRegenMsg')}
+        confirmLabel={t('tabs.profile.scheduleRegenYes')}
+        cancelLabel={t('tabs.profile.scheduleRegenNo')}
+        onConfirm={async () => {
+          setScheduleDialog('none');
+          if (pendingProfile.current) {
+            try {
+              await generateAndSavePlan(pendingProfile.current);
+            } catch (err) {
+              console.error('[Profile] Error al regenerar plan por cambio de horario:', err);
+            }
+          }
+        }}
+      />
+
+      {/* ── Cambio de días/minutos: rutina propia activa → aviso informativo ── */}
+      <VulcanDialog
+        visible={scheduleDialog === 'manual'}
+        onClose={() => setScheduleDialog('none')}
+        hideCancel
+        title={t('tabs.profile.scheduleManualNoticeTitle')}
+        message={t('tabs.profile.scheduleManualNoticeMsg')}
+        confirmLabel="OK"
+        onConfirm={() => setScheduleDialog('none')}
       />
     </ThemedView>
   );

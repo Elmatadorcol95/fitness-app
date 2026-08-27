@@ -430,7 +430,11 @@ export default function RoutineBuilderScreen() {
       try {
         let template = await getTemplate(context);
         if (template.length === 0) {
-          const builderDays = getSplit(profile.daysPerWeek).map(toBuilderDayType);
+          // La plantilla manual siempre se crea con 7 días para construir; el
+          // usuario decide cuántos llena con ejercicios (los vacíos ya son
+          // invisibles en Entreno vía el filtro trainableDays). No usa
+          // profile.daysPerWeek — eso es solo del plan automático.
+          const builderDays = getSplit(7).map(toBuilderDayType);
           const signals = await getProfileSignals(profile);
           // location:'both' tiene DOS plantillas independientes por contexto
           // (gym/home) — isGym debe reflejar el CONTEXTO elegido aquí, no

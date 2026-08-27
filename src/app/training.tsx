@@ -643,7 +643,7 @@ export default function TrainingScreen() {
                 {t('tabs.training.cycle')}
               </ThemedText>
               <ThemedText themeColor="textSecondary" style={styles.planHeaderSub}>
-                {currentPlan.daysPerWeek} {t('tabs.today.daysWeek').toLowerCase()} · {currentPlan.minutesPerSession} min
+                {trainableDays.length} {t('tabs.today.daysWeek').toLowerCase()} · {currentPlan.minutesPerSession} min
               </ThemedText>
             </View>
           </View>
@@ -801,11 +801,11 @@ export default function TrainingScreen() {
                 );
               })}
 
-              {currentPlan.daysPerWeek < 7 && (
+              {trainableDays.length < 7 && (
                 <View style={styles.restRow}>
                   <View style={styles.restLine} />
                   <ThemedText themeColor="textSecondary" style={styles.restText}>
-                    {t('tabs.training.restDays', { n: 7 - currentPlan.daysPerWeek })}
+                    {t('tabs.training.restDays', { n: 7 - trainableDays.length })}
                   </ThemedText>
                   <View style={styles.restLine} />
                 </View>

@@ -64,6 +64,8 @@ interface ProfileState {
   updateTrainingLocationMode: (mode: TrainingLocationMode) => Promise<void>;
   updateWarmupPromptMode: (mode: PromptMode) => Promise<void>;
   updateCooldownPromptMode: (mode: PromptMode) => Promise<void>;
+  updateDaysPerWeek: (value: number) => Promise<void>;
+  updateMinutesPerSession: (value: number) => Promise<void>;
   openEquipment: () => void;
   closeEquipment: () => void;
   openMusclePriorities: () => void;
@@ -156,5 +158,23 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
       .set({ cooldownPromptMode: mode })
       .where(eq(profileTable.id, current.id));
     set({ profile: { ...current, cooldownPromptMode: mode } });
+  },
+  updateDaysPerWeek: async (value) => {
+    const current = get().profile;
+    if (!current) return;
+    await db
+      .update(profileTable)
+      .set({ daysPerWeek: value })
+      .where(eq(profileTable.id, current.id));
+    set({ profile: { ...current, daysPerWeek: value } });
+  },
+  updateMinutesPerSession: async (value) => {
+    const current = get().profile;
+    if (!current) return;
+    await db
+      .update(profileTable)
+      .set({ minutesPerSession: value })
+      .where(eq(profileTable.id, current.id));
+    set({ profile: { ...current, minutesPerSession: value } });
   },
 }));
