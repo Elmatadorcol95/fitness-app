@@ -2,6 +2,7 @@ import { EXERCISES, type Exercise, type MuscleGroup } from './exercises';
 import { findTargetByKey, getTargetsForDayType, targetIsPrioritized, type MuscleTarget } from './muscleTargets';
 import { getUsedExerciseIds, resetMuscleCycle } from './muscleUsage';
 import { isExerciseUsable, type DayType } from './plan-generator';
+import { getEquipLocal } from './equipmentClassification';
 
 export interface MuscleSelectedExercise {
   exercise: Exercise;
@@ -48,6 +49,14 @@ function allowedCategoriesFor(dayType: DayType, target: MuscleTarget): Set<strin
     case 'full_body':
       return ALLOWED_CATEGORIES;
   }
+}
+
+// "Es máquina" para el desempate de gimnasio del punto #5: getEquipLocal
+// devuelve 'machine' | 'cable' | 'assisted' — las 3 cuentan igual, sin
+// distinguir entre ellas.
+const MACHINE_EQUIP_LOCALS = new Set(['machine', 'cable', 'assisted']);
+function isMachineExercise(exerciseId: string): boolean {
+  return MACHINE_EQUIP_LOCALS.has(getEquipLocal(exerciseId));
 }
 
 export async function selectExercisesForDayByMuscle(
@@ -140,7 +149,7 @@ export async function selectExercisesForDayByMuscle(
     return score;
   }
 
-  function pickBest(candidates: Exercise[]): Exercise {
+  function pickBest(candidates: Exercise[], isGym: boolean): Exercise {
     // Si alguno de los candidatos ya elegibles para este hueco tiene like,
     // el desempate de siempre (cobertura incidental, luego orden de
     // catálogo) se aplica SOLO entre los favoritos. Sin favoritos entre los
@@ -148,15 +157,29 @@ export async function selectExercisesForDayByMuscle(
     const likedCandidates = candidates.filter(c => likedIds.has(c.id));
     const pool = likedCandidates.length > 0 ? likedCandidates : candidates;
 
+    // Orden de desempate: 1) incidentalScore (manda primero, sin cambios),
+    // 2) punto #5 — si isGym y uno es máquina y el otro no, gana la máquina,
+    // 3) declOrder (desempate final, como hasta ahora). El criterio de
+    // máquina NUNCA reemplaza ni pesa más que incidentalScore. Con
+    // isGym=false, `machine`/`bestMachine` son siempre false → `machine &&
+    // !bestMachine` es false y `machine === bestMachine` es true, así que la
+    // condición colapsa exactamente en `score > bestScore || (empate && idx
+    // menor)`: comportamiento idéntico al anterior.
     let best = pool[0];
     let bestScore = incidentalScore(best);
+    let bestMachine = isGym && isMachineExercise(best.id);
     let bestIdx = declOrder.get(best.id)!;
     for (let i = 1; i < pool.length; i++) {
       const c = pool[i];
       const score = incidentalScore(c);
+      const machine = isGym && isMachineExercise(c.id);
       const idx = declOrder.get(c.id)!;
-      if (score > bestScore || (score === bestScore && idx < bestIdx)) {
-        best = c; bestScore = score; bestIdx = idx;
+      const wins =
+        score > bestScore ||
+        (score === bestScore && machine && !bestMachine) ||
+        (score === bestScore && machine === bestMachine && idx < bestIdx);
+      if (wins) {
+        best = c; bestScore = score; bestMachine = machine; bestIdx = idx;
       }
     }
     return best;
@@ -180,7 +203,7 @@ export async function selectExercisesForDayByMuscle(
   async function tryAssign(t: MuscleTarget, isCompound: boolean): Promise<boolean> {
     const pool = await getEligiblePool(t, isCompound);
     if (pool.length === 0) return false;
-    assign(t, pickBest(pool), isCompound);
+    assign(t, pickBest(pool, isGym), isCompound);
     return true;
   }
 
